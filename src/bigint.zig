@@ -20,24 +20,32 @@ pub const BigInteger = struct {
     fn init(
         allocator: std.mem.Allocator,
         is_negative: bool,
-        digits: std.ArrayListUnmanaged(u8),
+        digits: *std.ArrayListUnmanaged(u8),
     ) Self {
+        while (digits.getLastOrNull()) |last| {
+            if (last == 0) {
+                _ = digits.pop();
+            } else {
+                break;
+            }
+        }
+
         return BigInteger{
             .allocator = allocator,
             .is_negative = is_negative,
-            .digits = digits,
+            .digits = digits.*,
         };
     }
 
     fn zero(allocator: std.mem.Allocator) !Self {
         var array = try Array.initCapacity(allocator, 1);
-        try array.append(allocator, 0);
 
-        return init(allocator, false, array);
+        return init(allocator, false, &array);
     }
 
     pub fn from_string(allocator: std.mem.Allocator, string: String) !Self {
         var array = try Array.initCapacity(allocator, string.len);
+        errdefer array.deinit(allocator);
 
         var is_negative = string[0] == '-';
         var limit: usize = undefined;
@@ -55,12 +63,11 @@ pub const BigInteger = struct {
             if ('0' <= char and char <= '9') {
                 try array.append(allocator, char - '0');
             } else {
-                array.deinit(allocator);
                 return error.InvalidCharacter;
             }
         }
 
-        return init(allocator, is_negative, array);
+        return init(allocator, is_negative, &array);
     }
 
     pub fn to_string(self: Self) !String {
@@ -91,12 +98,12 @@ pub const BigInteger = struct {
 
             switch (gt_lt) {
                 .gt => {
-                    const array = try subtraction_arrays(self.allocator, self.digits, other.digits);
-                    return init(self.allocator, self.is_negative, array);
+                    var array = try subtraction_arrays(self.allocator, self.digits, other.digits);
+                    return init(self.allocator, self.is_negative, &array);
                 },
                 .lt => {
-                    const array = try subtraction_arrays(self.allocator, other.digits, self.digits);
-                    return init(self.allocator, other.is_negative, array);
+                    var array = try subtraction_arrays(self.allocator, other.digits, self.digits);
+                    return init(self.allocator, other.is_negative, &array);
                 },
                 .eq => {
                     return zero(self.allocator);
@@ -108,7 +115,42 @@ pub const BigInteger = struct {
             else
                 addition_arrays(self.allocator, other.digits, self.digits);
 
-            return init(self.allocator, self.is_negative, array);
+            return init(self.allocator, self.is_negative, &array);
+        }
+    }
+
+    pub fn minus(self: Self, other: Self) !Self {
+        // a - b
+
+        if (self.is_negative == other.is_negative) {
+            // (a > 0 and b > 0) or (a < 0 and b < 0)
+            const gt_lt = order_arrays(self.digits, other.digits);
+
+            switch (gt_lt) {
+                .gt => {
+                    // if |a| > |b|, a - b = sign(a) * (|a| - |b|)
+                    var array = try subtraction_arrays(self.allocator, self.digits, other.digits);
+                    return init(self.allocator, self.is_negative, &array);
+                },
+                .lt => {
+                    // if |a| < |b|, a - b = -sign(a) * (|b| - |a|)
+                    var array = try subtraction_arrays(self.allocator, other.digits, self.digits);
+                    return init(self.allocator, !self.is_negative, &array);
+                },
+                .eq => {
+                    // if |a| = |b|, a - b = 0
+                    return zero(self.allocator);
+                },
+            }
+        } else {
+            // (a > 0 and b < 0) or (a < 0 and b > 0)
+
+            var array = try if (self.digits.items.len > other.digits.items.len)
+                addition_arrays(self.allocator, self.digits, other.digits)
+            else
+                addition_arrays(self.allocator, other.digits, self.digits);
+
+            return init(self.allocator, self.is_negative, &array);
         }
     }
 
@@ -164,19 +206,29 @@ fn addition_arrays(allocator: std.mem.Allocator, lhs: Array, rhs: Array) !Array 
 
 fn subtraction_arrays(allocator: std.mem.Allocator, lhs: Array, rhs: Array) !Array {
     var array = try Array.initCapacity(allocator, lhs.items.len + 1);
+    var prev_carry: i2 = 0;
 
     const length = @max(lhs.items.len, rhs.items.len);
 
     for (0..length) |index| {
-        var new_digit: u8 = 0;
+        var ldigit: u8 = undefined;
+        var rdigit: u8 = undefined;
         if (index < lhs.items.len) {
-            new_digit += lhs.items[index];
-        }
-        if (index < rhs.items.len) {
-            new_digit -= rhs.items[index];
+            ldigit = lhs.items[index];
+        } else {
+            ldigit = 0;
         }
 
-        try array.append(allocator, new_digit);
+        if (index < rhs.items.len) {
+            rdigit = rhs.items[index];
+        } else {
+            rdigit = 0;
+        }
+
+        const new_digit = carry_minus(ldigit, rdigit, prev_carry);
+        prev_carry = new_digit.carry;
+
+        try array.append(allocator, new_digit.sum);
     }
 
     try carry(allocator, &array);
@@ -184,6 +236,9 @@ fn subtraction_arrays(allocator: std.mem.Allocator, lhs: Array, rhs: Array) !Arr
     return array;
 }
 
+/// if lhs > rhs, return gt.
+/// else if lhs < rhs, return lt.
+/// else return eq.
 fn order_arrays(lhs: Array, rhs: Array) std.math.Order {
     if (lhs.items.len < rhs.items.len) {
         return .lt;
@@ -195,13 +250,13 @@ fn order_arrays(lhs: Array, rhs: Array) std.math.Order {
     var i = lhs.items.len;
     while (i > 0) {
         i -= 1;
-        const sdigit = lhs.items[i];
-        const odigit = rhs.items[i];
+        const ldigit = lhs.items[i];
+        const rdigit = rhs.items[i];
 
-        if (sdigit < odigit) {
+        if (ldigit < rdigit) {
             return .lt;
         }
-        if (odigit < sdigit) {
+        if (rdigit < ldigit) {
             return .gt;
         }
     }
@@ -225,6 +280,28 @@ fn carry(allocator: std.mem.Allocator, array: *Array) !void {
         } else {
             break;
         }
+    }
+}
+
+const Carry = struct {
+    sum: u8,
+    carry: i2,
+};
+
+// 0 - 9     => 1, -1
+// 0 - 9 - 1 => 0, -1
+fn carry_minus(left: u8, right: u8, carried: i2) Carry {
+    const sum: i16 = @as(i16, left) - @as(i16, right) + @as(i16, carried);
+    if (sum < 0) {
+        return .{
+            .sum = @intCast(10 + sum),
+            .carry = -1,
+        };
+    } else {
+        return .{
+            .sum = @intCast(sum),
+            .carry = 0,
+        };
     }
 }
 
@@ -403,4 +480,116 @@ test "同じプラスとマイナスの足し算" {
     bint2.deinit();
     actual.deinit();
     expected.deinit();
+}
+
+test "繰り下がりのない引き算" {
+    var bint1 = try BigInteger.from_string(std.testing.allocator, "2222222222");
+    defer bint1.deinit();
+
+    var bint2 = try BigInteger.from_string(std.testing.allocator, "1111111111");
+    defer bint2.deinit();
+
+    var actual = try bint1.minus(bint2);
+    defer actual.deinit();
+
+    var expected = try BigInteger.from_string(std.testing.allocator, "1111111111");
+    defer expected.deinit();
+
+    try std.testing.expect(expected.eql(actual));
+}
+
+test "途中に繰り下がりのある引き算" {
+    var bint1 = try BigInteger.from_string(std.testing.allocator, "2222222222");
+    defer bint1.deinit();
+
+    var bint2 = try BigInteger.from_string(std.testing.allocator, "1111191111");
+    defer bint2.deinit();
+
+    var actual = try bint1.minus(bint2);
+    defer actual.deinit();
+
+    var expected = try BigInteger.from_string(std.testing.allocator, "1111031111");
+    defer expected.deinit();
+
+    try std.testing.expect(expected.eql(actual));
+}
+
+test "連鎖する繰り下がりのある引き算" {
+    var bint1 = try BigInteger.from_string(std.testing.allocator, "10000000000");
+    defer bint1.deinit();
+
+    var bint2 = try BigInteger.from_string(std.testing.allocator, "9999999999");
+    defer bint2.deinit();
+
+    var actual = try bint1.minus(bint2);
+    defer actual.deinit();
+
+    var expected = try BigInteger.from_string(std.testing.allocator, "1");
+    defer expected.deinit();
+
+    try std.testing.expect(expected.eql(actual));
+}
+
+test "引く数のほうが大きい引き算" {
+    var bint1 = try BigInteger.from_string(std.testing.allocator, "2200000000");
+    defer bint1.deinit();
+
+    var bint2 = try BigInteger.from_string(std.testing.allocator, "2300000000");
+    defer bint2.deinit();
+
+    var actual = try bint1.minus(bint2);
+    defer actual.deinit();
+
+    var expected = try BigInteger.from_string(std.testing.allocator, "-100000000");
+    defer expected.deinit();
+
+    try std.testing.expect(expected.eql(actual));
+}
+
+test "マイナス同士の引き算" {
+    var bint1 = try BigInteger.from_string(std.testing.allocator, "-9876543210");
+    defer bint1.deinit();
+
+    var bint2 = try BigInteger.from_string(std.testing.allocator, "-8876543210");
+    defer bint2.deinit();
+
+    var actual = try bint1.minus(bint2);
+    defer actual.deinit();
+
+    var expected = try BigInteger.from_string(std.testing.allocator, "-1000000000");
+    defer expected.deinit();
+
+    try std.testing.expect(expected.eql(actual));
+}
+
+test "プラスとマイナスの引き算" {
+    var bint1 = try BigInteger.from_string(std.testing.allocator, "9876543210");
+    defer bint1.deinit();
+
+    var bint2 = try BigInteger.from_string(std.testing.allocator, "-1234567890");
+    defer bint2.deinit();
+
+    var actual = try bint1.minus(bint2);
+    defer actual.deinit();
+
+    var expected = try BigInteger.from_string(std.testing.allocator, "11111111100");
+    defer expected.deinit();
+
+    try std.testing.expect(expected.eql(actual));
+}
+
+test "マイナスとプラスの引き算" {
+    var bint1 = try BigInteger.from_string(std.testing.allocator, "-9876543210");
+    defer bint1.deinit();
+
+    var bint2 = try BigInteger.from_string(std.testing.allocator, "1234567890");
+    defer bint2.deinit();
+
+    var actual = try bint1.minus(bint2);
+    defer actual.deinit();
+
+    var expected = try BigInteger.from_string(std.testing.allocator, "-11111111100");
+    defer expected.deinit();
+
+    try std.testing.expect(expected.eql(actual));
 }
