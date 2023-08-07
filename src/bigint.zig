@@ -30,15 +30,17 @@ pub const BigInteger = struct {
             }
         }
 
+        const normalized_is_negative = is_negative and digits.items.len != 0;
+
         return BigInteger{
             .allocator = allocator,
-            .is_negative = is_negative,
+            .is_negative = normalized_is_negative,
             .digits = digits.*,
         };
     }
 
     fn zero(allocator: std.mem.Allocator) !Self {
-        var array = try Array.initCapacity(allocator, 1);
+        var array = try Array.initCapacity(allocator, 0);
 
         return init(allocator, false, &array);
     }
@@ -83,6 +85,10 @@ pub const BigInteger = struct {
             const digit = self.digits.items[i];
 
             try array.append(digit + '0');
+        }
+
+        if (array.items.len == 0) {
+            try array.append('0');
         }
 
         return array.toOwnedSlice();
