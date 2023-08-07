@@ -48,6 +48,7 @@ const BigInteger = struct {
             if ('0' <= char and char <= '9') {
                 try array.append(allocator, char - '0');
             } else {
+                array.deinit(allocator);
                 return error.InvalidCharacter;
             }
         }
@@ -147,97 +148,135 @@ fn carry(allocator: std.mem.Allocator, array: *Array) !void {
 }
 
 test "文字列から正の多倍長整数を作る" {
-    const bint = try BigInteger.from_string(std.heap.page_allocator, "1234567890");
+    var bint = try BigInteger.from_string(std.testing.allocator, "1234567890");
 
     try std.testing.expectEqualSlices(u8, &[_]u8{ 0, 9, 8, 7, 6, 5, 4, 3, 2, 1 }, bint.digits.items);
     try std.testing.expectEqual(false, bint.is_negative);
+
+    bint.deinit();
 }
 
 test "文字列から負の多倍長整数を作る" {
-    const bint = try BigInteger.from_string(std.heap.page_allocator, "-9876543210");
+    var bint = try BigInteger.from_string(std.testing.allocator, "-9876543210");
 
     try std.testing.expectEqualSlices(u8, &[_]u8{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, bint.digits.items);
     try std.testing.expectEqual(true, bint.is_negative);
+
+    bint.deinit();
 }
 
 test "間違った文字列から多倍長整数を作る" {
-    const bint = BigInteger.from_string(std.heap.page_allocator, "012-345-678-9");
+    var bint = BigInteger.from_string(std.testing.allocator, "012-345-678-9");
 
     try std.testing.expectError(error.InvalidCharacter, bint);
 }
 
 test "同じ多倍長整数を比べる" {
-    const bint1 = try BigInteger.from_string(std.heap.page_allocator, "1234567890");
+    var bint = try BigInteger.from_string(std.testing.allocator, "1234567890");
 
-    try std.testing.expectEqual(true, bint1.eql(bint1));
+    try std.testing.expectEqual(true, bint.eql(bint));
+
+    bint.deinit();
 }
 
 test "２つの同じ多倍長整数を比べる" {
-    const bint1 = try BigInteger.from_string(std.heap.page_allocator, "1234567890");
-    const bint2 = try BigInteger.from_string(std.heap.page_allocator, "1234567890");
+    var bint1 = try BigInteger.from_string(std.testing.allocator, "1234567890");
+    var bint2 = try BigInteger.from_string(std.testing.allocator, "1234567890");
 
     try std.testing.expectEqual(true, bint1.eql(bint2));
+
+    bint1.deinit();
+    bint2.deinit();
 }
 
 test "２つの符号が違う多倍長整数を比べる" {
-    const bint1 = try BigInteger.from_string(std.heap.page_allocator, "1234567890");
-    const bint2 = try BigInteger.from_string(std.heap.page_allocator, "-1234567890");
+    var bint1 = try BigInteger.from_string(std.testing.allocator, "1234567890");
+    var bint2 = try BigInteger.from_string(std.testing.allocator, "-1234567890");
 
     try std.testing.expectEqual(false, bint1.eql(bint2));
+
+    bint1.deinit();
+    bint2.deinit();
 }
 
 test "２つの長さが違う多倍長整数を比べる" {
-    const bint1 = try BigInteger.from_string(std.heap.page_allocator, "1234567890");
-    const bint2 = try BigInteger.from_string(std.heap.page_allocator, "190");
+    var bint1 = try BigInteger.from_string(std.testing.allocator, "1234567890");
+    var bint2 = try BigInteger.from_string(std.testing.allocator, "190");
 
     try std.testing.expectEqual(false, bint1.eql(bint2));
+
+    bint1.deinit();
+    bint2.deinit();
 }
 
 test "２つの数字が違う多倍長整数を比べる" {
-    const bint1 = try BigInteger.from_string(std.heap.page_allocator, "1234567890");
-    const bint2 = try BigInteger.from_string(std.heap.page_allocator, "1999999990");
+    var bint1 = try BigInteger.from_string(std.testing.allocator, "1234567890");
+    var bint2 = try BigInteger.from_string(std.testing.allocator, "1999999990");
 
     try std.testing.expectEqual(false, bint1.eql(bint2));
+
+    bint1.deinit();
+    bint2.deinit();
 }
 
 test "繰り上がりのない足し算" {
-    const bint1 = try BigInteger.from_string(std.heap.page_allocator, "1111111111");
-    const bint2 = try BigInteger.from_string(std.heap.page_allocator, "2222222222");
+    var bint1 = try BigInteger.from_string(std.testing.allocator, "1111111111");
+    var bint2 = try BigInteger.from_string(std.testing.allocator, "2222222222");
 
-    const actual = try bint1.plus(bint2);
-    const expected = try BigInteger.from_string(std.heap.page_allocator, "3333333333");
+    var actual = try bint1.plus(bint2);
+    var expected = try BigInteger.from_string(std.testing.allocator, "3333333333");
 
     try std.testing.expect(expected.eql(actual));
+
+    bint1.deinit();
+    bint2.deinit();
+    actual.deinit();
+    expected.deinit();
 }
 
 test "途中に繰り上がりのある足し算" {
-    const bint1 = try BigInteger.from_string(std.heap.page_allocator, "1111191111");
-    const bint2 = try BigInteger.from_string(std.heap.page_allocator, "2222222222");
+    var bint1 = try BigInteger.from_string(std.testing.allocator, "1111191111");
+    var bint2 = try BigInteger.from_string(std.testing.allocator, "2222222222");
 
-    const actual = try bint1.plus(bint2);
-    const expected = try BigInteger.from_string(std.heap.page_allocator, "3333413333");
+    var actual = try bint1.plus(bint2);
+    var expected = try BigInteger.from_string(std.testing.allocator, "3333413333");
 
     try std.testing.expect(expected.eql(actual));
+
+    bint1.deinit();
+    bint2.deinit();
+    actual.deinit();
+    expected.deinit();
 }
 
 test "いちばん上に繰り上がりのある足し算" {
-    const bint1 = try BigInteger.from_string(std.heap.page_allocator, "9111111111");
-    const bint2 = try BigInteger.from_string(std.heap.page_allocator, "2222222222");
+    var bint1 = try BigInteger.from_string(std.testing.allocator, "9111111111");
+    var bint2 = try BigInteger.from_string(std.testing.allocator, "2222222222");
 
-    const actual = try bint1.plus(bint2);
-    const expected = try BigInteger.from_string(std.heap.page_allocator, "11333333333");
+    var actual = try bint1.plus(bint2);
+    var expected = try BigInteger.from_string(std.testing.allocator, "11333333333");
 
     try std.testing.expect(expected.eql(actual));
+
+    bint1.deinit();
+    bint2.deinit();
+    actual.deinit();
+    expected.deinit();
 }
 
 test "マイナス同士の足し算" {
-    const bint1 = try BigInteger.from_string(std.heap.page_allocator, "-1111111111");
-    const bint2 = try BigInteger.from_string(std.heap.page_allocator, "-2222222222");
+    var bint1 = try BigInteger.from_string(std.testing.allocator, "-1111111111");
+    var bint2 = try BigInteger.from_string(std.testing.allocator, "-2222222222");
 
-    const actual = try bint1.plus(bint2);
-    const expected = try BigInteger.from_string(std.heap.page_allocator, "-3333333333");
+    var actual = try bint1.plus(bint2);
+    var expected = try BigInteger.from_string(std.testing.allocator, "-3333333333");
 
     try std.testing.expect(expected.eql(actual));
+
+    bint1.deinit();
+    bint2.deinit();
+    actual.deinit();
+    expected.deinit();
 }
 
 pub fn main() !void {
