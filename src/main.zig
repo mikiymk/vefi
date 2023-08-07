@@ -22,13 +22,16 @@ const BigInteger = struct {
         for (string) |char| {
             if (is_first and char == '-') {
                 is_negative = true;
+                is_first = false;
                 continue;
+            } else if (is_first) {
+                is_first = false;
             }
 
             if ('0' <= char and char <= '9') {
                 try array.append(allocator, char - '0');
             } else {
-                return error.AugumentError;
+                return error.InvalidCharacter;
             }
         }
 
@@ -40,7 +43,7 @@ const BigInteger = struct {
         };
     }
 
-    fn to_string(self: *const Self) ![]const u8 {
+    fn to_string(self: Self) ![]const u8 {
         var array = std.ArrayList(u8).init(self.allocator);
 
         if (self.is_negative) {
@@ -52,6 +55,10 @@ const BigInteger = struct {
         }
 
         return array.toOwnedSlice();
+    }
+
+    fn deinit(self: *Self) void {
+        self.digits.deinit(self.allocator);
     }
 };
 
@@ -68,9 +75,17 @@ test "basic add functionality" {
 pub fn main() !void {
     const print = std.debug.print;
 
-    const bint1 = try BigInteger.from_string(std.heap.page_allocator, "1234567890");
-    const bint2 = try BigInteger.from_string(std.heap.page_allocator, "-9876543210");
-    const bint3 = try BigInteger.from_string(std.heap.page_allocator, "9999999999999999999999");
+    var bint1 = try BigInteger.from_string(std.heap.page_allocator, "1234567890");
+    var bint2 = try BigInteger.from_string(std.heap.page_allocator, "-9876543210");
+    var bint3 = try BigInteger.from_string(std.heap.page_allocator, "9999999999999999999999");
 
-    print("hello zig {!s} {!s} {!s}", .{ bint1.to_string(), bint2.to_string(), bint3.to_string() });
+    print("hello zig {!s} {!s} {!s}\n", .{ bint1.to_string(), bint2.to_string(), bint3.to_string() });
+
+    bint1.deinit();
+    bint2.deinit();
+    bint3.deinit();
+
+    var bint_error = BigInteger.from_string(std.heap.page_allocator, "0123-4567-890");
+
+    print("hello zig {!}\n", .{bint_error});
 }
