@@ -29,6 +29,13 @@ pub const BigInteger = struct {
         };
     }
 
+    fn zero(allocator: std.mem.Allocator) !Self {
+        var array = try Array.initCapacity(allocator, 1);
+        try array.append(allocator, 0);
+
+        return init(allocator, false, array);
+    }
+
     pub fn from_string(allocator: std.mem.Allocator, string: String) !Self {
         var array = try Array.initCapacity(allocator, string.len);
 
@@ -80,17 +87,29 @@ pub const BigInteger = struct {
 
     pub fn plus(self: Self, other: Self) !Self {
         if (self.is_negative != other.is_negative) {
-            return error.NotImplemented;
+            const gt_lt = order_arrays(self.digits, other.digits);
+
+            switch (gt_lt) {
+                .gt => {
+                    const array = try subtraction_arrays(self.allocator, self.digits, other.digits);
+                    return init(self.allocator, self.is_negative, array);
+                },
+                .lt => {
+                    const array = try subtraction_arrays(self.allocator, other.digits, self.digits);
+                    return init(self.allocator, other.is_negative, array);
+                },
+                .eq => {
+                    return zero(self.allocator);
+                },
+            }
+        } else {
+            var array = try if (self.digits.items.len > other.digits.items.len)
+                addition_arrays(self.allocator, self.digits, other.digits)
+            else
+                addition_arrays(self.allocator, other.digits, self.digits);
+
+            return init(self.allocator, self.is_negative, array);
         }
-
-        const is_negative = self.is_negative;
-
-        var array = try if (self.digits.items.len > other.digits.items.len)
-            addition_arrays(self.allocator, self.digits, other.digits)
-        else
-            addition_arrays(self.allocator, other.digits, self.digits);
-
-        return init(self.allocator, is_negative, array);
     }
 
     pub fn eql(self: Self, other: Self) bool {
@@ -101,13 +120,28 @@ pub const BigInteger = struct {
             return false;
         }
 
-        for (0..self.digits.items.len) |index| {
-            if (self.digits.items[index] != other.digits.items[index]) {
+        for (self.digits.items, other.digits.items) |sdigit, odigit| {
+            if (sdigit != odigit) {
                 return false;
             }
         }
 
         return true;
+    }
+
+    /// if self > other, return .gt (>).
+    /// else if self < other, return .lt (<).
+    /// else return .eq (=).
+    pub fn order(self: Self, other: Self) std.math.Order {
+        if (self.is_negative != other.is_negative) {
+            if (self.is_negative) {
+                return .lt;
+            } else {
+                return .gt;
+            }
+        }
+
+        return order_arrays(self.digits, other.digits);
     }
 };
 
@@ -126,6 +160,53 @@ fn addition_arrays(allocator: std.mem.Allocator, lhs: Array, rhs: Array) !Array 
     try carry(allocator, &array);
 
     return array;
+}
+
+fn subtraction_arrays(allocator: std.mem.Allocator, lhs: Array, rhs: Array) !Array {
+    var array = try Array.initCapacity(allocator, lhs.items.len + 1);
+
+    const length = @max(lhs.items.len, rhs.items.len);
+
+    for (0..length) |index| {
+        var new_digit: u8 = 0;
+        if (index < lhs.items.len) {
+            new_digit += lhs.items[index];
+        }
+        if (index < rhs.items.len) {
+            new_digit -= rhs.items[index];
+        }
+
+        try array.append(allocator, new_digit);
+    }
+
+    try carry(allocator, &array);
+
+    return array;
+}
+
+fn order_arrays(lhs: Array, rhs: Array) std.math.Order {
+    if (lhs.items.len < rhs.items.len) {
+        return .lt;
+    }
+    if (rhs.items.len < lhs.items.len) {
+        return .gt;
+    }
+
+    var i = lhs.items.len;
+    while (i > 0) {
+        i -= 1;
+        const sdigit = lhs.items[i];
+        const odigit = rhs.items[i];
+
+        if (sdigit < odigit) {
+            return .lt;
+        }
+        if (odigit < sdigit) {
+            return .gt;
+        }
+    }
+
+    return .eq;
 }
 
 fn carry(allocator: std.mem.Allocator, array: *Array) !void {
@@ -270,6 +351,51 @@ test "マイナス同士の足し算" {
 
     var actual = try bint1.plus(bint2);
     var expected = try BigInteger.from_string(std.testing.allocator, "-3333333333");
+
+    try std.testing.expect(expected.eql(actual));
+
+    bint1.deinit();
+    bint2.deinit();
+    actual.deinit();
+    expected.deinit();
+}
+
+test "大きいプラスと小さいマイナスの足し算" {
+    var bint1 = try BigInteger.from_string(std.testing.allocator, "-1111111111");
+    var bint2 = try BigInteger.from_string(std.testing.allocator, "2222222222");
+
+    var actual = try bint1.plus(bint2);
+    var expected = try BigInteger.from_string(std.testing.allocator, "1111111111");
+
+    try std.testing.expect(expected.eql(actual));
+
+    bint1.deinit();
+    bint2.deinit();
+    actual.deinit();
+    expected.deinit();
+}
+
+test "小さいプラスと大きいマイナスの足し算" {
+    var bint1 = try BigInteger.from_string(std.testing.allocator, "1111111111");
+    var bint2 = try BigInteger.from_string(std.testing.allocator, "-2222222222");
+
+    var actual = try bint1.plus(bint2);
+    var expected = try BigInteger.from_string(std.testing.allocator, "-1111111111");
+
+    try std.testing.expect(expected.eql(actual));
+
+    bint1.deinit();
+    bint2.deinit();
+    actual.deinit();
+    expected.deinit();
+}
+
+test "同じプラスとマイナスの足し算" {
+    var bint1 = try BigInteger.from_string(std.testing.allocator, "1111111111");
+    var bint2 = try BigInteger.from_string(std.testing.allocator, "-1111111111");
+
+    var actual = try bint1.plus(bint2);
+    var expected = try BigInteger.from_string(std.testing.allocator, "0");
 
     try std.testing.expect(expected.eql(actual));
 
