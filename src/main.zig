@@ -17,19 +17,19 @@ pub fn main() !void {
 
     print("hello zig!\n", .{});
 
-    var bint1 = try BigInteger.from_string(allocator, line_buf);
+    var bint1 = try BigInteger.fromString(allocator, line_buf);
 
-    print("a: your input = {!s}\n", .{bint1.to_string()});
+    print("a: your input = {!s}\n", .{bint1.toString()});
 
-    var bint2 = try BigInteger.from_int(u32, allocator, 1234567890);
+    var bint2 = try BigInteger.fromInt(u32, allocator, 1234567890);
 
-    print("b: my number = {!s}\n", .{bint2.to_string()});
+    print("b: my number = {!s}\n", .{bint2.toString()});
 
     var bint3 = try bint1.plus(bint2);
 
-    print("a + b = {!s}\n", .{bint3.to_string()});
+    print("a + b = {!s}\n", .{bint3.toString()});
 
     var bint4 = try bint1.minus(bint2);
 
-    print("a - b = {!s}\n", .{bint4.to_string()});
+    print("a - b = {!s}\n", .{bint4.toString()});
 }
