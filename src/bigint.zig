@@ -39,8 +39,30 @@ pub const BigInteger = struct {
         };
     }
 
-    fn zero(allocator: std.mem.Allocator) !Self {
-        var array = try Array.initCapacity(allocator, 0);
+    pub fn from_int(comptime T: type, allocator: std.mem.Allocator, value: T) !Self {
+        // std.math.big.int.Const;
+
+        const typeinfo = @typeInfo(@TypeOf(value));
+        std.debug.assert(typeinfo == .Int);
+
+        const bits = l: {
+            if (typeinfo != .Int) {
+                @compileError("compile error");
+            }
+            if (typeinfo.Int.bits % 8 == 0) {
+                break :l typeinfo.Int.bits / 8 + 0;
+            } else {
+                break :l typeinfo.Int.bits / 8 + 1;
+            }
+        };
+
+        var array = try Array.initCapacity(allocator, bits);
+
+        var var_value = value;
+        while (var_value != 0) {
+            try array.append(allocator, @truncate(var_value % 10));
+            var_value /= 10;
+        }
 
         return init(allocator, false, &array);
     }
@@ -112,7 +134,7 @@ pub const BigInteger = struct {
                     return init(self.allocator, other.is_negative, &array);
                 },
                 .eq => {
-                    return zero(self.allocator);
+                    return from_int(u8, self.allocator, 0);
                 },
             }
         } else {
@@ -145,7 +167,7 @@ pub const BigInteger = struct {
                 },
                 .eq => {
                     // if |a| = |b|, a - b = 0
-                    return zero(self.allocator);
+                    return from_int(u8, self.allocator, 0);
                 },
             }
         } else {
