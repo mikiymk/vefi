@@ -4,6 +4,7 @@ const fizz_buzz = @import("./fizzbuzz.zig");
 
 test {
     _ = @import("bigint.zig");
+    _ = @import("lib.zig");
 }
 
 pub fn main() !void {
