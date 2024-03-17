@@ -8,52 +8,54 @@
 //! go https://pkg.go.dev/std
 
 pub const primitive = struct {
-    pub const boolean = @import("array_list");
-    pub const character = @import("array_list");
-    pub const integer = @import("array_list");
-    pub const float = @import("array_list");
+    pub const boolean = struct {};
+    pub const character = struct {};
+    pub const integer = struct {};
+    pub const float = struct {};
+
+    pub const optional = @import("primitive/optional.zig");
 };
 
 pub const collection = struct {
-    pub const array = @import("array_list");
+    pub const dynamic_array = @import("collection/dynamic_array.zig");
 
-    pub const list = @import("array_list");
-    pub const doubly_list = @import("array_list");
-    pub const circular_list = @import("array_list");
+    pub const list = @import("collection/list.zig");
+    pub const doubly_list = struct {};
+    pub const circular_list = struct {};
 
-    pub const stack = @import("array_list");
-    pub const queue = @import("array_list");
-    pub const priority_queue = @import("array_list");
-    pub const double_ended_queue = @import("array_list");
+    pub const stack = struct {};
+    pub const queue = struct {};
+    pub const priority_queue = struct {};
+    pub const double_ended_queue = struct {};
 
-    pub const tree = @import("array_list");
-    pub const heap = @import("array_list");
+    pub const tree = struct {};
+    pub const heap = struct {};
 
-    pub const hash_map = @import("array_list");
-    pub const tree_map = @import("array_list");
-    pub const bidirectional_map = @import("array_list");
-    pub const ordered_map = @import("array_list");
+    pub const hash_map = struct {};
+    pub const tree_map = struct {};
+    pub const bidirectional_map = struct {};
+    pub const ordered_map = struct {};
 
-    pub const bit_array = @import("array_list");
+    pub const bit_array = struct {};
 };
 
 pub const math = struct {
-    pub const integer = @import("array_list");
-    pub const ratio = @import("array_list");
-    pub const float = @import("array_list");
-    pub const complex = @import("array_list");
+    pub const integer = struct {};
+    pub const ratio = struct {};
+    pub const float = struct {};
+    pub const complex = struct {};
 };
 
 pub const string = struct {
-    pub const utf8_string = @import("array_list");
-    pub const ascii_string = @import("array_list");
+    pub const utf8_string = struct {};
+    pub const ascii_string = struct {};
 };
 
 pub const datetime = struct {
-    pub const date = @import("array_list");
-    pub const time = @import("array_list");
+    pub const date = struct {};
+    pub const time = struct {};
 
-    pub const timezone = @import("array_list");
+    pub const timezone = struct {};
 };
 
 pub const input_output = struct {};
@@ -68,3 +70,8 @@ pub const locale = struct {};
 pub const file_format = struct {};
 pub const computer_language = struct {};
 pub const natural_language = struct {};
+
+test {
+    const std = @import("std");
+    std.testing.refAllDeclsRecursive(@This());
+}
