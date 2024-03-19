@@ -73,6 +73,8 @@ pub fn List(comptime T: type) type {
             return null;
         }
 
+        pub fn getNth(self: Self, n: usize) ?*Element {}
+
         pub fn getFirst(self: Self) ?T {
             const elem = self.getFirstElement();
             if (elem) |e| {
@@ -120,6 +122,12 @@ pub fn List(comptime T: type) type {
                 }
             }
         }
+
+        pub fn insertNth(self: Self, a: Allocator, n: usize, value: T) void {}
+
+        pub fn copy(self: Self, a:Allocator) Self {}
+
+        pub fn equal(left: Self, right: Self) bool {}
 
         pub fn clear(self: *Self, a: Allocator) void {
             var elem = self.value;
