@@ -11,6 +11,7 @@ const AllocError = Allocator.Error;
 pub fn List(comptime T: type) type {
     return struct {
         const Self = @This();
+        pub const Item = T;
         pub const Element = struct {
             next: ?*Element = null,
             value: T,
@@ -126,6 +127,10 @@ pub fn List(comptime T: type) type {
         pub fn insertNth(self: Self, a: Allocator, n: usize, value: T) void {}
 
         pub fn copy(self: Self, a:Allocator) Self {}
+
+        pub const Iterator = struct {};
+
+        pub fn iterator(self: Self) Iterator {}
 
         pub fn equal(left: Self, right: Self) bool {}
 
