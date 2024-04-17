@@ -74,7 +74,22 @@ pub fn List(comptime T: type) type {
             return null;
         }
 
-        pub fn getNth(self: Self, n: usize) ?*Element {}
+        pub fn getElement(self: Self, n: usize) ?*Element {
+            var count = n;
+            var elem = self.value;
+            while (elem) |e| {
+                const next = e.next;
+                count -= 1;
+
+                if (count == 0) {
+                    return elem;
+                } else {
+                    elem = n;
+                }
+            }
+
+            return null;
+        }
 
         pub fn getFirst(self: Self) ?T {
             const elem = self.getFirstElement();
@@ -87,6 +102,15 @@ pub fn List(comptime T: type) type {
 
         pub fn getLast(self: Self) ?T {
             const elem = self.getLastElement();
+            if (elem) |e| {
+                return e.value;
+            } else {
+                return null;
+            }
+        }
+
+        pub fn get(self: Self, n: usize) ?T {
+            const elem = self.getElement(n);
             if (elem) |e| {
                 return e.value;
             } else {
@@ -124,7 +148,7 @@ pub fn List(comptime T: type) type {
             }
         }
 
-        pub fn insertNth(self: Self, a: Allocator, n: usize, value: T) void {}
+        pub fn insert(self: Self, a: Allocator, n: usize, value: T) void {}
 
         pub fn copy(self: Self, a:Allocator) Self {}
 
