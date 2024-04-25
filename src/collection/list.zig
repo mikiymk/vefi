@@ -11,6 +11,8 @@ const AllocError = Allocator.Error;
 pub fn List(comptime T: type) type {
     return struct {
         const Self = @This();
+
+        /// リストが持つ値の型
         pub const Item = T;
         pub const Element = struct {
             next: ?*Element = null,
@@ -75,17 +77,15 @@ pub fn List(comptime T: type) type {
         }
 
         pub fn getElement(self: Self, n: usize) ?*Element {
-            var count = n;
+            var count_down = n;
             var elem = self.value;
             while (elem) |e| {
-                const next = e.next;
-                count -= 1;
-
-                if (count == 0) {
-                    return elem;
-                } else {
-                    elem = n;
+                if (count_down == 0) {
+                    return e;
                 }
+
+                elem = e.next;
+                count_down -= 1;
             }
 
             return null;
@@ -148,15 +148,24 @@ pub fn List(comptime T: type) type {
             }
         }
 
-        pub fn insert(self: Self, a: Allocator, n: usize, value: T) void {}
+        pub fn insert(self: Self, a: Allocator, n: usize, value: T) void {
+            _ = .{ self, a, n, value };
+        }
 
-        pub fn copy(self: Self, a:Allocator) Self {}
+        pub fn copy(self: Self, a: Allocator) Self {
+            _ = .{ self, a };
+        }
 
         pub const Iterator = struct {};
 
-        pub fn iterator(self: Self) Iterator {}
+        pub fn iterator(self: Self) Iterator {
+            _ = self;
+        }
 
-        pub fn equal(left: Self, right: Self) bool {}
+        pub fn equal(left: Self, right: Self) bool {
+            _ = left;
+            _ = right;
+        }
 
         pub fn clear(self: *Self, a: Allocator) void {
             var elem = self.value;

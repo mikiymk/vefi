@@ -10,7 +10,7 @@
 pub const primitive = struct {
     pub const boolean = struct {};
     pub const character = struct {};
-    pub const integer = struct {};
+    pub const integer = @import("primitive/integer.zig");
     pub const float = struct {};
 
     pub const optional = @import("primitive/optional.zig");
@@ -70,6 +70,19 @@ pub const locale = struct {};
 pub const file_format = struct {};
 pub const computer_language = struct {};
 pub const natural_language = struct {};
+pub const testing = struct {
+    pub fn assert(ok: bool) void {
+        if (!ok) {
+            unreachable;
+        }
+    }
+
+    pub fn expect(ok: bool) error{AssertionFailed}!void {
+        if (!ok) {
+            return error.AssertionFailed;
+        }
+    }
+};
 
 test {
     const std = @import("std");
