@@ -6,6 +6,8 @@
 //! c++ https://cpprefjp.github.io/reference.html
 //! rust https://doc.rust-lang.org/std/
 //! go https://pkg.go.dev/std
+//! ruby https://docs.ruby-lang.org/ja/latest/doc/index.html
+//! php https://www.php.net/manual/ja/funcref.php
 
 pub const primitive = struct {
     pub const boolean = struct {};

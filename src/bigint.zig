@@ -73,7 +73,7 @@ pub const BigInteger = struct {
         var array = try Array.initCapacity(allocator, string.len);
         errdefer array.deinit(allocator);
 
-        var is_negative = string[0] == '-';
+        const is_negative = string[0] == '-';
         var limit: usize = undefined;
         if (is_negative) {
             limit = 1;
@@ -301,7 +301,7 @@ fn orderArrays(lhs: Array, rhs: Array) std.math.Order {
 
 fn carry(allocator: std.mem.Allocator, array: *Array) !void {
     for (0..array.items.len - 1) |index| {
-        var digit = array.items[index];
+        const digit = array.items[index];
         if (9 < digit) {
             array.items[index + 1] += digit / 10;
             array.items[index] = digit % 10;
@@ -359,7 +359,7 @@ test "文字列から負の多倍長整数を作る" {
 }
 
 test "間違った文字列から多倍長整数を作る" {
-    var bint = BigInteger.fromString(std.testing.allocator, "012-345-678-9");
+    const bint = BigInteger.fromString(std.testing.allocator, "012-345-678-9");
 
     try std.testing.expectError(error.InvalidCharacter, bint);
 }

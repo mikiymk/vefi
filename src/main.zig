@@ -16,8 +16,8 @@ pub fn main() !void {
     const stdin = std.io.getStdIn().reader();
 
     print("input your number... ", .{});
-    var buf = try stdin.readUntilDelimiterAlloc(allocator, '\n', 280);
-    var line_buf = std.mem.trimRight(u8, buf, "\r");
+    const buf = try stdin.readUntilDelimiterAlloc(allocator, '\n', 280);
+    const line_buf = std.mem.trimRight(u8, buf, "\r");
 
     print("hello zig!\n", .{});
 
