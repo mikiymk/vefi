@@ -9,6 +9,8 @@
 //! ruby https://docs.ruby-lang.org/ja/latest/doc/index.html
 //! php https://www.php.net/manual/ja/funcref.php
 
+const std = @import("std");
+
 pub const primitive = struct {
     pub const boolean = struct {};
     pub const character = struct {};
@@ -84,9 +86,16 @@ pub const testing = struct {
             return error.AssertionFailed;
         }
     }
+
+    pub fn expectEqual(left: anytype, right: @TypeOf(left)) error{AssertionFailed}!void {
+        if (left != right) {
+            std.debug.print("expect equals but left: {}, right: {}\n", .{ left, right });
+
+            return error.AssertionFailed;
+        }
+    }
 };
 
 test {
-    const std = @import("std");
     std.testing.refAllDeclsRecursive(@This());
 }

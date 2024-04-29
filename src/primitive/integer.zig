@@ -14,13 +14,16 @@ const std = @import("std");
 const lib = @import("../lib.zig");
 const assert = lib.testing.assert;
 
+/// このデータ構造は Zig 言語コード生成で使用されるため、コンパイラー実装と同期を保つ必要があります。
+pub const Signedness = std.builtin.Signedness;
+
 // 定数
 
-pub const POINTER_SIZE = bitsOf(usize);
+pub const POINTER_SIZE = sizeOf(usize);
 
 // 整数型を作る関数
 
-pub fn Integer(signedness: std.builtin.Signedness, bits: u16) type {
+pub fn Integer(signedness: Signedness, bits: u16) type {
     return @Type(.{ .Int = .{
         .signedness = signedness,
         .bits = bits,
@@ -92,8 +95,14 @@ pub fn isInteger(comptime T: type) bool {
     return info == .Int or info == .ComptimeInt;
 }
 
+pub fn signOf(comptime T: type) Signedness {
+    assert(isInteger(T));
+
+    return @typeInfo(T).Int.signedness;
+}
+
 /// 型のビットサイズを調べます。
-pub fn bitsOf(comptime T: type) u16 {
+pub fn sizeOf(comptime T: type) u16 {
     assert(isInteger(T));
 
     return @typeInfo(T).Int.bits;
@@ -144,9 +153,9 @@ test "整数型の型を調べる関数" {
     try expect(isInteger(usize));
     try expect(isInteger(comptime_int));
 
-    try expect(bitsOf(i32) == 32);
-    try expect(bitsOf(u32) == 32);
-    _ = bitsOf(usize);
+    try expect(sizeOf(i32) == 32);
+    try expect(sizeOf(u32) == 32);
+    _ = sizeOf(usize);
 
     try expect(isInteger(c_char));
     try expect(isInteger(c_short));
@@ -159,36 +168,412 @@ test "整数型の型を調べる関数" {
     try expect(isInteger(c_ulonglong));
 }
 
-test "整数型の足し算" {
-    const expect = lib.testing.expect;
+test "整数型の符号反転 符号あり" {
+    const expect = lib.testing.expectEqual;
 
-    const foo: u32 = 1;
-    const bar: u32 = 0xffffffff;
-    const baz: i32 = 1;
-    const bam: i32 = -0x80000000;
+    const num: i8 = 1;
 
-    try expect(foo + 2 == 3);
-    // try expect(bar + 1 == 0); // undefined behavior
-    try expect(baz + -2 == -1);
-    // try expect(bam + -1 == 0x7fffffff); // undefined behavior
+    try expect(-num, -1);
+    try expect(-%num, -1);
+}
 
-    try expect(foo +% 2 == 3);
-    try expect(bar +% 1 == 0);
-    try expect(baz +% -2 == -1);
-    try expect(bam +% -1 == 0x7fffffff);
+test "整数型の符号反転 符号あり オーバーフロー" {
+    const expect = lib.testing.expectEqual;
 
-    try expect(foo +| 2 == 3);
-    try expect(bar +| 1 == 0xffffffff);
-    try expect(baz +| -2 == -1);
-    try expect(bam +| -1 == -0x80000000);
+    const num: i8 = -0x80;
 
-    try expect(@addWithOverflow(foo, 2)[0] == 3);
-    try expect(@addWithOverflow(bar, 1)[0] == 0);
-    try expect(@addWithOverflow(baz, -2)[0] == -1);
-    try expect(@addWithOverflow(bam, -1)[0] == 0x7fffffff);
+    // try expect(-num, 0x80); // build error
+    try expect(-%num, -0x80);
+}
 
-    try expect(@addWithOverflow(foo, 2)[1] == 0);
-    try expect(@addWithOverflow(bar, 1)[1] == 1);
-    try expect(@addWithOverflow(baz, -2)[1] == 0);
-    try expect(@addWithOverflow(bam, -1)[1] == 1);
+test "整数型の足し算 符号なし" {
+    const expect = lib.testing.expectEqual;
+
+    const left: u8 = 2;
+    const right: u8 = 2;
+
+    try expect(left + right, 4);
+    try expect(left +% right, 4);
+    try expect(left +| right, 4);
+    try expect(@addWithOverflow(left, right)[0], 4);
+    try expect(@addWithOverflow(left, right)[1], 0);
+}
+
+test "整数型の足し算 符号なし 上にオーバーフロー" {
+    const expect = lib.testing.expectEqual;
+
+    const left: u8 = 0xff;
+    const right: u8 = 1;
+
+    // try expect(left + right, 0x100); // build error
+    try expect(left +% right, 0);
+    try expect(left +| right, 255);
+    try expect(@addWithOverflow(left, right)[0], 0);
+    try expect(@addWithOverflow(left, right)[1], 1);
+}
+
+test "整数型の足し算 符号あり" {
+    const expect = lib.testing.expectEqual;
+
+    const left: i8 = 2;
+    const right: i8 = 2;
+
+    try expect(left + right, 4);
+    try expect(left +% right, 4);
+    try expect(left +| right, 4);
+    try expect(@addWithOverflow(left, right)[0], 4);
+    try expect(@addWithOverflow(left, right)[1], 0);
+}
+
+test "整数型の足し算 符号あり 上にオーバーフロー" {
+    const expect = lib.testing.expectEqual;
+
+    const left: i8 = 0x7f;
+    const right: i8 = 1;
+
+    // try expect(left + right, 0x80); // build error
+    try expect(left +% right, -0x80);
+    try expect(left +| right, 0x7f);
+    try expect(@addWithOverflow(left, right)[0], -0x80);
+    try expect(@addWithOverflow(left, right)[1], 1);
+}
+
+test "整数型の足し算 符号あり 下にオーバーフロー" {
+    const expect = lib.testing.expectEqual;
+
+    const left: i8 = -0x80;
+    const right: i8 = -1;
+
+    // try expect(left + right, -0x81); // build error
+    try expect(left +% right, 0x7f);
+    try expect(left +| right, -0x80);
+    try expect(@addWithOverflow(left, right)[0], 0x7f);
+    try expect(@addWithOverflow(left, right)[1], 1);
+}
+
+test "整数型の引き算 符号なし" {
+    const expect = lib.testing.expectEqual;
+
+    const left: u8 = 5;
+    const right: u8 = 3;
+
+    try expect(left - right, 2);
+    try expect(left -% right, 2);
+    try expect(left -| right, 2);
+    try expect(@subWithOverflow(left, right)[0], 2);
+    try expect(@subWithOverflow(left, right)[1], 0);
+}
+
+test "整数型の引き算 符号なし 下にオーバーフロー" {
+    const expect = lib.testing.expectEqual;
+
+    const left: u8 = 3;
+    const right: u8 = 5;
+
+    // try expect(left - right, -2); // build error
+    try expect(left -% right, 0xfe);
+    try expect(left -| right, 0);
+    try expect(@subWithOverflow(left, right)[0], 0xfe);
+    try expect(@subWithOverflow(left, right)[1], 1);
+}
+
+test "整数型の引き算 符号あり" {
+    const expect = lib.testing.expectEqual;
+
+    const left: i8 = 3;
+    const right: i8 = 5;
+
+    try expect(left - right, -2);
+    try expect(left -% right, -2);
+    try expect(left -| right, -2);
+    try expect(@subWithOverflow(left, right)[0], -2);
+    try expect(@subWithOverflow(left, right)[1], 0);
+}
+
+test "整数型の引き算 符号あり 上にオーバーフロー" {
+    const expect = lib.testing.expectEqual;
+
+    const left: i8 = 0x7f;
+    const right: i8 = -1;
+
+    // try expect(left - right, 0x80); // build error
+    try expect(left -% right, -0x80);
+    try expect(left -| right, 0x7f);
+    try expect(@subWithOverflow(left, right)[0], -0x80);
+    try expect(@subWithOverflow(left, right)[1], 1);
+}
+
+test "整数型の引き算 符号あり 下にオーバーフロー" {
+    const expect = lib.testing.expectEqual;
+
+    const left: i8 = -0x80;
+    const right: i8 = 1;
+
+    // try expect(left - right, -0x81); // build error
+    try expect(left -% right, 0x7f);
+    try expect(left -| right, -0x80);
+    try expect(@subWithOverflow(left, right)[0], 0x7f);
+    try expect(@subWithOverflow(left, right)[1], 1);
+}
+
+test "整数型の掛け算 符号なし" {
+    const expect = lib.testing.expectEqual;
+
+    const left: u8 = 4;
+    const right: u8 = 3;
+
+    try expect(left * right, 12);
+    try expect(left *% right, 12);
+    try expect(left *| right, 12);
+    try expect(@mulWithOverflow(left, right)[0], 12);
+    try expect(@mulWithOverflow(left, right)[1], 0);
+}
+
+test "整数型の掛け算 符号なし 上にオーバーフロー" {
+    const expect = lib.testing.expectEqual;
+
+    const left: u8 = 0x10;
+    const right: u8 = 0x10;
+
+    // try expect(left * right, 0x100); // build error
+    try expect(left *% right, 0);
+    try expect(left *| right, 0xff);
+    try expect(@mulWithOverflow(left, right)[0], 0);
+    try expect(@mulWithOverflow(left, right)[1], 1);
+}
+
+test "整数型の掛け算 符号あり" {
+    const expect = lib.testing.expectEqual;
+
+    const left: i8 = -2;
+    const right: i8 = 4;
+
+    try expect(left * right, -8);
+    try expect(left *% right, -8);
+    try expect(left *| right, -8);
+    try expect(@mulWithOverflow(left, right)[0], -8);
+    try expect(@mulWithOverflow(left, right)[1], 0);
+}
+
+test "整数型の掛け算 符号あり 上にオーバーフロー" {
+    const expect = lib.testing.expectEqual;
+
+    const left: i8 = 0x40;
+    const right: i8 = 2;
+
+    // try expect(left * right, 0x80); // build error
+    try expect(left *% right, -0x80);
+    try expect(left *| right, 0x7f);
+    try expect(@mulWithOverflow(left, right)[0], -0x80);
+    try expect(@mulWithOverflow(left, right)[1], 1);
+}
+
+test "整数型の掛け算 符号あり 下にオーバーフロー" {
+    const expect = lib.testing.expectEqual;
+
+    const left: i8 = -0x80;
+    const right: i8 = 2;
+
+    // try expect(left * right, -0x100); // build error
+    try expect(left *% right, 0);
+    try expect(left *| right, -0x80);
+    try expect(@mulWithOverflow(left, right)[0], 0);
+    try expect(@mulWithOverflow(left, right)[1], 1);
+}
+
+test "整数型の割り算 符号なし 余りなし" {
+    const expect = lib.testing.expectEqual;
+
+    const left: u8 = 6;
+    const right: u8 = 3;
+
+    try expect(left / right, 2);
+    try expect(@divTrunc(left, right), 2);
+    try expect(@divFloor(left, right), 2);
+    try expect(@divExact(left, right), 2);
+}
+
+test "整数型の割り算 符号なし 余りあり" {
+    const expect = lib.testing.expectEqual;
+
+    const left: u8 = 7;
+    const right: u8 = 3;
+
+    try expect(left / right, 2);
+    try expect(@divTrunc(left, right), 2);
+    try expect(@divFloor(left, right), 2);
+    // try expect(@divExact(left, right), 2); // build error
+}
+
+test "整数型の割り算 符号なし ゼロ除算" {
+    // const expect = lib.testing.expectEqual;
+
+    // const left: u8 = 6;
+    // const right: u8 = 0;
+
+    // try expect(left / right, 2); // build error
+    // try expect(@divTrunc(left, right), 2); // build error
+    // try expect(@divFloor(left, right), 2); // build error
+    // try expect(@divExact(left, right), 2); // build error
+}
+
+test "整数型の割り算 符号あり" {
+    const expect = lib.testing.expectEqual;
+
+    const left: i8 = 6;
+    const right: i8 = 3;
+
+    try expect(left / right, 2);
+    try expect(@divTrunc(left, right), 2);
+    try expect(@divFloor(left, right), 2);
+    try expect(@divExact(left, right), 2);
+}
+
+test "整数型の割り算 符号あり オーバーフロー" {
+    // const expect = lib.testing.expectEqual;
+
+    // const left: i8 = -0x80;
+    // const right: i8 = -1;
+
+    // try expect(left / right, 0x80); // build error
+    // try expect(@divTrunc(left, right), 0x80); // build error
+    // try expect(@divFloor(left, right), 0x80); // build error
+    // try expect(@divExact(left, right), 0x80); // build error
+}
+
+test "整数型の割り算 符号あり 余りあり 正÷正" {
+    const expect = lib.testing.expectEqual;
+
+    const left: i8 = 7;
+    const right: i8 = 3;
+
+    try expect(left / right, 2);
+    try expect(@divTrunc(left, right), 2);
+    try expect(@divFloor(left, right), 2);
+    // try expect(@divExact(left, right), 2); // build error
+}
+
+test "整数型の割り算 符号あり 余りあり 正÷負" {
+    const expect = lib.testing.expectEqual;
+
+    const left: i8 = 7;
+    const right: i8 = -3;
+
+    try expect(left / right, -2);
+    try expect(@divTrunc(left, right), -2);
+    try expect(@divFloor(left, right), -3);
+    // try expect(@divExact(left, right), 2); // build error
+}
+
+test "整数型の割り算 符号あり 余りあり 負÷正" {
+    const expect = lib.testing.expectEqual;
+
+    const left: i8 = -7;
+    const right: i8 = 3;
+
+    try expect(left / right, -2);
+    try expect(@divTrunc(left, right), -2);
+    try expect(@divFloor(left, right), -3);
+    // try expect(@divExact(left, right), 2); // build error
+}
+
+test "整数型の割り算 符号あり 余りあり 負÷負" {
+    const expect = lib.testing.expectEqual;
+
+    const left: i8 = -7;
+    const right: i8 = -3;
+
+    try expect(left / right, 2);
+    try expect(@divTrunc(left, right), 2);
+    try expect(@divFloor(left, right), 2);
+    // try expect(@divExact(left, right), 2); // build error
+}
+
+test "整数型の割り算 符号あり ゼロ除算" {
+    // const expect = lib.testing.expectEqual;
+
+    // const left: i8 = -6;
+    // const right: i8 = 0;
+
+    // try expect(left / right, 2); // build error
+    // try expect(@divTrunc(left, right), 2); // build error
+    // try expect(@divFloor(left, right), 2); // build error
+    // try expect(@divExact(left, right), 2); // build error
+}
+
+test "整数型の余り算 符号なし" {
+    const expect = lib.testing.expectEqual;
+
+    const left: u8 = 8;
+    const right: u8 = 3;
+
+    try expect(left % right, 2);
+    try expect(@rem(left, right), 2);
+    try expect(@mod(left, right), 2);
+}
+
+test "整数型の余り算 符号なし ゼロ除算" {
+    // const expect = lib.testing.expectEqual;
+
+    // const left: u8 = 8;
+    // const right: u8 = 0;
+
+    // try expect(left % right, 2); // build error
+    // try expect(@rem(left, right), 2); // build error
+    // try expect(@mod(left, right), 2); // build error
+}
+
+test "整数型の余り算 符号あり 正÷正" {
+    const expect = lib.testing.expectEqual;
+
+    const left: i8 = 8;
+    const right: i8 = 3;
+
+    try expect(left % right, 2);
+    try expect(@rem(left, right), 2);
+    try expect(@mod(left, right), 2);
+}
+
+test "整数型の余り算 符号あり 正÷負" {
+    const expect = lib.testing.expectEqual;
+
+    const left: i8 = 8;
+    const right: i8 = -3;
+
+    // try expect(left % right, 2); // build error
+    try expect(@rem(left, right), 2);
+    try expect(@mod(left, right), -1);
+}
+
+test "整数型の余り算 符号あり 負÷正" {
+    const expect = lib.testing.expectEqual;
+
+    const left: i8 = -8;
+    const right: i8 = 3;
+
+    // try expect(left % right, 2); // build error
+    try expect(@rem(left, right), -2);
+    try expect(@mod(left, right), 1);
+}
+
+test "整数型の余り算 符号あり 負÷負" {
+    const expect = lib.testing.expectEqual;
+
+    const left: i8 = -8;
+    const right: i8 = -3;
+
+    // try expect(left % right, 2); // build error
+    try expect(@rem(left, right), -2);
+    try expect(@mod(left, right), -2);
+}
+
+test "整数型の余り算 符号あり ゼロ除算" {
+    // const expect = lib.testing.expectEqual;
+
+    // const left: i8 = 8;
+    // const right: i8 = 0;
+
+    // try expect(left % right, 2); // build error
+    // try expect(@rem(left, right), 2); // build error
+    // try expect(@mod(left, right), 2); // build error
 }
