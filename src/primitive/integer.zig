@@ -20,6 +20,8 @@ pub const Signedness = std.builtin.Signedness;
 const OverflowError = error{IntegerOverflow};
 const DivZeroError = error{DivideByZero};
 
+const negation_error_message = "符号反転は符号あり整数型である必要があります。";
+
 // 定数
 
 pub const POINTER_SIZE = sizeOf(usize);
@@ -96,6 +98,13 @@ pub fn isPointerSizedInteger(comptime T: type) bool {
     return T == usize or T == isize;
 }
 
+/// 型が実行時整数(`comptime_int`以外の整数型)かどうかを判定します。
+pub fn isRuntimeInteger(comptime T: type) bool {
+    const info = @typeInfo(T);
+
+    return info == .Int;
+}
+
 /// 型がコンパイル時整数(`comptime_int`)かどうかを判定します。
 pub fn isComptimeInteger(comptime T: type) bool {
     const info = @typeInfo(T);
@@ -106,18 +115,19 @@ pub fn isComptimeInteger(comptime T: type) bool {
 /// 型が整数かどうかを判定します。
 pub fn isInteger(comptime T: type) bool {
     const info = @typeInfo(T);
+
     return info == .Int or info == .ComptimeInt;
 }
 
 pub fn signOf(comptime T: type) Signedness {
-    assert(isInteger(T));
+    assert(isRuntimeInteger(T));
 
     return @typeInfo(T).Int.signedness;
 }
 
 /// 型のビットサイズを調べます。
 pub fn sizeOf(comptime T: type) u16 {
-    assert(isInteger(T));
+    assert(isRuntimeInteger(T));
 
     return @typeInfo(T).Int.bits;
 }
@@ -186,6 +196,8 @@ test "整数型の型を調べる関数" {
 
 /// 与えられた整数型の表現できる最大の整数を返します。
 pub fn max(comptime T: type) T {
+    assert(isRuntimeInteger(T));
+
     return switch (comptime signOf(T)) {
         .unsigned => ~@as(T, 0),
         .signed => ~@as(Unsigned(T), 0) >> 1,
@@ -194,6 +206,8 @@ pub fn max(comptime T: type) T {
 
 /// 与えられた整数型の表現できる最小の整数を返します。
 pub fn min(comptime T: type) T {
+    assert(isRuntimeInteger(T));
+
     return switch (comptime signOf(T)) {
         .unsigned => 0,
         .signed => ~max(T),
@@ -213,6 +227,8 @@ test "整数型の最大値と最小値" {
 /// 値を指定した型に変換します。
 /// 値が型の上限より大きい場合はエラーを返します。
 pub fn cast(comptime T: type, value: anytype) OverflowError!T {
+    assert(isRuntimeInteger(T) and isRuntimeInteger(@TypeOf(value)));
+
     if (max(T) < value or value < min(T)) {
         return OverflowError.IntegerOverflow;
     }
@@ -221,14 +237,18 @@ pub fn cast(comptime T: type, value: anytype) OverflowError!T {
 }
 
 /// 値を指定した型に変換します。
-/// 値が型の上限より大きい場合は溢れた桁を無視します。
+/// 値が型の上限より大きい場合は剰余の値を返します。
 pub fn castTruncate(comptime T: type, value: anytype) T {
+    assert(isRuntimeInteger(T) and isRuntimeInteger(@TypeOf(value)));
+
     return @truncate(value);
 }
 
 /// 値を指定した型に変換します。
 /// 値が型の上限より大きい場合は最大値・最小値に制限されます。
 pub fn castSaturation(comptime T: type, value: anytype) T {
+    assert(isRuntimeInteger(T) and isRuntimeInteger(@TypeOf(value)));
+
     if (max(T) < value) {
         return max(T);
     } else if (value < min(T)) {
@@ -241,44 +261,92 @@ pub fn castSaturation(comptime T: type, value: anytype) T {
 /// 値を指定した型に変換します。
 /// 値が型の上限より大きい場合は未定義動作になります。
 pub fn castUnsafe(comptime T: type, value: anytype) T {
+    assert(isRuntimeInteger(T) and isRuntimeInteger(@TypeOf(value)));
+
     return @intCast(value);
 }
 
 /// 値のビットを符号あり整数型として返します。
 pub fn asSigned(value: anytype) Signed(@TypeOf(value)) {
+    assert(isRuntimeInteger(@TypeOf(value)));
+
     return @bitCast(value);
 }
 
 /// 値のビットを符号なし整数型として返します。
 pub fn asUnsigned(value: anytype) Unsigned(@TypeOf(value)) {
+    assert(isRuntimeInteger(@TypeOf(value)));
+
     return @bitCast(value);
 }
 
 test "整数型の型変換" {
     const expect = lib.testing.expectEqual;
-    const expectError = lib.testing.expectError;
 
-    try expect(try cast(u8, 1), 1);
-    try expectError(cast(u8, 0xfff), error.IntegerOverflow);
-    try expectError(cast(u8, -1), error.IntegerOverflow);
+    const foo1: u9 = 1;
+    const foo2: u16 = 0xfff;
+    const foo3: i8 = -1;
+    const foo4: i9 = -1;
 
-    try expect(castTruncate(u8, 1), 1);
-    try expect(castTruncate(u8, 0xfff), 0xff);
-    try expect(castTruncate(u8, -2), 0xfe);
-    // try expect(castTruncate(u8, @as(i8, -1)), 0xff); // build error
-    // try expect(castTruncate(u8, @as(i9, -1)), 0xff); // build error
+    try expect(cast(u8, foo1), 1);
+    try expect(cast(u8, foo2), error.IntegerOverflow);
+    try expect(cast(u8, foo3), error.IntegerOverflow);
+    try expect(cast(u8, foo4), error.IntegerOverflow);
 
-    try expect(castSaturation(u8, 1), 1);
-    try expect(castSaturation(u8, 0xfff), 0xff);
-    try expect(castSaturation(u8, -1), 0);
-    try expect(castSaturation(u8, @as(i8, -1)), 0);
-    try expect(castSaturation(u8, @as(i9, -1)), 0);
+    try expect(castTruncate(u8, foo1), 1);
+    try expect(castTruncate(u8, foo2), 0xff);
+    // try expect(castTruncate(u8, foo3), 0xff); // build error
+    // try expect(castTruncate(u8, foo4), 0xff); // build error
+
+    try expect(castSaturation(u8, foo1), 1);
+    try expect(castSaturation(u8, foo2), 0xff);
+    try expect(castSaturation(u8, foo3), 0);
+    try expect(castSaturation(u8, foo4), 0);
 
     try expect(asSigned(@as(u8, 0x80)), -0x80);
     try expect(asSigned(@as(u8, 0xff)), -1);
 
     try expect(asUnsigned(@as(i8, -1)), 0xff);
     try expect(asUnsigned(@as(i8, -0x80)), 0x80);
+}
+
+// 符号反転
+
+/// 整数型の符号を反転させた値を返します。
+/// 結果の値が型の上限より大きい場合はエラーを返します。
+pub fn negation(value: anytype) OverflowError!@TypeOf(value) {
+    const value_type = @TypeOf(value);
+    if (comptime !isSignedInteger(value_type)) {
+        @compileError(negation_error_message);
+    }
+
+    if (value == min(value_type)) {
+        return OverflowError.IntegerOverflow;
+    }
+
+    return -%value;
+}
+
+/// 整数型の符号を反転させた値を返します。
+/// 結果の値が型の上限より大きい場合は剰余の値を返します。
+pub fn negationWrapping(value: anytype) @TypeOf(value) {
+    const value_type = @TypeOf(value);
+    if (comptime !isSignedInteger(value_type)) {
+        @compileError(negation_error_message);
+    }
+
+    return -%value;
+}
+
+/// 整数型の符号を反転させた値を返します。
+/// 結果の値が型の上限より大きい場合は未定義動作になります。
+pub fn negationUnsafe(value: anytype) @TypeOf(value) {
+    const value_type = @TypeOf(value);
+    if (comptime !isSignedInteger(value_type)) {
+        @compileError(negation_error_message);
+    }
+
+    return -value;
 }
 
 test "整数型の符号反転 符号あり" {
@@ -288,6 +356,10 @@ test "整数型の符号反転 符号あり" {
 
     try expect(-num, -1);
     try expect(-%num, -1);
+
+    try expect(negation(num), -1);
+    try expect(negationWrapping(num), -1);
+    try expect(negationUnsafe(num), -1);
 }
 
 test "整数型の符号反転 符号あり オーバーフロー" {
@@ -297,6 +369,10 @@ test "整数型の符号反転 符号あり オーバーフロー" {
 
     // try expect(-num, 0x80); // build error
     try expect(-%num, -0x80);
+
+    try expect(negation(num), OverflowError.IntegerOverflow);
+    try expect(negationWrapping(num), -0x80);
+    // try expect(negationUnsafe(num), 0x80); // panic
 }
 
 test "整数型の足し算 符号なし" {

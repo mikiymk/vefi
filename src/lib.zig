@@ -92,25 +92,36 @@ pub const testing = struct {
     }
 
     pub fn expectEqual(left: anytype, right: @TypeOf(left)) error{AssertionFailed}!void {
-        if (left != right) {
-            std.debug.print("left: {!} != right: {!}\n", .{ left, right });
+        const info = @typeInfo(@TypeOf(left));
 
-            return error.AssertionFailed;
-        }
-    }
-
-    pub fn expectError(left: anytype, right: @TypeOf(left)) error{AssertionFailed}!void {
-        _ = left catch |e| {
-            _ = right catch |f| {
-                if (e == f) {
-                    return;
+        switch (info) {
+            .ErrorUnion => {
+                if (left) |l| {
+                    if (right) |r| {
+                        if (l == r) {
+                            return;
+                        }
+                    } else |_| {}
+                } else |e| {
+                    _ = right catch |f| {
+                        if (e == f) {
+                            return;
+                        }
+                    };
                 }
-            };
-        };
 
-        std.debug.print("left: {!} != right: {!}\n", .{ left, right });
+                std.debug.print("left: {!} != right: {!}\n", .{ left, right });
 
-        return error.AssertionFailed;
+                return error.AssertionFailed;
+            },
+            else => {
+                if (left != right) {
+                    std.debug.print("left: {!} != right: {!}\n", .{ left, right });
+
+                    return error.AssertionFailed;
+                }
+            },
+        }
     }
 };
 
