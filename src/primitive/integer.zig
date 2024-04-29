@@ -17,12 +17,16 @@ const assert = lib.testing.assert;
 /// このデータ構造は Zig 言語コード生成で使用されるため、コンパイラー実装と同期を保つ必要があります。
 pub const Signedness = std.builtin.Signedness;
 
+const OverflowError = error{IntegerOverflow};
+const DivZeroError = error{DivideByZero};
+
 // 定数
 
 pub const POINTER_SIZE = sizeOf(usize);
 
 // 整数型を作る関数
 
+/// 符号とビット数から整数型を返します。
 pub fn Integer(signedness: Signedness, bits: u16) type {
     return @Type(.{ .Int = .{
         .signedness = signedness,
@@ -30,10 +34,20 @@ pub fn Integer(signedness: Signedness, bits: u16) type {
     } });
 }
 
+/// 整数型を受け取り、同じビット数の符号あり整数を返します。
+pub fn Signed(comptime T: type) type {
+    return Integer(.signed, sizeOf(T));
+}
+
+/// 整数型を受け取り、同じビット数の符号なし整数を返します。
+pub fn Unsigned(comptime T: type) type {
+    return Integer(.unsigned, sizeOf(T));
+}
+
 test "符号とビットサイズから整数型を作成する" {
     const expect = lib.testing.expect;
 
-    const IntType = Integer(.signed, 16);
+    const IntType: type = Integer(.signed, 16);
     try expect(IntType == i16);
 }
 
@@ -166,6 +180,34 @@ test "整数型の型を調べる関数" {
     try expect(isInteger(c_ulong));
     try expect(isInteger(c_longlong));
     try expect(isInteger(c_ulonglong));
+}
+
+// 整数型の最大値と最小値を求める関数
+
+/// 与えられた整数型の表現できる最大の整数を返します。
+pub fn max(comptime T: type) T {
+    return switch (comptime signOf(T)) {
+        .unsigned => ~@as(T, 0),
+        .signed => ~@as(Unsigned(T), 0) >> 1,
+    };
+}
+
+/// 与えられた整数型の表現できる最小の整数を返します。
+pub fn min(comptime T: type) T {
+    return switch (comptime signOf(T)) {
+        .unsigned => 0,
+        .signed => ~max(T),
+    };
+}
+
+test "整数型の最大値と最小値" {
+    const expect = lib.testing.expectEqual;
+
+    try expect(max(u8), 0xff);
+    try expect(min(u8), 0);
+
+    try expect(max(i8), 0x7f);
+    try expect(min(i8), -0x80);
 }
 
 test "整数型の符号反転 符号あり" {
