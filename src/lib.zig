@@ -68,7 +68,11 @@ pub const network = struct {};
 pub const memory = struct {};
 pub const regular_expression = struct {};
 pub const graphic = struct {};
-pub const types = struct {};
+pub const types = struct {
+    pub fn typeName(comptime T: type) []const u8 {
+        return @typeName(T);
+    }
+};
 pub const random = struct {};
 pub const locale = struct {};
 pub const file_format = struct {};
@@ -89,10 +93,24 @@ pub const testing = struct {
 
     pub fn expectEqual(left: anytype, right: @TypeOf(left)) error{AssertionFailed}!void {
         if (left != right) {
-            std.debug.print("expect equals but left: {}, right: {}\n", .{ left, right });
+            std.debug.print("left: {!} != right: {!}\n", .{ left, right });
 
             return error.AssertionFailed;
         }
+    }
+
+    pub fn expectError(left: anytype, right: @TypeOf(left)) error{AssertionFailed}!void {
+        _ = left catch |e| {
+            _ = right catch |f| {
+                if (e == f) {
+                    return;
+                }
+            };
+        };
+
+        std.debug.print("left: {!} != right: {!}\n", .{ left, right });
+
+        return error.AssertionFailed;
     }
 };
 

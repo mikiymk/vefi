@@ -2,13 +2,13 @@
 //! 整数型の操作する関数を与えます。
 //! 整数型に含まれる型は以下にリストされます。
 //!
-//! - ビットサイズの指定された符号付き整数型 (`i0`から`i65535`)
+//! - ビットサイズの指定された符号あり整数型 (`i0`から`i65535`)
 //! - ビットサイズの指定された符号なし整数型 (`u0`から`u65535`)
-//! - ポインタサイズの符号付き整数型 (`isize`)
+//! - ポインタサイズの符号あり整数型 (`isize`)
 //! - ポインタサイズの符号なし整数型 (`usize`)
 //! - コンパイル時整数型 (`comptime_int`)
 //!
-//! 符号付き整数型は2の補数表現で表されます。
+//! 符号あり整数型は2の補数表現で表されます。
 
 const std = @import("std");
 const lib = @import("../lib.zig");
@@ -53,9 +53,9 @@ test "符号とビットサイズから整数型を作成する" {
 
 // 整数型の種類を調べる関数
 
-/// 型が符号付き整数型かどうかを判定します。
+/// 型が符号あり整数型かどうかを判定します。
 ///
-/// 符号付き整数型(`i0`から`i65535`、 または`isize`)の場合は`true`、 それ以外の場合は`false`を返します。
+/// 符号あり整数型(`i0`から`i65535`、 または`isize`)の場合は`true`、 それ以外の場合は`false`を返します。
 pub fn isSignedInteger(comptime T: type) bool {
     const info = @typeInfo(T);
 
@@ -208,6 +208,77 @@ test "整数型の最大値と最小値" {
 
     try expect(max(i8), 0x7f);
     try expect(min(i8), -0x80);
+}
+
+/// 値を指定した型に変換します。
+/// 値が型の上限より大きい場合はエラーを返します。
+pub fn cast(comptime T: type, value: anytype) OverflowError!T {
+    if (max(T) < value or value < min(T)) {
+        return OverflowError.IntegerOverflow;
+    }
+
+    return @intCast(value);
+}
+
+/// 値を指定した型に変換します。
+/// 値が型の上限より大きい場合は溢れた桁を無視します。
+pub fn castTruncate(comptime T: type, value: anytype) T {
+    return @truncate(value);
+}
+
+/// 値を指定した型に変換します。
+/// 値が型の上限より大きい場合は最大値・最小値に制限されます。
+pub fn castSaturation(comptime T: type, value: anytype) T {
+    if (max(T) < value) {
+        return max(T);
+    } else if (value < min(T)) {
+        return min(T);
+    }
+
+    return @intCast(value);
+}
+
+/// 値を指定した型に変換します。
+/// 値が型の上限より大きい場合は未定義動作になります。
+pub fn castUnsafe(comptime T: type, value: anytype) T {
+    return @intCast(value);
+}
+
+/// 値のビットを符号あり整数型として返します。
+pub fn asSigned(value: anytype) Signed(@TypeOf(value)) {
+    return @bitCast(value);
+}
+
+/// 値のビットを符号なし整数型として返します。
+pub fn asUnsigned(value: anytype) Unsigned(@TypeOf(value)) {
+    return @bitCast(value);
+}
+
+test "整数型の型変換" {
+    const expect = lib.testing.expectEqual;
+    const expectError = lib.testing.expectError;
+
+    try expect(try cast(u8, 1), 1);
+    try expectError(cast(u8, 0xfff), error.IntegerOverflow);
+    try expectError(cast(u8, -1), error.IntegerOverflow);
+
+    try expect(castTruncate(u8, 1), 1);
+    try expect(castTruncate(u8, 0xfff), 0xff);
+    try expect(castTruncate(u8, -2), 0xfe);
+    // try expect(castTruncate(u8, @as(i8, -1)), 0xff); // build error
+    // try expect(castTruncate(u8, @as(i9, -1)), 0xff); // build error
+
+    try expect(castSaturation(u8, 1), 1);
+    try expect(castSaturation(u8, 0xfff), 0xff);
+    try expect(castSaturation(u8, -1), 0);
+    try expect(castSaturation(u8, @as(i8, -1)), 0);
+    try expect(castSaturation(u8, @as(i9, -1)), 0);
+
+    try expect(asSigned(@as(u8, 0x80)), -0x80);
+    try expect(asSigned(@as(u8, 0xff)), -1);
+
+    try expect(asUnsigned(@as(i8, -1)), 0xff);
+    try expect(asUnsigned(@as(i8, -0x80)), 0x80);
 }
 
 test "整数型の符号反転 符号あり" {
