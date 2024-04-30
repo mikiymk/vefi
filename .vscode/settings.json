@@ -1,5 +1,12 @@
 {
     "cSpell.words": [
+        "anytype",
+        "comptime",
+        "isize",
+        "struct",
+        "usize",
         "vefi"
-    ]
+    ],
+    "cSpell.checkOnlyEnabledFileTypes": false,
+    "zig.buildOnSave": true
 }

@@ -12,7 +12,7 @@
 
 const std = @import("std");
 const lib = @import("../lib.zig");
-const assert = lib.testing.assert;
+const assert = lib.assert;
 
 /// このデータ構造は Zig 言語コード生成で使用されるため、コンパイラー実装と同期を保つ必要があります。
 pub const Signedness = std.builtin.Signedness;
@@ -120,14 +120,14 @@ pub fn isInteger(comptime T: type) bool {
 }
 
 pub fn signOf(comptime T: type) Signedness {
-    assert(isRuntimeInteger(T));
+    assert.assert(isRuntimeInteger(T));
 
     return @typeInfo(T).Int.signedness;
 }
 
 /// 型のビットサイズを調べます。
 pub fn sizeOf(comptime T: type) u16 {
-    assert(isRuntimeInteger(T));
+    assert.assert(isRuntimeInteger(T));
 
     return @typeInfo(T).Int.bits;
 }
@@ -196,7 +196,7 @@ test "整数型の型を調べる関数" {
 
 /// 与えられた整数型の表現できる最大の整数を返します。
 pub fn max(comptime T: type) T {
-    assert(isRuntimeInteger(T));
+    assert.assert(isRuntimeInteger(T));
 
     return switch (comptime signOf(T)) {
         .unsigned => ~@as(T, 0),
@@ -206,7 +206,7 @@ pub fn max(comptime T: type) T {
 
 /// 与えられた整数型の表現できる最小の整数を返します。
 pub fn min(comptime T: type) T {
-    assert(isRuntimeInteger(T));
+    assert.assert(isRuntimeInteger(T));
 
     return switch (comptime signOf(T)) {
         .unsigned => 0,
@@ -227,7 +227,7 @@ test "整数型の最大値と最小値" {
 /// 値を指定した型に変換します。
 /// 値が型の上限より大きい場合はエラーを返します。
 pub fn cast(comptime T: type, value: anytype) OverflowError!T {
-    assert(isRuntimeInteger(T) and isRuntimeInteger(@TypeOf(value)));
+    assert.assert(isRuntimeInteger(T) and isRuntimeInteger(@TypeOf(value)));
 
     if (max(T) < value or value < min(T)) {
         return OverflowError.IntegerOverflow;
@@ -239,7 +239,7 @@ pub fn cast(comptime T: type, value: anytype) OverflowError!T {
 /// 値を指定した型に変換します。
 /// 値が型の上限より大きい場合は剰余の値を返します。
 pub fn castTruncate(comptime T: type, value: anytype) T {
-    assert(isRuntimeInteger(T) and isRuntimeInteger(@TypeOf(value)));
+    assert.assert(isRuntimeInteger(T) and isRuntimeInteger(@TypeOf(value)));
 
     return @truncate(value);
 }
@@ -247,7 +247,7 @@ pub fn castTruncate(comptime T: type, value: anytype) T {
 /// 値を指定した型に変換します。
 /// 値が型の上限より大きい場合は最大値・最小値に制限されます。
 pub fn castSaturation(comptime T: type, value: anytype) T {
-    assert(isRuntimeInteger(T) and isRuntimeInteger(@TypeOf(value)));
+    assert.assert(isRuntimeInteger(T) and isRuntimeInteger(@TypeOf(value)));
 
     if (max(T) < value) {
         return max(T);
@@ -261,21 +261,21 @@ pub fn castSaturation(comptime T: type, value: anytype) T {
 /// 値を指定した型に変換します。
 /// 値が型の上限より大きい場合は未定義動作になります。
 pub fn castUnsafe(comptime T: type, value: anytype) T {
-    assert(isRuntimeInteger(T) and isRuntimeInteger(@TypeOf(value)));
+    assert.assert(isRuntimeInteger(T) and isRuntimeInteger(@TypeOf(value)));
 
     return @intCast(value);
 }
 
 /// 値のビットを符号あり整数型として返します。
 pub fn asSigned(value: anytype) Signed(@TypeOf(value)) {
-    assert(isRuntimeInteger(@TypeOf(value)));
+    assert.assert(isRuntimeInteger(@TypeOf(value)));
 
     return @bitCast(value);
 }
 
 /// 値のビットを符号なし整数型として返します。
 pub fn asUnsigned(value: anytype) Unsigned(@TypeOf(value)) {
-    assert(isRuntimeInteger(@TypeOf(value)));
+    assert.assert(isRuntimeInteger(@TypeOf(value)));
 
     return @bitCast(value);
 }
@@ -375,6 +375,68 @@ test "整数型の符号反転 符号あり オーバーフロー" {
     // try expect(negationUnsafe(num), 0x80); // panic
 }
 
+/// 二つの整数を足した結果を返します。
+/// 結果の値が型の上限より大きい場合はエラーを返します。
+pub fn add(left: anytype, right: @TypeOf(left)) OverflowError!@TypeOf(left) {
+    assert.assertStatic(isInteger(@TypeOf(left)));
+
+    const result, const carry = @addWithOverflow(left, right);
+    if (carry == 1) {
+        return OverflowError.IntegerOverflow;
+    }
+
+    return result;
+}
+
+/// 二つの整数を足した結果を返します。
+/// 結果の値が型の上限より大きい場合は剰余の値を返します。
+pub fn addWrapping(left: anytype, right: @TypeOf(left)) @TypeOf(left) {
+    assert.assertStatic(isInteger(@TypeOf(left)));
+
+    return left +% right;
+}
+
+/// 二つの整数を足した結果を返します。
+/// 結果の値が値が型の上限より大きい場合は最大値・最小値に制限されます。
+pub fn addSaturation(left: anytype, right: @TypeOf(left)) @TypeOf(left) {
+    assert.assertStatic(isInteger(@TypeOf(left)));
+
+    return left +| right;
+}
+
+/// 二つの整数を足した結果を返します。
+/// 結果の値が値が型の上限より大きい場合は未定義動作になります。
+pub fn addUnsafe(left: anytype, right: @TypeOf(left)) @TypeOf(left) {
+    assert.assertStatic(isInteger(@TypeOf(left)));
+
+    return left + right;
+}
+
+pub fn AddExtend(T: type) type {
+    const sign = signOf(T);
+    const size = sizeOf(T);
+
+    return Integer(sign, size + 1);
+}
+
+/// 二つの整数を足した結果を返します。
+/// 結果の値が値が型の上限より大きい場合はタプルの2番目の値に1を返します。
+pub fn addOverflow(left: anytype, right: @TypeOf(left)) struct { @TypeOf(left), u1 } {
+    assert.assertStatic(isInteger(@TypeOf(left)));
+
+    return @addWithOverflow(left, right);
+}
+
+/// 二つの整数を足した結果を返します。
+/// 結果の型を拡張してすべての結果の値が収まる型にします。
+pub fn addExtend(left: anytype, right: @TypeOf(left)) AddExtend(@TypeOf(left)) {
+    assert.assertStatic(isInteger(@TypeOf(left)));
+
+    const ExtendedInteger = AddExtend(@TypeOf(left));
+
+    return @as(ExtendedInteger, left) + @as(ExtendedInteger, right);
+}
+
 test "整数型の足し算 符号なし" {
     const expect = lib.testing.expectEqual;
 
@@ -386,6 +448,13 @@ test "整数型の足し算 符号なし" {
     try expect(left +| right, 4);
     try expect(@addWithOverflow(left, right)[0], 4);
     try expect(@addWithOverflow(left, right)[1], 0);
+
+    try expect(add(left, right), 4);
+    try expect(addWrapping(left, right), 4);
+    try expect(addSaturation(left, right), 4);
+    try expect(addUnsafe(left, right), 4);
+    try expect(addOverflow(left, right), .{ 4, 0 });
+    try expect(addExtend(left, right), 4);
 }
 
 test "整数型の足し算 符号なし 上にオーバーフロー" {
@@ -396,9 +465,16 @@ test "整数型の足し算 符号なし 上にオーバーフロー" {
 
     // try expect(left + right, 0x100); // build error
     try expect(left +% right, 0);
-    try expect(left +| right, 255);
+    try expect(left +| right, 0xff);
     try expect(@addWithOverflow(left, right)[0], 0);
     try expect(@addWithOverflow(left, right)[1], 1);
+
+    try expect(add(left, right), OverflowError.IntegerOverflow);
+    try expect(addWrapping(left, right), 0);
+    try expect(addSaturation(left, right), 0xff);
+    // try expect(addUnsafe(left, right), 0x100); // panic
+    try expect(addOverflow(left, right), .{ 0, 1 });
+    try expect(addExtend(left, right), 0x100);
 }
 
 test "整数型の足し算 符号あり" {
@@ -412,6 +488,13 @@ test "整数型の足し算 符号あり" {
     try expect(left +| right, 4);
     try expect(@addWithOverflow(left, right)[0], 4);
     try expect(@addWithOverflow(left, right)[1], 0);
+
+    try expect(add(left, right), 4);
+    try expect(addWrapping(left, right), 4);
+    try expect(addSaturation(left, right), 4);
+    try expect(addUnsafe(left, right), 4);
+    try expect(addOverflow(left, right), .{ 4, 0 });
+    try expect(addExtend(left, right), 4);
 }
 
 test "整数型の足し算 符号あり 上にオーバーフロー" {
@@ -425,6 +508,13 @@ test "整数型の足し算 符号あり 上にオーバーフロー" {
     try expect(left +| right, 0x7f);
     try expect(@addWithOverflow(left, right)[0], -0x80);
     try expect(@addWithOverflow(left, right)[1], 1);
+
+    try expect(add(left, right), OverflowError.IntegerOverflow);
+    try expect(addWrapping(left, right), -0x80);
+    try expect(addSaturation(left, right), 0x7f);
+    // try expect(addUnsafe(left, right), 0x80); // panic
+    try expect(addOverflow(left, right), .{ -0x80, 1 });
+    try expect(addExtend(left, right), 0x80);
 }
 
 test "整数型の足し算 符号あり 下にオーバーフロー" {
@@ -438,6 +528,13 @@ test "整数型の足し算 符号あり 下にオーバーフロー" {
     try expect(left +| right, -0x80);
     try expect(@addWithOverflow(left, right)[0], 0x7f);
     try expect(@addWithOverflow(left, right)[1], 1);
+
+    try expect(add(left, right), OverflowError.IntegerOverflow);
+    try expect(addWrapping(left, right), 0x7f);
+    try expect(addSaturation(left, right), -0x80);
+    // try expect(addUnsafe(left, right), -0x81); // panic
+    try expect(addOverflow(left, right), .{ 0x7f, 1 });
+    try expect(addExtend(left, right), -0x81);
 }
 
 test "整数型の引き算 符号なし" {

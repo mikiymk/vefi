@@ -78,49 +78,65 @@ pub const locale = struct {};
 pub const file_format = struct {};
 pub const computer_language = struct {};
 pub const natural_language = struct {};
-pub const testing = struct {
+pub const assert = struct {
     pub fn assert(ok: bool) void {
         if (!ok) {
             unreachable;
         }
     }
 
+    pub fn assertStatic(comptime ok: bool) void {
+        if (!ok) {
+            @compileError("assertion failed");
+        }
+    }
+};
+pub const testing = struct {
     pub fn expect(ok: bool) error{AssertionFailed}!void {
         if (!ok) {
             return error.AssertionFailed;
         }
     }
 
-    pub fn expectEqual(left: anytype, right: @TypeOf(left)) error{AssertionFailed}!void {
+    fn equal(left: anytype, right: @TypeOf(left)) bool {
         const info = @typeInfo(@TypeOf(left));
 
         switch (info) {
             .ErrorUnion => {
                 if (left) |l| {
                     if (right) |r| {
-                        if (l == r) {
-                            return;
-                        }
+                        return equal(l, r);
                     } else |_| {}
                 } else |e| {
                     _ = right catch |f| {
-                        if (e == f) {
-                            return;
-                        }
+                        return e == f;
                     };
                 }
 
-                std.debug.print("left: {!} != right: {!}\n", .{ left, right });
-
-                return error.AssertionFailed;
+                return false;
             },
-            else => {
-                if (left != right) {
-                    std.debug.print("left: {!} != right: {!}\n", .{ left, right });
+            .Struct => |s| {
+                inline for (s.fields) |field| {
+                    const field_name = field.name;
+                    const field_left = @field(left, field_name);
+                    const field_right = @field(right, field_name);
 
-                    return error.AssertionFailed;
+                    if (!equal(field_left, field_right)) {
+                        return false;
+                    }
                 }
+
+                return true;
             },
+            else => return left == right,
+        }
+    }
+
+    pub fn expectEqual(left: anytype, right: @TypeOf(left)) error{AssertionFailed}!void {
+        if (!equal(left, right)) {
+            std.debug.print("left: {!} != right: {!}\n", .{ left, right });
+
+            return error.AssertionFailed;
         }
     }
 };
