@@ -17,8 +17,8 @@ const assert = lib.assert;
 /// このデータ構造は Zig 言語コード生成で使用されるため、コンパイラー実装と同期を保つ必要があります。
 pub const Signedness = std.builtin.Signedness;
 
-const OverflowError = error{IntegerOverflow};
-const DivZeroError = error{DivideByZero};
+pub const OverflowError = error{IntegerOverflow};
+pub const DivZeroError = error{DivideByZero};
 
 const negation_error_message = "符号反転は符号あり整数型である必要があります。";
 
@@ -119,13 +119,14 @@ pub fn isInteger(comptime T: type) bool {
     return info == .Int or info == .ComptimeInt;
 }
 
+/// 整数型の符号を調べます。
 pub fn signOf(comptime T: type) Signedness {
     assert.assert(isRuntimeInteger(T));
 
     return @typeInfo(T).Int.signedness;
 }
 
-/// 型のビットサイズを調べます。
+/// 整数型のビットサイズを調べます。
 pub fn sizeOf(comptime T: type) u16 {
     assert.assert(isRuntimeInteger(T));
 
@@ -312,43 +313,6 @@ test "整数型の型変換" {
 
 // 符号反転
 
-/// 整数型の符号を反転させた値を返します。
-/// 結果の値が型の上限より大きい場合はエラーを返します。
-pub fn negation(value: anytype) OverflowError!@TypeOf(value) {
-    const value_type = @TypeOf(value);
-    if (comptime !isSignedInteger(value_type)) {
-        @compileError(negation_error_message);
-    }
-
-    if (value == min(value_type)) {
-        return OverflowError.IntegerOverflow;
-    }
-
-    return -%value;
-}
-
-/// 整数型の符号を反転させた値を返します。
-/// 結果の値が型の上限より大きい場合は剰余の値を返します。
-pub fn negationWrapping(value: anytype) @TypeOf(value) {
-    const value_type = @TypeOf(value);
-    if (comptime !isSignedInteger(value_type)) {
-        @compileError(negation_error_message);
-    }
-
-    return -%value;
-}
-
-/// 整数型の符号を反転させた値を返します。
-/// 結果の値が型の上限より大きい場合は未定義動作になります。
-pub fn negationUnsafe(value: anytype) @TypeOf(value) {
-    const value_type = @TypeOf(value);
-    if (comptime !isSignedInteger(value_type)) {
-        @compileError(negation_error_message);
-    }
-
-    return -value;
-}
-
 test "整数型の符号反転 符号あり" {
     const expect = lib.testing.expectEqual;
 
@@ -356,10 +320,6 @@ test "整数型の符号反転 符号あり" {
 
     try expect(-num, -1);
     try expect(-%num, -1);
-
-    try expect(negation(num), -1);
-    try expect(negationWrapping(num), -1);
-    try expect(negationUnsafe(num), -1);
 }
 
 test "整数型の符号反転 符号あり オーバーフロー" {
@@ -369,72 +329,6 @@ test "整数型の符号反転 符号あり オーバーフロー" {
 
     // try expect(-num, 0x80); // build error
     try expect(-%num, -0x80);
-
-    try expect(negation(num), OverflowError.IntegerOverflow);
-    try expect(negationWrapping(num), -0x80);
-    // try expect(negationUnsafe(num), 0x80); // panic
-}
-
-/// 二つの整数を足した結果を返します。
-/// 結果の値が型の上限より大きい場合はエラーを返します。
-pub fn add(left: anytype, right: @TypeOf(left)) OverflowError!@TypeOf(left) {
-    assert.assertStatic(isInteger(@TypeOf(left)));
-
-    const result, const carry = @addWithOverflow(left, right);
-    if (carry == 1) {
-        return OverflowError.IntegerOverflow;
-    }
-
-    return result;
-}
-
-/// 二つの整数を足した結果を返します。
-/// 結果の値が型の上限より大きい場合は剰余の値を返します。
-pub fn addWrapping(left: anytype, right: @TypeOf(left)) @TypeOf(left) {
-    assert.assertStatic(isInteger(@TypeOf(left)));
-
-    return left +% right;
-}
-
-/// 二つの整数を足した結果を返します。
-/// 結果の値が値が型の上限より大きい場合は最大値・最小値に制限されます。
-pub fn addSaturation(left: anytype, right: @TypeOf(left)) @TypeOf(left) {
-    assert.assertStatic(isInteger(@TypeOf(left)));
-
-    return left +| right;
-}
-
-/// 二つの整数を足した結果を返します。
-/// 結果の値が値が型の上限より大きい場合は未定義動作になります。
-pub fn addUnsafe(left: anytype, right: @TypeOf(left)) @TypeOf(left) {
-    assert.assertStatic(isInteger(@TypeOf(left)));
-
-    return left + right;
-}
-
-pub fn AddExtend(T: type) type {
-    const sign = signOf(T);
-    const size = sizeOf(T);
-
-    return Integer(sign, size + 1);
-}
-
-/// 二つの整数を足した結果を返します。
-/// 結果の値が値が型の上限より大きい場合はタプルの2番目の値に1を返します。
-pub fn addOverflow(left: anytype, right: @TypeOf(left)) struct { @TypeOf(left), u1 } {
-    assert.assertStatic(isInteger(@TypeOf(left)));
-
-    return @addWithOverflow(left, right);
-}
-
-/// 二つの整数を足した結果を返します。
-/// 結果の型を拡張してすべての結果の値が収まる型にします。
-pub fn addExtend(left: anytype, right: @TypeOf(left)) AddExtend(@TypeOf(left)) {
-    assert.assertStatic(isInteger(@TypeOf(left)));
-
-    const ExtendedInteger = AddExtend(@TypeOf(left));
-
-    return @as(ExtendedInteger, left) + @as(ExtendedInteger, right);
 }
 
 test "整数型の足し算 符号なし" {
@@ -448,13 +342,6 @@ test "整数型の足し算 符号なし" {
     try expect(left +| right, 4);
     try expect(@addWithOverflow(left, right)[0], 4);
     try expect(@addWithOverflow(left, right)[1], 0);
-
-    try expect(add(left, right), 4);
-    try expect(addWrapping(left, right), 4);
-    try expect(addSaturation(left, right), 4);
-    try expect(addUnsafe(left, right), 4);
-    try expect(addOverflow(left, right), .{ 4, 0 });
-    try expect(addExtend(left, right), 4);
 }
 
 test "整数型の足し算 符号なし 上にオーバーフロー" {
@@ -468,13 +355,6 @@ test "整数型の足し算 符号なし 上にオーバーフロー" {
     try expect(left +| right, 0xff);
     try expect(@addWithOverflow(left, right)[0], 0);
     try expect(@addWithOverflow(left, right)[1], 1);
-
-    try expect(add(left, right), OverflowError.IntegerOverflow);
-    try expect(addWrapping(left, right), 0);
-    try expect(addSaturation(left, right), 0xff);
-    // try expect(addUnsafe(left, right), 0x100); // panic
-    try expect(addOverflow(left, right), .{ 0, 1 });
-    try expect(addExtend(left, right), 0x100);
 }
 
 test "整数型の足し算 符号あり" {
@@ -488,13 +368,6 @@ test "整数型の足し算 符号あり" {
     try expect(left +| right, 4);
     try expect(@addWithOverflow(left, right)[0], 4);
     try expect(@addWithOverflow(left, right)[1], 0);
-
-    try expect(add(left, right), 4);
-    try expect(addWrapping(left, right), 4);
-    try expect(addSaturation(left, right), 4);
-    try expect(addUnsafe(left, right), 4);
-    try expect(addOverflow(left, right), .{ 4, 0 });
-    try expect(addExtend(left, right), 4);
 }
 
 test "整数型の足し算 符号あり 上にオーバーフロー" {
@@ -508,13 +381,6 @@ test "整数型の足し算 符号あり 上にオーバーフロー" {
     try expect(left +| right, 0x7f);
     try expect(@addWithOverflow(left, right)[0], -0x80);
     try expect(@addWithOverflow(left, right)[1], 1);
-
-    try expect(add(left, right), OverflowError.IntegerOverflow);
-    try expect(addWrapping(left, right), -0x80);
-    try expect(addSaturation(left, right), 0x7f);
-    // try expect(addUnsafe(left, right), 0x80); // panic
-    try expect(addOverflow(left, right), .{ -0x80, 1 });
-    try expect(addExtend(left, right), 0x80);
 }
 
 test "整数型の足し算 符号あり 下にオーバーフロー" {
@@ -528,13 +394,6 @@ test "整数型の足し算 符号あり 下にオーバーフロー" {
     try expect(left +| right, -0x80);
     try expect(@addWithOverflow(left, right)[0], 0x7f);
     try expect(@addWithOverflow(left, right)[1], 1);
-
-    try expect(add(left, right), OverflowError.IntegerOverflow);
-    try expect(addWrapping(left, right), 0x7f);
-    try expect(addSaturation(left, right), -0x80);
-    // try expect(addUnsafe(left, right), -0x81); // panic
-    try expect(addOverflow(left, right), .{ 0x7f, 1 });
-    try expect(addExtend(left, right), -0x81);
 }
 
 test "整数型の引き算 符号なし" {
@@ -862,4 +721,203 @@ test "整数型の余り算 符号あり ゼロ除算" {
     // try expect(left % right, 2); // build error
     // try expect(@rem(left, right), 2); // build error
     // try expect(@mod(left, right), 2); // build error
+}
+
+pub fn IntegerWrap(Int: type) type {
+    assert.assertStatic(isInteger(Int));
+
+    return struct {
+        pub const Value = Int;
+        pub const signedness = signOf(Int);
+        pub const bits = sizeOf(Int);
+
+        const Self = @This();
+
+        value: Int,
+
+        /// 整数型の符号を反転させた値を返します。
+        /// 結果の値が型の上限より大きい場合はエラーを返します。
+        pub fn negation(self: Self) OverflowError!Self {
+            if (comptime !isSignedInteger(Int)) {
+                @compileError(negation_error_message);
+            }
+
+            if (self.value == min(Int)) {
+                return OverflowError.IntegerOverflow;
+            }
+
+            return .{ .value = -%self.value };
+        }
+
+        /// 整数型の符号を反転させた値を返します。
+        /// 結果の値が型の上限より大きい場合は剰余の値を返します。
+        pub fn negationWrapping(self: Self) Self {
+            if (comptime !isSignedInteger(Int)) {
+                @compileError(negation_error_message);
+            }
+
+            return .{ .value = -%self.value };
+        }
+
+        /// 整数型の符号を反転させた値を返します。
+        /// 結果の値が型の上限より大きい場合は未定義動作になります。
+        pub fn negationUnsafe(self: Self) Self {
+            if (comptime !isSignedInteger(Int)) {
+                @compileError(negation_error_message);
+            }
+
+            return .{ .value = -self.value };
+        }
+
+        /// 二つの整数を足した結果を返します。
+        /// 結果の値が型の上限より大きい場合はエラーを返します。
+        pub fn add(self: Self, other: Self) OverflowError!Self {
+            const result, const carry = @addWithOverflow(self.value, other.value);
+            if (carry == 1) {
+                return OverflowError.IntegerOverflow;
+            }
+
+            return .{ .value = result };
+        }
+
+        /// 二つの整数を足した結果を返します。
+        /// 結果の値が型の上限より大きい場合は剰余の値を返します。
+        pub fn addWrapping(self: Self, other: Self) Self {
+            return .{ .value = self.value +% other.value };
+        }
+
+        /// 二つの整数を足した結果を返します。
+        /// 結果の値が値が型の上限より大きい場合は最大値・最小値に制限されます。
+        pub fn addSaturation(self: Self, other: Self) Self {
+            return .{ .value = self.value +| other.value };
+        }
+
+        /// 二つの整数を足した結果を返します。
+        /// 結果の値が値が型の上限より大きい場合は未定義動作になります。
+        pub fn addUnsafe(self: Self, other: Self) Self {
+            return .{ .value = self.value + other.value };
+        }
+
+        /// 二つの整数を足した結果を返します。
+        /// 結果の値が値が型の上限より大きい場合はタプルの2番目の値に1を返します。
+        pub fn addOverflow(self: Self, other: Self) struct { Self, u1 } {
+            const result, const carry = @addWithOverflow(self.value, other.value);
+
+            return .{ .{ .value = result }, carry };
+        }
+
+        pub const AddExtend = IntegerWrap(Integer(signedness, bits + 1));
+
+        /// 二つの整数を足した結果を返します。
+        /// すべての結果の値が収まるように結果の型を拡張します。
+        pub fn addExtend(self: Self, other: Self) AddExtend {
+            const result_value = @as(AddExtend.Value, self.value) + other.value;
+
+            return .{ .value = result_value };
+        }
+    };
+}
+
+pub const U8 = IntegerWrap(u8);
+pub const U16 = IntegerWrap(u16);
+pub const U32 = IntegerWrap(u32);
+pub const U64 = IntegerWrap(u64);
+pub const U128 = IntegerWrap(u128);
+pub const USize = IntegerWrap(usize);
+
+pub const I8 = IntegerWrap(i8);
+pub const I16 = IntegerWrap(i16);
+pub const I32 = IntegerWrap(i32);
+pub const I64 = IntegerWrap(i64);
+pub const I128 = IntegerWrap(i128);
+pub const ISize = IntegerWrap(isize);
+
+test "整数ラッパーの符号反転 符号あり" {
+    const expect = lib.testing.expectEqual;
+
+    const num: I8 = .{ .value = 1 };
+
+    try expect(num.negation(), .{ .value = -1 });
+    try expect(num.negationWrapping(), .{ .value = -1 });
+    try expect(num.negationUnsafe(), .{ .value = -1 });
+}
+
+test "整数ラッパーの符号反転 符号あり オーバーフロー" {
+    const expect = lib.testing.expectEqual;
+
+    const num: I8 = .{ .value = -0x80 };
+
+    try expect(num.negation(), OverflowError.IntegerOverflow);
+    try expect(num.negationWrapping(), .{ .value = -0x80 });
+    // try expect(num.negationUnsafe(), .{ .value = 0 }); // panic
+}
+
+test "整数ラッパーの足し算 符号なし" {
+    const expect = lib.testing.expectEqual;
+
+    const left: U8 = .{ .value = 2 };
+    const right: U8 = .{ .value = 2 };
+
+    try expect(left.add(right), .{ .value = 4 });
+    try expect(left.addWrapping(right), .{ .value = 4 });
+    try expect(left.addSaturation(right), .{ .value = 4 });
+    try expect(left.addUnsafe(right), .{ .value = 4 });
+    try expect(left.addOverflow(right), .{ .{ .value = 4 }, 0 });
+    try expect(left.addExtend(right), .{ .value = 4 });
+}
+
+test "整数ラッパーの足し算 符号なし 上にオーバーフロー" {
+    const expect = lib.testing.expectEqual;
+
+    const left: U8 = .{ .value = 0xff };
+    const right: U8 = .{ .value = 1 };
+
+    try expect(left.add(right), OverflowError.IntegerOverflow);
+    try expect(left.addWrapping(right), .{ .value = 0 });
+    try expect(left.addSaturation(right), .{ .value = 0xff });
+    // try expect(left.addUnsafe(right), .{ .value = 0 }); // panic
+    try expect(left.addOverflow(right), .{ .{ .value = 0 }, 1 });
+    try expect(left.addExtend(right), .{ .value = 0x100 });
+}
+
+test "整数ラッパーの足し算 符号あり" {
+    const expect = lib.testing.expectEqual;
+
+    const left: I8 = .{ .value = 2 };
+    const right: I8 = .{ .value = 2 };
+
+    try expect(left.add(right), .{ .value = 4 });
+    try expect(left.addWrapping(right), .{ .value = 4 });
+    try expect(left.addSaturation(right), .{ .value = 4 });
+    try expect(left.addUnsafe(right), .{ .value = 4 });
+    try expect(left.addOverflow(right), .{ .{ .value = 4 }, 0 });
+    try expect(left.addExtend(right), .{ .value = 4 });
+}
+
+test "整数ラッパーの足し算 符号あり 上にオーバーフロー" {
+    const expect = lib.testing.expectEqual;
+
+    const left: I8 = .{ .value = 0x7f };
+    const right: I8 = .{ .value = 1 };
+
+    try expect(left.add(right), OverflowError.IntegerOverflow);
+    try expect(left.addWrapping(right), .{ .value = -0x80 });
+    try expect(left.addSaturation(right), .{ .value = 0x7f });
+    // try expect(left.addUnsafe(right), .{ .value = 0 }); // panic
+    try expect(left.addOverflow(right), .{ .{ .value = -0x80 }, 1 });
+    try expect(left.addExtend(right), .{ .value = 0x80 });
+}
+
+test "整数ラッパーの足し算 符号あり 下にオーバーフロー" {
+    const expect = lib.testing.expectEqual;
+
+    const left: I8 = .{ .value = -0x80 };
+    const right: I8 = .{ .value = -1 };
+
+    try expect(left.add(right), OverflowError.IntegerOverflow);
+    try expect(left.addWrapping(right), .{ .value = 0x7f });
+    try expect(left.addSaturation(right), .{ .value = -0x80 });
+    // try expect(left.addUnsafe(right), .{ .value = 0 }); // panic
+    try expect(left.addOverflow(right), .{ .{ .value = 0x7f }, 1 });
+    try expect(left.addExtend(right), .{ .value = -0x81 });
 }
