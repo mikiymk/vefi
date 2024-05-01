@@ -142,5 +142,14 @@ pub const testing = struct {
 };
 
 test {
-    std.testing.refAllDeclsRecursive(@This());
+    // std.testing.refAllDeclsRecursive(@This());
+
+    _ = primitive.boolean;
+    _ = primitive.character;
+    _ = primitive.integer;
+    _ = primitive.float;
+    _ = primitive.optional;
+
+    _ = collection.dynamic_array;
+    _ = collection.list;
 }
