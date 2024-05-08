@@ -35,7 +35,7 @@ pub const collection = struct {
     pub const tree = struct {};
     pub const heap = struct {};
 
-    pub const hash_map = struct {};
+    pub const hash_map = @import("collection/hash_map.zig");
     pub const tree_map = struct {};
     pub const bidirectional_map = struct {};
     pub const ordered_map = struct {};
@@ -76,7 +76,9 @@ pub const types = struct {
 pub const random = struct {};
 pub const locale = struct {};
 pub const file_format = struct {};
-pub const computer_language = struct {};
+pub const computer_language = struct {
+    pub const json = @import("computer_language/json.zig");
+};
 pub const natural_language = struct {};
 pub const assert = struct {
     pub fn assert(ok: bool) void {
@@ -152,4 +154,6 @@ test {
 
     _ = collection.dynamic_array;
     _ = collection.list;
+
+    _ = computer_language.json;
 }
