@@ -75,7 +75,10 @@ pub const types = struct {
 };
 pub const random = struct {};
 pub const locale = struct {};
-pub const file_format = struct {};
+pub const file_format = struct {
+    pub const joint_photographic_experts_group = @import("file_format/joint_photographic_experts_group.zig");
+    pub const portable_network_graphics = @import("file_format/portable_network_graphics.zig");
+};
 pub const computer_language = struct {
     pub const json = @import("computer_language/json.zig");
 };
