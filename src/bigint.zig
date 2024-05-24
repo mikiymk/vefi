@@ -1,4 +1,5 @@
 const std = @import("std");
+const lib = @import("./lib.zig");
 
 const String = []const u8;
 const Array = std.ArrayListUnmanaged(u8);

@@ -1,4 +1,6 @@
 const std = @import("std");
+const lib = @import("./lib.zig");
+
 const BigInteger = @import("bigint.zig").BigInteger;
 const fizz_buzz = @import("./fizzbuzz.zig");
 
@@ -11,7 +13,7 @@ pub fn main() !void {
     const print = std.debug.print;
     const allocator = std.heap.page_allocator;
 
-    try fizz_buzz.fizzbuzz(100);
+    try fizz_buzz.fizz(100, std.io.getStdOut().writer(), .{});
 
     const stdin = std.io.getStdIn().reader();
 
