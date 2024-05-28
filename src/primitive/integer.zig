@@ -386,10 +386,10 @@ test "符号反転 符号あり" {
     try expectEqual(-num, -1);
     try expectEqual(-%num, -1);
 
-    try expectEqualWithType(OverflowError!i8, negation(i8, num), -1);
-    try expectEqualWithType(i8, negationWrapping(i8, num), -1);
+    try expectEqual(negation(i8, num), -1);
+    try expectEqual(negationWrapping(i8, num), -1);
     try expectEqualWithType(i9, negationExtend(i8, num), -1);
-    try expectEqualWithType(i8, negationUnsafe(i8, num), -1);
+    try expectEqual(negationUnsafe(i8, num), -1);
 }
 
 test "符号反転 符号あり オーバーフロー" {
@@ -398,10 +398,55 @@ test "符号反転 符号あり オーバーフロー" {
     // try expectEqual(-num, 0x80); // build error: overflow of integer type 'i8' with value '128'
     try expectEqual(-%num, -0x80);
 
-    try expectEqualWithType(OverflowError!i8, negation(i8, num), error.IntegerOverflow);
-    try expectEqualWithType(i8, negationWrapping(i8, num), -0x80);
+    try expectEqual(negation(i8, num), error.IntegerOverflow);
+    try expectEqual(negationWrapping(i8, num), -0x80);
     try expectEqualWithType(i9, negationExtend(i8, num), 0x80);
-    // try expectEqualWithType(i8, negationUnsafe(i8, num), -0x80); // panic: integer overflow
+    // try expectEqual(negationUnsafe(i8, num), -0x80); // panic: integer overflow
+}
+
+// 足し算
+
+/// 二つの整数を足した結果を返します。
+/// 結果の値が型の上限より大きい場合はエラーを返します。
+pub fn add(T: type, left: T, right: T) OverflowError!T {
+    const result, const carry = @addWithOverflow(left, right);
+    if (carry == 1) {
+        return OverflowError.IntegerOverflow;
+    }
+
+    return result;
+}
+
+/// 二つの整数を足した結果を返します。
+/// 結果の値が型の上限より大きい場合は剰余の値を返します。
+pub fn addWrapping(T: type, left: T, right: T) T {
+    return left +% right;
+}
+
+/// 二つの整数を足した結果を返します。
+/// 結果の値が値が型の上限より大きい場合は最大値・最小値に制限されます。
+pub fn addSaturation(T: type, left: T, right: T) T {
+    return left +| right;
+}
+
+/// 二つの整数を足した結果を返します。
+/// 結果の値が値が型の上限より大きい場合はタプルの2番目の値に1を返します。
+pub fn addOverflow(T: type, left: T, right: T) struct { T, u1 } {
+    const result, const carry = @addWithOverflow(left, right);
+
+    return .{ result, carry };
+}
+
+/// 二つの整数を足した結果を返します。
+/// すべての結果の値が収まるように結果の型を拡張します。
+pub fn addExtend(T: type, left: T, right: T) Extend(T, 1) {
+    return @as(Extend(T, 1), left) + right;
+}
+
+/// 二つの整数を足した結果を返します。
+/// 結果の値が値が型の上限より大きい場合は未定義動作になります。
+pub fn addUnsafe(T: type, left: T, right: T) T {
+    return left + right;
 }
 
 test "足し算 符号なし" {
@@ -411,8 +456,14 @@ test "足し算 符号なし" {
     try expectEqual(left + right, 4);
     try expectEqual(left +% right, 4);
     try expectEqual(left +| right, 4);
-    try expectEqual(@addWithOverflow(left, right)[0], 4);
-    try expectEqual(@addWithOverflow(left, right)[1], 0);
+    try expectEqual(@addWithOverflow(left, right), .{ 4, 0 });
+
+    try expectEqual(add(u8, left, right), 4);
+    try expectEqual(addWrapping(u8, left, right), 4);
+    try expectEqual(addSaturation(u8, left, right), 4);
+    try expectEqual(addOverflow(u8, left, right), .{ 4, 0 });
+    try expectEqualWithType(u9, addExtend(u8, left, right), 4);
+    try expectEqual(addUnsafe(u8, left, right), 4);
 }
 
 test "足し算 符号なし 上にオーバーフロー" {
@@ -827,53 +878,6 @@ pub fn IntegerWrap(Int: type) type {
         const Self = @This();
 
         value: Int,
-
-        /// 二つの整数を足した結果を返します。
-        /// 結果の値が型の上限より大きい場合はエラーを返します。
-        pub fn add(self: Self, other: Self) OverflowError!Self {
-            const result, const carry = @addWithOverflow(self.value, other.value);
-            if (carry == 1) {
-                return OverflowError.IntegerOverflow;
-            }
-
-            return .{ .value = result };
-        }
-
-        /// 二つの整数を足した結果を返します。
-        /// 結果の値が型の上限より大きい場合は剰余の値を返します。
-        pub fn addWrapping(self: Self, other: Self) Self {
-            return .{ .value = self.value +% other.value };
-        }
-
-        /// 二つの整数を足した結果を返します。
-        /// 結果の値が値が型の上限より大きい場合は最大値・最小値に制限されます。
-        pub fn addSaturation(self: Self, other: Self) Self {
-            return .{ .value = self.value +| other.value };
-        }
-
-        /// 二つの整数を足した結果を返します。
-        /// 結果の値が値が型の上限より大きい場合は未定義動作になります。
-        pub fn addUnsafe(self: Self, other: Self) Self {
-            return .{ .value = self.value + other.value };
-        }
-
-        /// 二つの整数を足した結果を返します。
-        /// 結果の値が値が型の上限より大きい場合はタプルの2番目の値に1を返します。
-        pub fn addOverflow(self: Self, other: Self) struct { Self, u1 } {
-            const result, const carry = @addWithOverflow(self.value, other.value);
-
-            return .{ .{ .value = result }, carry };
-        }
-
-        pub const AddExtend = IntegerWrap(Integer(signedness, bits + 1));
-
-        /// 二つの整数を足した結果を返します。
-        /// すべての結果の値が収まるように結果の型を拡張します。
-        pub fn addExtend(self: Self, other: Self) AddExtend {
-            const result_value = @as(AddExtend.Value, self.value) + other.value;
-
-            return .{ .value = result_value };
-        }
     };
 }
 
@@ -890,63 +894,3 @@ pub const I32 = IntegerWrap(i32);
 pub const I64 = IntegerWrap(i64);
 pub const I128 = IntegerWrap(i128);
 pub const ISize = IntegerWrap(isize);
-
-test "整数ラッパーの足し算 符号なし" {
-    const left: U8 = .{ .value = 2 };
-    const right: U8 = .{ .value = 2 };
-
-    try expectEqual(left.add(right), .{ .value = 4 });
-    try expectEqual(left.addWrapping(right), .{ .value = 4 });
-    try expectEqual(left.addSaturation(right), .{ .value = 4 });
-    try expectEqual(left.addUnsafe(right), .{ .value = 4 });
-    try expectEqual(left.addOverflow(right), .{ .{ .value = 4 }, 0 });
-    try expectEqual(left.addExtend(right), .{ .value = 4 });
-}
-
-test "整数ラッパーの足し算 符号なし 上にオーバーフロー" {
-    const left: U8 = .{ .value = 0xff };
-    const right: U8 = .{ .value = 1 };
-
-    try expectEqual(left.add(right), OverflowError.IntegerOverflow);
-    try expectEqual(left.addWrapping(right), .{ .value = 0 });
-    try expectEqual(left.addSaturation(right), .{ .value = 0xff });
-    // try expectEqual(left.addUnsafe(right), .{ .value = 0 }); // panic: integer overflow
-    try expectEqual(left.addOverflow(right), .{ .{ .value = 0 }, 1 });
-    try expectEqual(left.addExtend(right), .{ .value = 0x100 });
-}
-
-test "整数ラッパーの足し算 符号あり" {
-    const left: I8 = .{ .value = 2 };
-    const right: I8 = .{ .value = 2 };
-
-    try expectEqual(left.add(right), .{ .value = 4 });
-    try expectEqual(left.addWrapping(right), .{ .value = 4 });
-    try expectEqual(left.addSaturation(right), .{ .value = 4 });
-    try expectEqual(left.addUnsafe(right), .{ .value = 4 });
-    try expectEqual(left.addOverflow(right), .{ .{ .value = 4 }, 0 });
-    try expectEqual(left.addExtend(right), .{ .value = 4 });
-}
-
-test "整数ラッパーの足し算 符号あり 上にオーバーフロー" {
-    const left: I8 = .{ .value = 0x7f };
-    const right: I8 = .{ .value = 1 };
-
-    try expectEqual(left.add(right), OverflowError.IntegerOverflow);
-    try expectEqual(left.addWrapping(right), .{ .value = -0x80 });
-    try expectEqual(left.addSaturation(right), .{ .value = 0x7f });
-    // try expectEqual(left.addUnsafe(right), .{ .value = 0 }); // panic: integer overflow
-    try expectEqual(left.addOverflow(right), .{ .{ .value = -0x80 }, 1 });
-    try expectEqual(left.addExtend(right), .{ .value = 0x80 });
-}
-
-test "整数ラッパーの足し算 符号あり 下にオーバーフロー" {
-    const left: I8 = .{ .value = -0x80 };
-    const right: I8 = .{ .value = -1 };
-
-    try expectEqual(left.add(right), OverflowError.IntegerOverflow);
-    try expectEqual(left.addWrapping(right), .{ .value = 0x7f });
-    try expectEqual(left.addSaturation(right), .{ .value = -0x80 });
-    // try expectEqual(left.addUnsafe(right), .{ .value = 0 }); // panic: integer overflow
-    try expectEqual(left.addOverflow(right), .{ .{ .value = 0x7f }, 1 });
-    try expectEqual(left.addExtend(right), .{ .value = -0x81 });
-}

@@ -15,7 +15,7 @@ pub const array = @import("primitive/optional.zig");
 pub const structure = @import("primitive/optional.zig");
 pub const enumeration = @import("primitive/optional.zig");
 
-pub const types = @import("primitive/optional.zig");
+pub const types = @import("primitive/types.zig");
 
 test {
     std.testing.refAllDecls(@This());

@@ -29,7 +29,7 @@ pub fn expectEqual(left: anytype, right: @TypeOf(left)) error{AssertionFailed}!v
 
 pub fn expectEqualWithType(T: type, left: anytype, right: @TypeOf(left)) error{AssertionFailed}!void {
     if (T != @TypeOf(left)) {
-        std.debug.print("type expected: {} != actual: {}\n", .{ T, @TypeOf(left) });
+        std.debug.print("type expected: {s} != actual: {s}\n", .{ lib.primitive.types.toString(T), lib.primitive.types.toString(@TypeOf(left)) });
 
         return error.AssertionFailed;
     }
