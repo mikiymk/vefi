@@ -14,7 +14,20 @@
 //!
 //! 符号あり整数型は2の補数表現で表されます。
 //!
-//! # このモジュールについて
+//! ## 整数型の暗黙的な型変換
+//!
+//! 1つの整数型(A)がもう1つの整数型(B)の値をすべて表現できるとき、B型の値はA型の値として使用できます。
+//!
+//! # 整数型の演算について
+//!
+//! ## 足し算 (`+`)
+//!
+//! 二つの整数の和を返します。
+//! 結果がその整数型で表せない場合、未定義動作になります。
+//!
+//! - コンパイル時に値がわかっている場合、コンパイルエラー
+//! - コンパイル時に値がわからず、ランタイム安全性が有効な場合、パニック
+//! - コンパイル時に値がわからず、ランタイム安全性が無効な場合、ラッピング動作
 //!
 
 const std = @import("std");
@@ -44,20 +57,23 @@ pub fn Integer(signedness: Signedness, bits: u16) type {
 }
 
 /// 整数型を受け取り、同じビット数の符号あり整数を返します。
-pub fn Signed(comptime T: type) type {
+pub fn Signed(T: type) type {
     return Integer(.signed, sizeOf(T));
 }
 
 /// 整数型を受け取り、同じビット数の符号なし整数を返します。
-pub fn Unsigned(comptime T: type) type {
+pub fn Unsigned(T: type) type {
     return Integer(.unsigned, sizeOf(T));
 }
 
-test "符号とビットサイズから整数型を作成する" {
-    const expect = lib.testing.expect;
+/// ビット数をnビット増やした同じ符号の整数を返します。
+fn Extend(T: type, n: u16) type {
+    return Integer(signOf(T), sizeOf(T) + n);
+}
 
+test "符号とビットサイズから整数型を作成する" {
     const IntType: type = Integer(.signed, 16);
-    try expect(IntType == i16);
+    try assert.expectEqual(IntType, i16);
 }
 
 // 整数型の種類を調べる関数
@@ -65,7 +81,7 @@ test "符号とビットサイズから整数型を作成する" {
 /// 型が符号あり整数型かどうかを判定します。
 ///
 /// 符号あり整数型(`i0`から`i65535`、 または`isize`)の場合は`true`、 それ以外の場合は`false`を返します。
-pub fn isSignedInteger(comptime T: type) bool {
+pub fn isSignedInteger(T: type) bool {
     const info = @typeInfo(T);
 
     return switch (info) {
@@ -77,7 +93,7 @@ pub fn isSignedInteger(comptime T: type) bool {
 /// 型が符号なし整数型かどうかを判定します。
 ///
 /// 符号なし整数型(`u0`から`u65535`、 または`usize`)の場合は`true`、 それ以外の場合は`false`を返します。
-pub fn isUnsignedInteger(comptime T: type) bool {
+pub fn isUnsignedInteger(T: type) bool {
     const info = @typeInfo(T);
 
     return switch (info) {
@@ -89,7 +105,7 @@ pub fn isUnsignedInteger(comptime T: type) bool {
 /// 型がビットサイズの整数型かどうかを判定します。
 ///
 /// ビットサイズの指定された整数型(`i0`から`i65535`、 または`u0`から`u65535`)の場合は`true`、 それ以外の場合は`false`を返します。
-pub fn isBitSizedInteger(comptime T: type) bool {
+pub fn isBitSizedInteger(T: type) bool {
     const info = @typeInfo(T);
 
     return switch (info) {
@@ -101,47 +117,47 @@ pub fn isBitSizedInteger(comptime T: type) bool {
 /// 型がポインタサイズの整数型かどうかを判定します。
 ///
 /// ポインタサイズの整数型(`isize`、 または`usize`)の場合は`true`、 それ以外の場合は`false`を返します。
-pub fn isPointerSizedInteger(comptime T: type) bool {
+pub fn isPointerSizedInteger(T: type) bool {
     return T == usize or T == isize;
 }
 
 /// 型が実行時整数(`comptime_int`以外の整数型)かどうかを判定します。
-pub fn isRuntimeInteger(comptime T: type) bool {
+pub fn isRuntimeInteger(T: type) bool {
     const info = @typeInfo(T);
 
     return info == .Int;
 }
 
 /// 型がコンパイル時整数(`comptime_int`)かどうかを判定します。
-pub fn isComptimeInteger(comptime T: type) bool {
+pub fn isComptimeInteger(T: type) bool {
     const info = @typeInfo(T);
 
     return info == .ComptimeInt;
 }
 
 /// 型が整数かどうかを判定します。
-pub fn isInteger(comptime T: type) bool {
+pub fn isInteger(T: type) bool {
     const info = @typeInfo(T);
 
     return info == .Int or info == .ComptimeInt;
 }
 
 /// 整数型の符号を調べます。
-pub fn signOf(comptime T: type) Signedness {
+pub fn signOf(T: type) Signedness {
     assert.assert(isRuntimeInteger(T));
 
     return @typeInfo(T).Int.signedness;
 }
 
 /// 整数型のビットサイズを調べます。
-pub fn sizeOf(comptime T: type) u16 {
+pub fn sizeOf(T: type) u16 {
     assert.assert(isRuntimeInteger(T));
 
     return @typeInfo(T).Int.bits;
 }
 
-test "整数型の型を調べる関数" {
-    const expect = lib.testing.expect;
+test "型を調べる関数" {
+    const expect = assert.expect;
 
     try expect(isSignedInteger(i32));
     try expect(!isSignedInteger(u32));
@@ -203,7 +219,7 @@ test "整数型の型を調べる関数" {
 // 整数型の最大値と最小値を求める関数
 
 /// 与えられた整数型の表現できる最大の整数を返します。
-pub fn max(comptime T: type) T {
+pub fn max(T: type) T {
     assert.assert(isRuntimeInteger(T));
 
     return switch (comptime signOf(T)) {
@@ -213,7 +229,7 @@ pub fn max(comptime T: type) T {
 }
 
 /// 与えられた整数型の表現できる最小の整数を返します。
-pub fn min(comptime T: type) T {
+pub fn min(T: type) T {
     assert.assert(isRuntimeInteger(T));
 
     return switch (comptime signOf(T)) {
@@ -222,8 +238,8 @@ pub fn min(comptime T: type) T {
     };
 }
 
-test "整数型の最大値と最小値" {
-    const expect = lib.testing.expectEqual;
+test "最大値と最小値" {
+    const expect = assert.expectEqual;
 
     try expect(max(u8), 0xff);
     try expect(min(u8), 0);
@@ -234,7 +250,7 @@ test "整数型の最大値と最小値" {
 
 /// 値を指定した型に変換します。
 /// 値が型の上限より大きい場合はエラーを返します。
-pub fn cast(comptime T: type, value: anytype) OverflowError!T {
+pub fn cast(T: type, value: anytype) OverflowError!T {
     assert.assert(isRuntimeInteger(T) and isRuntimeInteger(@TypeOf(value)));
 
     if (max(T) < value or value < min(T)) {
@@ -246,7 +262,7 @@ pub fn cast(comptime T: type, value: anytype) OverflowError!T {
 
 /// 値を指定した型に変換します。
 /// 値が型の上限より大きい場合は剰余の値を返します。
-pub fn castTruncate(comptime T: type, value: anytype) T {
+pub fn castTruncate(T: type, value: anytype) T {
     assert.assert(isRuntimeInteger(T) and isRuntimeInteger(@TypeOf(value)));
 
     return @truncate(value);
@@ -254,7 +270,7 @@ pub fn castTruncate(comptime T: type, value: anytype) T {
 
 /// 値を指定した型に変換します。
 /// 値が型の上限より大きい場合は最大値・最小値に制限されます。
-pub fn castSaturation(comptime T: type, value: anytype) T {
+pub fn castSaturation(T: type, value: anytype) T {
     assert.assert(isRuntimeInteger(T) and isRuntimeInteger(@TypeOf(value)));
 
     if (max(T) < value) {
@@ -268,28 +284,14 @@ pub fn castSaturation(comptime T: type, value: anytype) T {
 
 /// 値を指定した型に変換します。
 /// 値が型の上限より大きい場合は未定義動作になります。
-pub fn castUnsafe(comptime T: type, value: anytype) T {
+pub fn castUnsafe(T: type, value: anytype) T {
     assert.assert(isRuntimeInteger(T) and isRuntimeInteger(@TypeOf(value)));
 
     return @intCast(value);
 }
 
-/// 値のビットを符号あり整数型として返します。
-pub fn asSigned(value: anytype) Signed(@TypeOf(value)) {
-    assert.assert(isRuntimeInteger(@TypeOf(value)));
-
-    return @bitCast(value);
-}
-
-/// 値のビットを符号なし整数型として返します。
-pub fn asUnsigned(value: anytype) Unsigned(@TypeOf(value)) {
-    assert.assert(isRuntimeInteger(@TypeOf(value)));
-
-    return @bitCast(value);
-}
-
-test "整数型の型変換" {
-    const expect = lib.testing.expectEqual;
+test "型キャスト" {
+    const expect = assert.expectEqual;
 
     const foo1: u9 = 1;
     const foo2: u16 = 0xfff;
@@ -310,36 +312,100 @@ test "整数型の型変換" {
     try expect(castSaturation(u8, foo2), 0xff);
     try expect(castSaturation(u8, foo3), 0);
     try expect(castSaturation(u8, foo4), 0);
+}
 
-    try expect(asSigned(@as(u8, 0x80)), -0x80);
-    try expect(asSigned(@as(u8, 0xff)), -1);
+/// 値のビットを符号あり整数型として返します。
+pub fn asSigned(T: type, value: T) Signed(T) {
+    assert.assert(isUnsignedInteger(T));
 
-    try expect(asUnsigned(@as(i8, -1)), 0xff);
-    try expect(asUnsigned(@as(i8, -0x80)), 0x80);
+    return @bitCast(value);
+}
+
+/// 値のビットを符号なし整数型として返します。
+pub fn asUnsigned(T: type, value: T) Unsigned(T) {
+    assert.assert(isSignedInteger(T));
+
+    return @bitCast(value);
+}
+
+test "ビット型変換" {
+    const expect = assert.expectEqual;
+
+    try expect(asSigned(u8, 0x80), -0x80);
+    try expect(asSigned(u8, 0xff), -1);
+
+    try expect(asUnsigned(i8, -1), 0xff);
+    try expect(asUnsigned(i8, -0x80), 0x80);
 }
 
 // 符号反転
 
-test "整数型の符号反転 符号あり" {
-    const expect = lib.testing.expectEqual;
+/// 整数型の符号を反転させた値を返します。
+/// 結果の値が型の上限より大きい場合はエラーを返します。
+pub fn negation(T: type, value: T) OverflowError!T {
+    assert.assert(isSignedInteger(T));
+
+    if (value == min(T)) {
+        return OverflowError.IntegerOverflow;
+    }
+
+    return -%value;
+}
+
+/// 整数型の符号を反転させた値を返します。
+/// 結果の値が型の上限より大きい場合は剰余の値を返します。
+pub fn negationWrapping(T: type, value: T) T {
+    assert.assert(isSignedInteger(T));
+
+    return -%value;
+}
+
+/// 整数型の符号を反転させた値を返します。
+/// 結果の値が型の上限より大きい場合は剰余の値を返します。
+pub fn negationExtend(T: type, value: T) Extend(T, 1) {
+    assert.assert(isSignedInteger(T));
+
+    return -%@as(Extend(T, 1), value);
+}
+
+/// 整数型の符号を反転させた値を返します。
+/// 結果の値が型の上限より大きい場合は未定義動作になります。
+pub fn negationUnsafe(T: type, value: T) T {
+    assert.assert(isSignedInteger(T));
+
+    return -value;
+}
+
+test "符号反転 符号あり" {
+    const expect = assert.expectEqual;
 
     const num: i8 = 1;
 
     try expect(-num, -1);
     try expect(-%num, -1);
+
+    try expect(negation(i8, num), -1);
+    try expect(negationWrapping(i8, num), -1);
+    try expect(negationExtend(i8, num), -1);
+    try expect(negationUnsafe(i8, num), -1);
 }
 
-test "整数型の符号反転 符号あり オーバーフロー" {
-    const expect = lib.testing.expectEqual;
+test "符号反転 符号あり オーバーフロー" {
+    const expect = assert.expectEqual;
 
     const num: i8 = -0x80;
 
     // try expect(-num, 0x80); // build error
     try expect(-%num, -0x80);
+
+    try expect(negation(i8, num), error.IntegerOverflow);
+    try expect(negationWrapping(i8, num), -0x80);
+    try expect(negationExtend(i8, num), 0x80);
+    // try expect(negationUnsafe(i8, num), -0x80); // panic
 }
 
-test "整数型の足し算 符号なし" {
-    const expect = lib.testing.expectEqual;
+test "足し算 符号なし" {
+    const expect = assert.expectEqual;
 
     const left: u8 = 2;
     const right: u8 = 2;
@@ -351,8 +417,8 @@ test "整数型の足し算 符号なし" {
     try expect(@addWithOverflow(left, right)[1], 0);
 }
 
-test "整数型の足し算 符号なし 上にオーバーフロー" {
-    const expect = lib.testing.expectEqual;
+test "足し算 符号なし 上にオーバーフロー" {
+    const expect = assert.expectEqual;
 
     const left: u8 = 0xff;
     const right: u8 = 1;
@@ -364,8 +430,8 @@ test "整数型の足し算 符号なし 上にオーバーフロー" {
     try expect(@addWithOverflow(left, right)[1], 1);
 }
 
-test "整数型の足し算 符号あり" {
-    const expect = lib.testing.expectEqual;
+test "足し算 符号あり" {
+    const expect = assert.expectEqual;
 
     const left: i8 = 2;
     const right: i8 = 2;
@@ -377,8 +443,8 @@ test "整数型の足し算 符号あり" {
     try expect(@addWithOverflow(left, right)[1], 0);
 }
 
-test "整数型の足し算 符号あり 上にオーバーフロー" {
-    const expect = lib.testing.expectEqual;
+test "足し算 符号あり 上にオーバーフロー" {
+    const expect = assert.expectEqual;
 
     const left: i8 = 0x7f;
     const right: i8 = 1;
@@ -390,8 +456,8 @@ test "整数型の足し算 符号あり 上にオーバーフロー" {
     try expect(@addWithOverflow(left, right)[1], 1);
 }
 
-test "整数型の足し算 符号あり 下にオーバーフロー" {
-    const expect = lib.testing.expectEqual;
+test "足し算 符号あり 下にオーバーフロー" {
+    const expect = assert.expectEqual;
 
     const left: i8 = -0x80;
     const right: i8 = -1;
@@ -403,8 +469,8 @@ test "整数型の足し算 符号あり 下にオーバーフロー" {
     try expect(@addWithOverflow(left, right)[1], 1);
 }
 
-test "整数型の引き算 符号なし" {
-    const expect = lib.testing.expectEqual;
+test "引き算 符号なし" {
+    const expect = assert.expectEqual;
 
     const left: u8 = 5;
     const right: u8 = 3;
@@ -416,8 +482,8 @@ test "整数型の引き算 符号なし" {
     try expect(@subWithOverflow(left, right)[1], 0);
 }
 
-test "整数型の引き算 符号なし 下にオーバーフロー" {
-    const expect = lib.testing.expectEqual;
+test "引き算 符号なし 下にオーバーフロー" {
+    const expect = assert.expectEqual;
 
     const left: u8 = 3;
     const right: u8 = 5;
@@ -429,8 +495,8 @@ test "整数型の引き算 符号なし 下にオーバーフロー" {
     try expect(@subWithOverflow(left, right)[1], 1);
 }
 
-test "整数型の引き算 符号あり" {
-    const expect = lib.testing.expectEqual;
+test "引き算 符号あり" {
+    const expect = assert.expectEqual;
 
     const left: i8 = 3;
     const right: i8 = 5;
@@ -442,8 +508,8 @@ test "整数型の引き算 符号あり" {
     try expect(@subWithOverflow(left, right)[1], 0);
 }
 
-test "整数型の引き算 符号あり 上にオーバーフロー" {
-    const expect = lib.testing.expectEqual;
+test "引き算 符号あり 上にオーバーフロー" {
+    const expect = assert.expectEqual;
 
     const left: i8 = 0x7f;
     const right: i8 = -1;
@@ -455,8 +521,8 @@ test "整数型の引き算 符号あり 上にオーバーフロー" {
     try expect(@subWithOverflow(left, right)[1], 1);
 }
 
-test "整数型の引き算 符号あり 下にオーバーフロー" {
-    const expect = lib.testing.expectEqual;
+test "引き算 符号あり 下にオーバーフロー" {
+    const expect = assert.expectEqual;
 
     const left: i8 = -0x80;
     const right: i8 = 1;
@@ -468,8 +534,8 @@ test "整数型の引き算 符号あり 下にオーバーフロー" {
     try expect(@subWithOverflow(left, right)[1], 1);
 }
 
-test "整数型の掛け算 符号なし" {
-    const expect = lib.testing.expectEqual;
+test "掛け算 符号なし" {
+    const expect = assert.expectEqual;
 
     const left: u8 = 4;
     const right: u8 = 3;
@@ -481,8 +547,8 @@ test "整数型の掛け算 符号なし" {
     try expect(@mulWithOverflow(left, right)[1], 0);
 }
 
-test "整数型の掛け算 符号なし 上にオーバーフロー" {
-    const expect = lib.testing.expectEqual;
+test "掛け算 符号なし 上にオーバーフロー" {
+    const expect = assert.expectEqual;
 
     const left: u8 = 0x10;
     const right: u8 = 0x10;
@@ -494,8 +560,8 @@ test "整数型の掛け算 符号なし 上にオーバーフロー" {
     try expect(@mulWithOverflow(left, right)[1], 1);
 }
 
-test "整数型の掛け算 符号あり" {
-    const expect = lib.testing.expectEqual;
+test "掛け算 符号あり" {
+    const expect = assert.expectEqual;
 
     const left: i8 = -2;
     const right: i8 = 4;
@@ -507,8 +573,8 @@ test "整数型の掛け算 符号あり" {
     try expect(@mulWithOverflow(left, right)[1], 0);
 }
 
-test "整数型の掛け算 符号あり 上にオーバーフロー" {
-    const expect = lib.testing.expectEqual;
+test "掛け算 符号あり 上にオーバーフロー" {
+    const expect = assert.expectEqual;
 
     const left: i8 = 0x40;
     const right: i8 = 2;
@@ -520,8 +586,8 @@ test "整数型の掛け算 符号あり 上にオーバーフロー" {
     try expect(@mulWithOverflow(left, right)[1], 1);
 }
 
-test "整数型の掛け算 符号あり 下にオーバーフロー" {
-    const expect = lib.testing.expectEqual;
+test "掛け算 符号あり 下にオーバーフロー" {
+    const expect = assert.expectEqual;
 
     const left: i8 = -0x80;
     const right: i8 = 2;
@@ -533,8 +599,8 @@ test "整数型の掛け算 符号あり 下にオーバーフロー" {
     try expect(@mulWithOverflow(left, right)[1], 1);
 }
 
-test "整数型の割り算 符号なし 余りなし" {
-    const expect = lib.testing.expectEqual;
+test "割り算 符号なし 余りなし" {
+    const expect = assert.expectEqual;
 
     const left: u8 = 6;
     const right: u8 = 3;
@@ -545,8 +611,8 @@ test "整数型の割り算 符号なし 余りなし" {
     try expect(@divExact(left, right), 2);
 }
 
-test "整数型の割り算 符号なし 余りあり" {
-    const expect = lib.testing.expectEqual;
+test "割り算 符号なし 余りあり" {
+    const expect = assert.expectEqual;
 
     const left: u8 = 7;
     const right: u8 = 3;
@@ -557,8 +623,8 @@ test "整数型の割り算 符号なし 余りあり" {
     // try expect(@divExact(left, right), 2); // build error
 }
 
-test "整数型の割り算 符号なし ゼロ除算" {
-    // const expect = lib.testing.expectEqual;
+test "割り算 符号なし ゼロ除算" {
+    // const expect = assert.expectEqual;
 
     // const left: u8 = 6;
     // const right: u8 = 0;
@@ -569,8 +635,8 @@ test "整数型の割り算 符号なし ゼロ除算" {
     // try expect(@divExact(left, right), 2); // build error
 }
 
-test "整数型の割り算 符号あり" {
-    const expect = lib.testing.expectEqual;
+test "割り算 符号あり" {
+    const expect = assert.expectEqual;
 
     const left: i8 = 6;
     const right: i8 = 3;
@@ -581,8 +647,8 @@ test "整数型の割り算 符号あり" {
     try expect(@divExact(left, right), 2);
 }
 
-test "整数型の割り算 符号あり オーバーフロー" {
-    // const expect = lib.testing.expectEqual;
+test "割り算 符号あり オーバーフロー" {
+    // const expect = assert.expectEqual;
 
     // const left: i8 = -0x80;
     // const right: i8 = -1;
@@ -593,8 +659,8 @@ test "整数型の割り算 符号あり オーバーフロー" {
     // try expect(@divExact(left, right), 0x80); // build error
 }
 
-test "整数型の割り算 符号あり 余りあり 正÷正" {
-    const expect = lib.testing.expectEqual;
+test "割り算 符号あり 余りあり 正÷正" {
+    const expect = assert.expectEqual;
 
     const left: i8 = 7;
     const right: i8 = 3;
@@ -605,8 +671,8 @@ test "整数型の割り算 符号あり 余りあり 正÷正" {
     // try expect(@divExact(left, right), 2); // build error
 }
 
-test "整数型の割り算 符号あり 余りあり 正÷負" {
-    const expect = lib.testing.expectEqual;
+test "割り算 符号あり 余りあり 正÷負" {
+    const expect = assert.expectEqual;
 
     const left: i8 = 7;
     const right: i8 = -3;
@@ -617,8 +683,8 @@ test "整数型の割り算 符号あり 余りあり 正÷負" {
     // try expect(@divExact(left, right), 2); // build error
 }
 
-test "整数型の割り算 符号あり 余りあり 負÷正" {
-    const expect = lib.testing.expectEqual;
+test "割り算 符号あり 余りあり 負÷正" {
+    const expect = assert.expectEqual;
 
     const left: i8 = -7;
     const right: i8 = 3;
@@ -629,8 +695,8 @@ test "整数型の割り算 符号あり 余りあり 負÷正" {
     // try expect(@divExact(left, right), 2); // build error
 }
 
-test "整数型の割り算 符号あり 余りあり 負÷負" {
-    const expect = lib.testing.expectEqual;
+test "割り算 符号あり 余りあり 負÷負" {
+    const expect = assert.expectEqual;
 
     const left: i8 = -7;
     const right: i8 = -3;
@@ -641,8 +707,8 @@ test "整数型の割り算 符号あり 余りあり 負÷負" {
     // try expect(@divExact(left, right), 2); // build error
 }
 
-test "整数型の割り算 符号あり ゼロ除算" {
-    // const expect = lib.testing.expectEqual;
+test "割り算 符号あり ゼロ除算" {
+    // const expect = assert.expectEqual;
 
     // const left: i8 = -6;
     // const right: i8 = 0;
@@ -653,8 +719,8 @@ test "整数型の割り算 符号あり ゼロ除算" {
     // try expect(@divExact(left, right), 2); // build error
 }
 
-test "整数型の余り算 符号なし" {
-    const expect = lib.testing.expectEqual;
+test "余り算 符号なし" {
+    const expect = assert.expectEqual;
 
     const left: u8 = 8;
     const right: u8 = 3;
@@ -664,8 +730,8 @@ test "整数型の余り算 符号なし" {
     try expect(@mod(left, right), 2);
 }
 
-test "整数型の余り算 符号なし ゼロ除算" {
-    // const expect = lib.testing.expectEqual;
+test "余り算 符号なし ゼロ除算" {
+    // const expect = assert.expectEqual;
 
     // const left: u8 = 8;
     // const right: u8 = 0;
@@ -675,8 +741,8 @@ test "整数型の余り算 符号なし ゼロ除算" {
     // try expect(@mod(left, right), 2); // build error
 }
 
-test "整数型の余り算 符号あり 正÷正" {
-    const expect = lib.testing.expectEqual;
+test "余り算 符号あり 正÷正" {
+    const expect = assert.expectEqual;
 
     const left: i8 = 8;
     const right: i8 = 3;
@@ -686,8 +752,8 @@ test "整数型の余り算 符号あり 正÷正" {
     try expect(@mod(left, right), 2);
 }
 
-test "整数型の余り算 符号あり 正÷負" {
-    const expect = lib.testing.expectEqual;
+test "余り算 符号あり 正÷負" {
+    const expect = assert.expectEqual;
 
     const left: i8 = 8;
     const right: i8 = -3;
@@ -697,8 +763,8 @@ test "整数型の余り算 符号あり 正÷負" {
     try expect(@mod(left, right), -1);
 }
 
-test "整数型の余り算 符号あり 負÷正" {
-    const expect = lib.testing.expectEqual;
+test "余り算 符号あり 負÷正" {
+    const expect = assert.expectEqual;
 
     const left: i8 = -8;
     const right: i8 = 3;
@@ -708,8 +774,8 @@ test "整数型の余り算 符号あり 負÷正" {
     try expect(@mod(left, right), 1);
 }
 
-test "整数型の余り算 符号あり 負÷負" {
-    const expect = lib.testing.expectEqual;
+test "余り算 符号あり 負÷負" {
+    const expect = assert.expectEqual;
 
     const left: i8 = -8;
     const right: i8 = -3;
@@ -719,8 +785,8 @@ test "整数型の余り算 符号あり 負÷負" {
     try expect(@mod(left, right), -2);
 }
 
-test "整数型の余り算 符号あり ゼロ除算" {
-    // const expect = lib.testing.expectEqual;
+test "余り算 符号あり ゼロ除算" {
+    // const expect = assert.expectEqual;
 
     // const left: i8 = 8;
     // const right: i8 = 0;
@@ -728,6 +794,108 @@ test "整数型の余り算 符号あり ゼロ除算" {
     // try expect(left % right, 2); // build error
     // try expect(@rem(left, right), 2); // build error
     // try expect(@mod(left, right), 2); // build error
+}
+
+test "左ビットシフト 符号なし" {
+    const expect = assert.expectEqual;
+
+    const left: u8 = 0b00000111;
+    const right: u3 = 3;
+
+    try expect(left << right, 0b00111000);
+    try expect(left <<| right, 0b00111000);
+    try expect(@shlExact(left, right), 0b00111000);
+    try expect(@shlWithOverflow(left, right), .{ 0b00111000, 0 });
+}
+
+test "左ビットシフト 符号なし オーバーフロー" {
+    const expect = assert.expectEqual;
+
+    const left: u8 = 0b00000111;
+    const right: u3 = 6;
+
+    try expect(left << right, 0b11000000);
+    try expect(left <<| right, 0b11111111);
+    // try expect(@shlExact(left, right), 0b1_11000000); // build error
+    try expect(@shlWithOverflow(left, right), .{ 0b11000000, 1 });
+}
+
+test "左ビットシフト 符号あり 正の数" {
+    const expect = assert.expectEqual;
+
+    const left: i8 = asSigned(u8, 0b00000111);
+    const right: u3 = 3;
+
+    try expect(left << right, asSigned(u8, 0b00111000));
+    try expect(left <<| right, asSigned(u8, 0b00111000));
+    try expect(@shlExact(left, right), asSigned(u8, 0b00111000));
+    try expect(@shlWithOverflow(left, right), .{ asSigned(u8, 0b00111000), 0 });
+}
+
+test "左ビットシフト 符号あり 負の数" {
+    const expect = assert.expectEqual;
+
+    const left: i8 = asSigned(u8, 0b11111001);
+    const right: u3 = 3;
+
+    try expect(left << right, asSigned(u8, 0b11001000));
+    try expect(left <<| right, asSigned(u8, 0b11001000));
+    try expect(@shlExact(left, right), asSigned(u8, 0b11001000));
+    try expect(@shlWithOverflow(left, right), .{ asSigned(u8, 0b11001000), 0 });
+}
+
+test "左ビットシフト 符号あり 正の数 オーバーフロー" {
+    const expect = assert.expectEqual;
+
+    const left: i8 = asSigned(u8, 0b00000111);
+    const right: u3 = 6;
+
+    try expect(left << right, asSigned(u8, 0b11000000));
+    try expect(left <<| right, asSigned(u8, 0b01111111));
+    // try expect(@shlExact(left, right), asSigned(u8, 0b1_11000000)); // build error
+    try expect(@shlWithOverflow(left, right), .{ asSigned(u8, 0b11000000), 1 });
+}
+
+test "左ビットシフト 符号あり 負の数 オーバーフロー" {
+    const expect = assert.expectEqual;
+
+    const left: i8 = asSigned(u8, 0b11111001);
+    const right: u3 = 6;
+
+    try expect(left << right, asSigned(u8, 0b01000000));
+    try expect(left <<| right, asSigned(u8, 0b10000000));
+    // try expect(@shlExact(left, right), asSigned(u8, 0b111110_01000000)); // build error
+    try expect(@shlWithOverflow(left, right), .{ asSigned(u8, 0b01000000), 1 });
+}
+
+test "右ビットシフト 符号なし" {
+    const expect = assert.expectEqual;
+
+    const left: u8 = 0b10111000;
+    const right: u3 = 3;
+
+    try expect(left >> right, 0b00010111);
+    try expect(@shrExact(left, right), 0b00010111);
+}
+
+test "右ビットシフト 符号なし オーバーフロー" {
+    const expect = assert.expectEqual;
+
+    const left: u8 = 0b10111000;
+    const right: u3 = 6;
+
+    try expect(left >> right, 0b00000010);
+    // try expect(@shrExact(left, right), 0b00000010); // build error
+}
+
+test "右ビットシフト 符号あり 正の数" {
+    const expect = assert.expectEqual;
+
+    const left: i8 = asSigned(u8, 0b10111000);
+    const right: u3 = 3;
+
+    try expect(left >> right, asSigned(u8, 0b11110111));
+    try expect(@shrExact(left, right), asSigned(u8, 0b11110111));
 }
 
 pub fn IntegerWrap(Int: type) type {
@@ -741,40 +909,6 @@ pub fn IntegerWrap(Int: type) type {
         const Self = @This();
 
         value: Int,
-
-        /// 整数型の符号を反転させた値を返します。
-        /// 結果の値が型の上限より大きい場合はエラーを返します。
-        pub fn negation(self: Self) OverflowError!Self {
-            if (comptime !isSignedInteger(Int)) {
-                @compileError(negation_error_message);
-            }
-
-            if (self.value == min(Int)) {
-                return OverflowError.IntegerOverflow;
-            }
-
-            return .{ .value = -%self.value };
-        }
-
-        /// 整数型の符号を反転させた値を返します。
-        /// 結果の値が型の上限より大きい場合は剰余の値を返します。
-        pub fn negationWrapping(self: Self) Self {
-            if (comptime !isSignedInteger(Int)) {
-                @compileError(negation_error_message);
-            }
-
-            return .{ .value = -%self.value };
-        }
-
-        /// 整数型の符号を反転させた値を返します。
-        /// 結果の値が型の上限より大きい場合は未定義動作になります。
-        pub fn negationUnsafe(self: Self) Self {
-            if (comptime !isSignedInteger(Int)) {
-                @compileError(negation_error_message);
-            }
-
-            return .{ .value = -self.value };
-        }
 
         /// 二つの整数を足した結果を返します。
         /// 結果の値が型の上限より大きい場合はエラーを返します。
@@ -839,28 +973,8 @@ pub const I64 = IntegerWrap(i64);
 pub const I128 = IntegerWrap(i128);
 pub const ISize = IntegerWrap(isize);
 
-test "整数ラッパーの符号反転 符号あり" {
-    const expect = lib.testing.expectEqual;
-
-    const num: I8 = .{ .value = 1 };
-
-    try expect(num.negation(), .{ .value = -1 });
-    try expect(num.negationWrapping(), .{ .value = -1 });
-    try expect(num.negationUnsafe(), .{ .value = -1 });
-}
-
-test "整数ラッパーの符号反転 符号あり オーバーフロー" {
-    const expect = lib.testing.expectEqual;
-
-    const num: I8 = .{ .value = -0x80 };
-
-    try expect(num.negation(), OverflowError.IntegerOverflow);
-    try expect(num.negationWrapping(), .{ .value = -0x80 });
-    // try expect(num.negationUnsafe(), .{ .value = 0 }); // panic
-}
-
 test "整数ラッパーの足し算 符号なし" {
-    const expect = lib.testing.expectEqual;
+    const expect = assert.expectEqual;
 
     const left: U8 = .{ .value = 2 };
     const right: U8 = .{ .value = 2 };
@@ -874,7 +988,7 @@ test "整数ラッパーの足し算 符号なし" {
 }
 
 test "整数ラッパーの足し算 符号なし 上にオーバーフロー" {
-    const expect = lib.testing.expectEqual;
+    const expect = assert.expectEqual;
 
     const left: U8 = .{ .value = 0xff };
     const right: U8 = .{ .value = 1 };
@@ -888,7 +1002,7 @@ test "整数ラッパーの足し算 符号なし 上にオーバーフロー" {
 }
 
 test "整数ラッパーの足し算 符号あり" {
-    const expect = lib.testing.expectEqual;
+    const expect = assert.expectEqual;
 
     const left: I8 = .{ .value = 2 };
     const right: I8 = .{ .value = 2 };
@@ -902,7 +1016,7 @@ test "整数ラッパーの足し算 符号あり" {
 }
 
 test "整数ラッパーの足し算 符号あり 上にオーバーフロー" {
-    const expect = lib.testing.expectEqual;
+    const expect = assert.expectEqual;
 
     const left: I8 = .{ .value = 0x7f };
     const right: I8 = .{ .value = 1 };
@@ -916,7 +1030,7 @@ test "整数ラッパーの足し算 符号あり 上にオーバーフロー" {
 }
 
 test "整数ラッパーの足し算 符号あり 下にオーバーフロー" {
-    const expect = lib.testing.expectEqual;
+    const expect = assert.expectEqual;
 
     const left: I8 = .{ .value = -0x80 };
     const right: I8 = .{ .value = -1 };

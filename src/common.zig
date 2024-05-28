@@ -1,7 +1,7 @@
 const std = @import("std");
 const lib = @import("./lib.zig");
 
-fn equal(left: anytype, right: @TypeOf(left)) bool {
+pub fn equal(left: anytype, right: @TypeOf(left)) bool {
     const info = @typeInfo(@TypeOf(left));
 
     switch (info) {
@@ -34,6 +34,12 @@ fn equal(left: anytype, right: @TypeOf(left)) bool {
         else => return left == right,
     }
 }
+
+pub const Order = enum {
+    equal,
+    greater_than,
+    less_than,
+};
 
 test {
     std.testing.refAllDecls(@This());
