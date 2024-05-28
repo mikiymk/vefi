@@ -27,6 +27,20 @@ pub fn expectEqual(left: anytype, right: @TypeOf(left)) error{AssertionFailed}!v
     }
 }
 
+pub fn expectEqualWithType(T: type, left: anytype, right: @TypeOf(left)) error{AssertionFailed}!void {
+    if (T != @TypeOf(left)) {
+        std.debug.print("type expected: {} != actual: {}\n", .{ T, @TypeOf(left) });
+
+        return error.AssertionFailed;
+    }
+
+    if (!lib.common.equal(left, right)) {
+        std.debug.print("left: {any} != right: {any}\n", .{ left, right });
+
+        return error.AssertionFailed;
+    }
+}
+
 test {
     std.testing.refAllDecls(@This());
 }
