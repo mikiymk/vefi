@@ -50,7 +50,8 @@ const expectEqualWithType = lib.assert.expectEqualWithType;
 pub const Signedness = std.builtin.Signedness;
 
 pub const OverflowError = error{IntegerOverflow};
-pub const DivZeroError = error{DivideByZero};
+pub const DivError = OverflowError || error{DivideByZero};
+pub const DivExactError = DivError || error{Indivisible};
 
 const negation_error_message = "符号反転は符号あり整数型である必要があります。";
 
@@ -826,6 +827,257 @@ test "掛け算 符号あり 下にオーバーフロー" {
     // try expectEqual(mulUnsafe(i8, left, right), 0); // panic: integer overflow
 }
 
+// 割り算と余り算
+
+/// ゼロ除算とオーバーフローの検査をする
+fn assertDiv(T: type, left: T, right: T) DivError!void {
+    assert(isInteger(T));
+
+    if (right == 0) {
+        return DivError.DivideByZero;
+    }
+
+    if (isSignedInteger(T) and left == std.math.minInt(T) and right == -1) {
+        return DivError.IntegerOverflow;
+    }
+}
+
+/// 割り算の商と余りを表す構造体
+pub fn DivRem(T: type) type {
+    return struct {
+        quotient: T,
+        remainder: T,
+    };
+}
+
+/// 二つの整数の左を右で割った結果と余りを返します。
+/// 除数が0の場合はエラーを返します。
+/// 結果の値が値が型の上限より大きい場合はエラーを返します。
+///
+/// 結果は商を0に近いように丸めます。
+pub fn divRemTruncate(T: type, left: T, right: T) DivError!DivRem(T) {
+    try assertDiv(T, left, right);
+
+    const quotient = @divTrunc(left, right);
+    const remainder = @rem(left, right);
+
+    return .{ .quotient = quotient, .remainder = remainder };
+}
+
+test divRemTruncate {
+    try expectEqual(divRemTruncate(u8, 8, 4), .{ .quotient = 2, .remainder = 0 });
+    try expectEqual(divRemTruncate(u8, 9, 4), .{ .quotient = 2, .remainder = 1 });
+    try expectEqual(divRemTruncate(u8, 8, 0), error.DivideByZero);
+
+    try expectEqual(divRemTruncate(i8, 8, 4), .{ .quotient = 2, .remainder = 0 });
+    try expectEqual(divRemTruncate(i8, 9, 4), .{ .quotient = 2, .remainder = 1 });
+    try expectEqual(divRemTruncate(i8, 9, -4), .{ .quotient = -2, .remainder = 1 });
+    try expectEqual(divRemTruncate(i8, -9, 4), .{ .quotient = -2, .remainder = -1 });
+    try expectEqual(divRemTruncate(i8, -9, -4), .{ .quotient = 2, .remainder = -1 });
+    try expectEqual(divRemTruncate(i8, 8, 0), error.DivideByZero);
+    try expectEqual(divRemTruncate(i8, -0x80, -1), error.IntegerOverflow);
+}
+
+/// 二つの整数の左を右で割った結果と余りを返します。
+/// 除数が0の場合はエラーを返します。
+/// 結果の値が値が型の上限より大きい場合はエラーを返します。
+///
+/// 結果は商を負の無限大に近いように丸めます。
+pub fn divRemFloor(T: type, left: T, right: T) DivError!DivRem(T) {
+    try assertDiv(T, left, right);
+
+    const quotient = @divFloor(left, right);
+    const remainder = @mod(left, right);
+
+    return .{ .quotient = quotient, .remainder = remainder };
+}
+
+test divRemFloor {
+    try expectEqual(divRemFloor(u8, 8, 4), .{ .quotient = 2, .remainder = 0 });
+    try expectEqual(divRemFloor(u8, 9, 4), .{ .quotient = 2, .remainder = 1 });
+    try expectEqual(divRemFloor(u8, 8, 0), error.DivideByZero);
+
+    try expectEqual(divRemFloor(i8, 8, 4), .{ .quotient = 2, .remainder = 0 });
+    try expectEqual(divRemFloor(i8, 9, 4), .{ .quotient = 2, .remainder = 1 });
+    try expectEqual(divRemFloor(i8, 9, -4), .{ .quotient = -3, .remainder = -3 });
+    try expectEqual(divRemFloor(i8, -9, 4), .{ .quotient = -3, .remainder = 3 });
+    try expectEqual(divRemFloor(i8, -9, -4), .{ .quotient = 2, .remainder = -1 });
+    try expectEqual(divRemFloor(i8, 8, 0), error.DivideByZero);
+    try expectEqual(divRemFloor(i8, -0x80, -1), error.IntegerOverflow);
+}
+
+/// 二つの整数の左を右で割った結果と余りを返します。
+/// 除数が0の場合はエラーを返します。
+/// 結果の値が値が型の上限より大きい場合はエラーを返します。
+///
+/// 結果は商を正の無限大に近いように丸めます。
+pub fn divRemCeil(T: type, left: T, right: T) DivError!DivRem(T) {
+    try assertDiv(T, left, right);
+
+    const quotient = @divFloor(left, right);
+    const remainder = @mod(left, right);
+
+    if (isSignedInteger(T) and remainder != 0) {
+        return .{ .quotient = quotient + 1, .remainder = remainder - right };
+    }
+
+    return .{ .quotient = quotient, .remainder = remainder };
+}
+
+test divRemCeil {
+    try expectEqual(divRemCeil(u8, 8, 4), .{ .quotient = 2, .remainder = 0 });
+    try expectEqual(divRemCeil(u8, 9, 4), .{ .quotient = 2, .remainder = 1 });
+    try expectEqual(divRemCeil(u8, 8, 0), error.DivideByZero);
+
+    try expectEqual(divRemCeil(i8, 8, 4), .{ .quotient = 2, .remainder = 0 });
+    try expectEqual(divRemCeil(i8, 9, 4), .{ .quotient = 3, .remainder = -3 });
+    try expectEqual(divRemCeil(i8, 9, -4), .{ .quotient = -2, .remainder = 1 });
+    try expectEqual(divRemCeil(i8, -9, 4), .{ .quotient = -2, .remainder = -1 });
+    try expectEqual(divRemCeil(i8, -9, -4), .{ .quotient = 3, .remainder = 3 });
+    try expectEqual(divRemCeil(i8, 8, 0), error.DivideByZero);
+    try expectEqual(divRemCeil(i8, -0x80, -1), error.IntegerOverflow);
+}
+
+/// 二つの整数の左を右で割った結果と余りを返します。
+/// 除数が0の場合はエラーを返します。
+/// 結果の値が値が型の上限より大きい場合はエラーを返します。
+///
+/// 結果は余りが正になるように商を丸めます。
+pub fn divRemEuclid(T: type, left: T, right: T) DivError!DivRem(T) {
+    try assertDiv(T, left, right);
+
+    const quotient = @divFloor(left, right);
+    const remainder = @mod(left, right);
+
+    if (isSignedInteger(T) and remainder < 0) {
+        if (right < 0) {
+            return .{ .quotient = quotient + 1, .remainder = remainder - right };
+        } else {
+            return .{ .quotient = quotient - 1, .remainder = remainder + right };
+        }
+    }
+
+    return .{ .quotient = quotient, .remainder = remainder };
+}
+
+test divRemEuclid {
+    try expectEqual(divRemEuclid(u8, 8, 4), .{ .quotient = 2, .remainder = 0 });
+    try expectEqual(divRemEuclid(u8, 9, 4), .{ .quotient = 2, .remainder = 1 });
+    try expectEqual(divRemEuclid(u8, 8, 0), error.DivideByZero);
+
+    try expectEqual(divRemEuclid(i8, 8, 4), .{ .quotient = 2, .remainder = 0 });
+    try expectEqual(divRemEuclid(i8, 9, 4), .{ .quotient = 2, .remainder = 1 });
+    try expectEqual(divRemEuclid(i8, 9, -4), .{ .quotient = -2, .remainder = 1 });
+    try expectEqual(divRemEuclid(i8, -9, 4), .{ .quotient = -3, .remainder = 3 });
+    try expectEqual(divRemEuclid(i8, -9, -4), .{ .quotient = 3, .remainder = 3 });
+    try expectEqual(divRemEuclid(i8, 8, 0), error.DivideByZero);
+    try expectEqual(divRemEuclid(i8, -0x80, -1), error.IntegerOverflow);
+}
+
+/// 二つの整数の左を右で割った結果を返します。
+/// 割りきれない場合はエラーを返します。
+/// 除数が0の場合はエラーを返します。
+/// 結果の値が値が型の上限より大きい場合はエラーを返します。
+pub fn div(T: type, left: T, right: T) DivExactError!T {
+    try assertDiv(T, left, right);
+
+    const result = @divTrunc(left, right);
+
+    if (left != right * result) {
+        return error.Indivisible;
+    }
+
+    return result;
+}
+
+/// 二つの整数の左を右で割った結果を返します。
+/// 割りきれない場合は0に近い方に丸めます。
+/// 除数が0の場合はエラーを返します。
+/// 結果の値が値が型の上限より大きい場合はエラーを返します。
+///
+/// `divTruncate(T, a, b) * b + remTruncate(T, a, b) == a`
+pub fn divTruncate(T: type, left: T, right: T) DivError!T {
+    const div_rem = try divRemTruncate(T, left, right);
+    return div_rem.quotient;
+}
+
+/// 二つの整数の左を右で割った余りを返します。
+/// 余りの符号は被除数と同じになります。
+/// 除数が0の場合はエラーを返します。
+/// 結果の値が値が型の上限より大きい場合はエラーを返します。
+///
+/// `divTruncate(T, a, b) * b + remTruncate(T, a, b) == a`
+pub fn remTruncate(T: type, left: T, right: T) DivError!T {
+    const div_rem = try divRemTruncate(T, left, right);
+    return div_rem.remainder;
+}
+
+/// 二つの整数の左を右で割った結果を返します。
+/// 割りきれない場合は負の無限大に近い方に丸めます。
+/// 除数が0の場合はエラーを返します。
+/// 結果の値が値が型の上限より大きい場合はエラーを返します。
+///
+/// `divFloor(T, a, b) * b + remFloor(T, a, b) == a`
+pub fn divFloor(T: type, left: T, right: T) DivError!T {
+    const div_rem = try divRemFloor(T, left, right);
+    return div_rem.quotient;
+}
+
+/// 二つの整数の左を右で割った余りを返します。
+/// 余りの符号は除数と同じになります。
+/// 除数が0の場合はエラーを返します。
+/// 結果の値が値が型の上限より大きい場合はエラーを返します。
+///
+/// `divFloor(T, a, b) * b + remFloor(T, a, b) == a`
+pub fn remFloor(T: type, left: T, right: T) DivError!T {
+    const div_rem = try divRemFloor(T, left, right);
+    return div_rem.remainder;
+}
+
+/// 二つの整数の左を右で割った結果を返します。
+/// 割りきれない場合は正の無限大に近い方に丸めます。
+/// 除数が0の場合はエラーを返します。
+/// 結果の値が値が型の上限より大きい場合はエラーを返します。
+///
+/// `divCeil(T, a, b) * b + remCeil(T, a, b) == a`
+pub fn divCeil(T: type, left: T, right: T) DivError!T {
+    const div_rem = try divRemCeil(T, left, right);
+    return div_rem.quotient;
+}
+
+/// 二つの整数の左を右で割った余りを返します。
+/// 余りの符号は除数の逆になります。
+/// 除数が0の場合はエラーを返します。
+/// 結果の値が値が型の上限より大きい場合はエラーを返します。
+///
+/// `divCeil(T, a, b) * b + remCeil(T, a, b) == a`
+pub fn remCeil(T: type, left: T, right: T) DivError!T {
+    const div_rem = try divRemCeil(T, left, right);
+    return div_rem.remainder;
+}
+
+/// 二つの整数の左を右で割った結果を返します。
+/// 割りきれない場合は`a == b * q + r`と`0 <= r < |b|`を満たすqを返します。
+/// 除数が0の場合はエラーを返します。
+/// 結果の値が値が型の上限より大きい場合はエラーを返します。
+///
+/// `divEuclid(T, a, b) * b + remEuclid(T, a, b) == a`
+pub fn divEuclid(T: type, left: T, right: T) DivError!T {
+    const div_rem = try divRemEuclid(T, left, right);
+    return div_rem.quotient;
+}
+
+/// 二つの整数の左を右で割った余りを返します。
+/// 余りの符号はつねに正になります。
+/// 除数が0の場合はエラーを返します。
+/// 結果の値が値が型の上限より大きい場合はエラーを返します。
+///
+/// `divEuclid(T, a, b) * b + remEuclid(T, a, b) == a`
+pub fn remEuclid(T: type, left: T, right: T) DivError!T {
+    const div_rem = try divRemEuclid(T, left, right);
+    return div_rem.remainder;
+}
+
 test "割り算 符号なし 余りなし" {
     const left: u8 = 6;
     const right: u8 = 3;
@@ -834,6 +1086,22 @@ test "割り算 符号なし 余りなし" {
     try expectEqual(@divTrunc(left, right), 2);
     try expectEqual(@divFloor(left, right), 2);
     try expectEqual(@divExact(left, right), 2);
+
+    try expectEqual(divRemTruncate(u8, left, right), .{ .quotient = 2, .remainder = 0 });
+    try expectEqual(divRemFloor(u8, left, right), .{ .quotient = 2, .remainder = 0 });
+    try expectEqual(divRemCeil(u8, left, right), .{ .quotient = 2, .remainder = 0 });
+    try expectEqual(divRemEuclid(u8, left, right), .{ .quotient = 2, .remainder = 0 });
+
+    try expectEqual(div(u8, left, right), 2);
+
+    try expectEqual(divTruncate(u8, left, right), 2);
+    try expectEqual(remTruncate(u8, left, right), 0);
+    try expectEqual(divFloor(u8, left, right), 2);
+    try expectEqual(remFloor(u8, left, right), 0);
+    try expectEqual(divCeil(u8, left, right), 2);
+    try expectEqual(remCeil(u8, left, right), 0);
+    try expectEqual(divEuclid(u8, left, right), 2);
+    try expectEqual(remEuclid(u8, left, right), 0);
 }
 
 test "割り算 符号なし 余りあり" {
@@ -844,16 +1112,56 @@ test "割り算 符号なし 余りあり" {
     try expectEqual(@divTrunc(left, right), 2);
     try expectEqual(@divFloor(left, right), 2);
     // try expectEqual(@divExact(left, right), 2); // build error: exact division produced remainder
+
+    try expectEqual(left % right, 1);
+    try expectEqual(@rem(left, right), 1);
+    try expectEqual(@mod(left, right), 1);
+
+    try expectEqual(divRemTruncate(u8, left, right), .{ .quotient = 2, .remainder = 1 });
+    try expectEqual(divRemFloor(u8, left, right), .{ .quotient = 2, .remainder = 1 });
+    try expectEqual(divRemCeil(u8, left, right), .{ .quotient = 2, .remainder = 1 });
+    try expectEqual(divRemEuclid(u8, left, right), .{ .quotient = 2, .remainder = 1 });
+
+    try expectEqual(div(u8, left, right), error.Indivisible);
+
+    try expectEqual(divTruncate(u8, left, right), 2);
+    try expectEqual(remTruncate(u8, left, right), 1);
+    try expectEqual(divFloor(u8, left, right), 2);
+    try expectEqual(remFloor(u8, left, right), 1);
+    try expectEqual(divCeil(u8, left, right), 2);
+    try expectEqual(remCeil(u8, left, right), 1);
+    try expectEqual(divEuclid(u8, left, right), 2);
+    try expectEqual(remEuclid(u8, left, right), 1);
 }
 
 test "割り算 符号なし ゼロ除算" {
-    // const left: u8 = 6;
-    // const right: u8 = 0;
+    const left: u8 = 6;
+    const right: u8 = 0;
 
     // try expectEqual(left /  right, 2); // build error: division by zero here causes undefined behavior
     // try expectEqual(@divTrunc(left, right), 2); // build error: division by zero here causes undefined behavior
     // try expectEqual(@divFloor(left, right), 2); // build error: division by zero here causes undefined behavior
     // try expectEqual(@divExact(left, right), 2); // build error: division by zero here causes undefined behavior
+
+    // try expectEqual(left % right, 2); // build error: division by zero here causes undefined behavior
+    // try expectEqual(@rem(left, right), 2); // build error: division by zero here causes undefined behavior
+    // try expectEqual(@mod(left, right), 2); // build error: division by zero here causes undefined behavior
+
+    try expectEqual(divRemTruncate(u8, left, right), error.DivideByZero);
+    try expectEqual(divRemFloor(u8, left, right), error.DivideByZero);
+    try expectEqual(divRemCeil(u8, left, right), error.DivideByZero);
+    try expectEqual(divRemEuclid(u8, left, right), error.DivideByZero);
+
+    try expectEqual(div(u8, left, right), error.DivideByZero);
+
+    try expectEqual(divTruncate(u8, left, right), error.DivideByZero);
+    try expectEqual(remTruncate(u8, left, right), error.DivideByZero);
+    try expectEqual(divFloor(u8, left, right), error.DivideByZero);
+    try expectEqual(remFloor(u8, left, right), error.DivideByZero);
+    try expectEqual(divCeil(u8, left, right), error.DivideByZero);
+    try expectEqual(remCeil(u8, left, right), error.DivideByZero);
+    try expectEqual(divEuclid(u8, left, right), error.DivideByZero);
+    try expectEqual(remEuclid(u8, left, right), error.DivideByZero);
 }
 
 test "割り算 符号あり" {
@@ -864,16 +1172,48 @@ test "割り算 符号あり" {
     try expectEqual(@divTrunc(left, right), 2);
     try expectEqual(@divFloor(left, right), 2);
     try expectEqual(@divExact(left, right), 2);
+
+    try expectEqual(divRemTruncate(i8, left, right), .{ .quotient = 2, .remainder = 0 });
+    try expectEqual(divRemFloor(i8, left, right), .{ .quotient = 2, .remainder = 0 });
+    try expectEqual(divRemCeil(i8, left, right), .{ .quotient = 2, .remainder = 0 });
+    try expectEqual(divRemEuclid(i8, left, right), .{ .quotient = 2, .remainder = 0 });
+
+    try expectEqual(div(i8, left, right), 2);
+
+    try expectEqual(divTruncate(i8, left, right), 2);
+    try expectEqual(remTruncate(i8, left, right), 0);
+    try expectEqual(divFloor(i8, left, right), 2);
+    try expectEqual(remFloor(i8, left, right), 0);
+    try expectEqual(divCeil(i8, left, right), 2);
+    try expectEqual(remCeil(i8, left, right), 0);
+    try expectEqual(divEuclid(i8, left, right), 2);
+    try expectEqual(remEuclid(i8, left, right), 0);
 }
 
 test "割り算 符号あり オーバーフロー" {
-    // const left: i8 = -0x80;
-    // const right: i8 = -1;
+    const left: i8 = -0x80;
+    const right: i8 = -1;
 
     // try expectEqual(left / right, 0x80); // build error: overflow of integer type 'i8' with value '128'
     // try expectEqual(@divTrunc(left, right), 0x80); // build error: overflow of integer type 'i8' with value '128'
     // try expectEqual(@divFloor(left, right), 0x80); // build error: type 'i8' cannot represent integer value '128'
     // try expectEqual(@divExact(left, right), 0x80); // build error: overflow of integer type 'i8' with value '128'
+
+    try expectEqual(divRemTruncate(i8, left, right), error.IntegerOverflow);
+    try expectEqual(divRemFloor(i8, left, right), error.IntegerOverflow);
+    try expectEqual(divRemCeil(i8, left, right), error.IntegerOverflow);
+    try expectEqual(divRemEuclid(i8, left, right), error.IntegerOverflow);
+
+    try expectEqual(div(i8, left, right), error.IntegerOverflow);
+
+    try expectEqual(divTruncate(i8, left, right), error.IntegerOverflow);
+    try expectEqual(remTruncate(i8, left, right), error.IntegerOverflow);
+    try expectEqual(divFloor(i8, left, right), error.IntegerOverflow);
+    try expectEqual(remFloor(i8, left, right), error.IntegerOverflow);
+    try expectEqual(divCeil(i8, left, right), error.IntegerOverflow);
+    try expectEqual(remCeil(i8, left, right), error.IntegerOverflow);
+    try expectEqual(divEuclid(i8, left, right), error.IntegerOverflow);
+    try expectEqual(remEuclid(i8, left, right), error.IntegerOverflow);
 }
 
 test "割り算 符号あり 余りあり 正÷正" {
@@ -884,6 +1224,26 @@ test "割り算 符号あり 余りあり 正÷正" {
     try expectEqual(@divTrunc(left, right), 2);
     try expectEqual(@divFloor(left, right), 2);
     // try expectEqual(@divExact(left, right), 2); // build error: exact division produced remainder
+
+    try expectEqual(left % right, 1);
+    try expectEqual(@rem(left, right), 1);
+    try expectEqual(@mod(left, right), 1);
+
+    try expectEqual(divRemTruncate(i8, left, right), .{ .quotient = 2, .remainder = 1 });
+    try expectEqual(divRemFloor(i8, left, right), .{ .quotient = 2, .remainder = 1 });
+    try expectEqual(divRemCeil(i8, left, right), .{ .quotient = 3, .remainder = -2 });
+    try expectEqual(divRemEuclid(i8, left, right), .{ .quotient = 2, .remainder = 1 });
+
+    try expectEqual(div(i8, left, right), error.Indivisible);
+
+    try expectEqual(divTruncate(i8, left, right), 2);
+    try expectEqual(remTruncate(i8, left, right), 1);
+    try expectEqual(divFloor(i8, left, right), 2);
+    try expectEqual(remFloor(i8, left, right), 1);
+    try expectEqual(divCeil(i8, left, right), 3);
+    try expectEqual(remCeil(i8, left, right), -2);
+    try expectEqual(divEuclid(i8, left, right), 2);
+    try expectEqual(remEuclid(i8, left, right), 1);
 }
 
 test "割り算 符号あり 余りあり 正÷負" {
@@ -894,6 +1254,26 @@ test "割り算 符号あり 余りあり 正÷負" {
     try expectEqual(@divTrunc(left, right), -2);
     try expectEqual(@divFloor(left, right), -3);
     // try expectEqual(@divExact(left, right), 2); // build error: exact division produced remainder
+
+    // try expectEqual(left % right, 2); // build error: remainder division with 'i8' and 'i8': signed integers and floats must use @rem or @mod
+    try expectEqual(@rem(left, right), 1);
+    try expectEqual(@mod(left, right), -2);
+
+    try expectEqual(divRemTruncate(i8, left, right), .{ .quotient = -2, .remainder = 1 });
+    try expectEqual(divRemFloor(i8, left, right), .{ .quotient = -3, .remainder = -2 });
+    try expectEqual(divRemCeil(i8, left, right), .{ .quotient = -2, .remainder = 1 });
+    try expectEqual(divRemEuclid(i8, left, right), .{ .quotient = -2, .remainder = 1 });
+
+    try expectEqual(div(i8, left, right), error.Indivisible);
+
+    try expectEqual(divTruncate(i8, left, right), -2);
+    try expectEqual(remTruncate(i8, left, right), 1);
+    try expectEqual(divFloor(i8, left, right), -3);
+    try expectEqual(remFloor(i8, left, right), -2);
+    try expectEqual(divCeil(i8, left, right), -2);
+    try expectEqual(remCeil(i8, left, right), 1);
+    try expectEqual(divEuclid(i8, left, right), -2);
+    try expectEqual(remEuclid(i8, left, right), 1);
 }
 
 test "割り算 符号あり 余りあり 負÷正" {
@@ -904,6 +1284,26 @@ test "割り算 符号あり 余りあり 負÷正" {
     try expectEqual(@divTrunc(left, right), -2);
     try expectEqual(@divFloor(left, right), -3);
     // try expectEqual(@divExact(left, right), 2); // build error: exact division produced remainder
+
+    // try expectEqual(left % right, 2); // build error: remainder division with 'i8' and 'i8': signed integers and floats must use @rem or @mod
+    try expectEqual(@rem(left, right), -1);
+    try expectEqual(@mod(left, right), 2);
+
+    try expectEqual(divRemTruncate(i8, left, right), .{ .quotient = -2, .remainder = -1 });
+    try expectEqual(divRemFloor(i8, left, right), .{ .quotient = -3, .remainder = 2 });
+    try expectEqual(divRemCeil(i8, left, right), .{ .quotient = -2, .remainder = -1 });
+    try expectEqual(divRemEuclid(i8, left, right), .{ .quotient = -3, .remainder = 2 });
+
+    try expectEqual(div(i8, left, right), error.Indivisible);
+
+    try expectEqual(divTruncate(i8, left, right), -2);
+    try expectEqual(remTruncate(i8, left, right), -1);
+    try expectEqual(divFloor(i8, left, right), -3);
+    try expectEqual(remFloor(i8, left, right), 2);
+    try expectEqual(divCeil(i8, left, right), -2);
+    try expectEqual(remCeil(i8, left, right), -1);
+    try expectEqual(divEuclid(i8, left, right), -3);
+    try expectEqual(remEuclid(i8, left, right), 2);
 }
 
 test "割り算 符号あり 余りあり 負÷負" {
@@ -914,79 +1314,56 @@ test "割り算 符号あり 余りあり 負÷負" {
     try expectEqual(@divTrunc(left, right), 2);
     try expectEqual(@divFloor(left, right), 2);
     // try expectEqual(@divExact(left, right), 2); // build error: exact division produced remainder
+
+    // try expectEqual(left % right, 2); // build error: remainder division with 'i8' and 'i8': signed integers and floats must use @rem or @mod
+    try expectEqual(@rem(left, right), -1);
+    try expectEqual(@mod(left, right), -1);
+
+    try expectEqual(divRemTruncate(i8, left, right), .{ .quotient = 2, .remainder = -1 });
+    try expectEqual(divRemFloor(i8, left, right), .{ .quotient = 2, .remainder = -1 });
+    try expectEqual(divRemCeil(i8, left, right), .{ .quotient = 3, .remainder = 2 });
+    try expectEqual(divRemEuclid(i8, left, right), .{ .quotient = 3, .remainder = 2 });
+
+    try expectEqual(div(i8, left, right), error.Indivisible);
+
+    try expectEqual(divTruncate(i8, left, right), 2);
+    try expectEqual(remTruncate(i8, left, right), -1);
+    try expectEqual(divFloor(i8, left, right), 2);
+    try expectEqual(remFloor(i8, left, right), -1);
+    try expectEqual(divCeil(i8, left, right), 3);
+    try expectEqual(remCeil(i8, left, right), 2);
+    try expectEqual(divEuclid(i8, left, right), 3);
+    try expectEqual(remEuclid(i8, left, right), 2);
 }
 
 test "割り算 符号あり ゼロ除算" {
-    // const left: i8 = -6;
-    // const right: i8 = 0;
+    const left: i8 = -6;
+    const right: i8 = 0;
 
     // try expectEqual(left / right, 2); // build error: division by zero here causes undefined behavior
     // try expectEqual(@divTrunc(left, right), 2); // build error: division by zero here causes undefined behavior
     // try expectEqual(@divFloor(left, right), 2); // build error: division by zero here causes undefined behavior
     // try expectEqual(@divExact(left, right), 2); // build error: division by zero here causes undefined behavior
-}
-
-test "余り算 符号なし" {
-    const left: u8 = 8;
-    const right: u8 = 3;
-
-    try expectEqual(left % right, 2);
-    try expectEqual(@rem(left, right), 2);
-    try expectEqual(@mod(left, right), 2);
-}
-
-test "余り算 符号なし ゼロ除算" {
-    // const left: u8 = 8;
-    // const right: u8 = 0;
 
     // try expectEqual(left % right, 2); // build error: division by zero here causes undefined behavior
     // try expectEqual(@rem(left, right), 2); // build error: division by zero here causes undefined behavior
     // try expectEqual(@mod(left, right), 2); // build error: division by zero here causes undefined behavior
-}
 
-test "余り算 符号あり 正÷正" {
-    const left: i8 = 8;
-    const right: i8 = 3;
+    try expectEqual(divRemTruncate(i8, left, right), error.DivideByZero);
+    try expectEqual(divRemFloor(i8, left, right), error.DivideByZero);
+    try expectEqual(divRemCeil(i8, left, right), error.DivideByZero);
+    try expectEqual(divRemEuclid(i8, left, right), error.DivideByZero);
 
-    try expectEqual(left % right, 2);
-    try expectEqual(@rem(left, right), 2);
-    try expectEqual(@mod(left, right), 2);
-}
+    try expectEqual(div(i8, left, right), error.DivideByZero);
 
-test "余り算 符号あり 正÷負" {
-    const left: i8 = 8;
-    const right: i8 = -3;
-
-    // try expectEqual(left % right, 2); // build error: remainder division with 'i8' and 'i8': signed integers and floats must use @rem or @mod
-    try expectEqual(@rem(left, right), 2);
-    try expectEqual(@mod(left, right), -1);
-}
-
-test "余り算 符号あり 負÷正" {
-    const left: i8 = -8;
-    const right: i8 = 3;
-
-    // try expectEqual(left % right, 2); // build error: remainder division with 'i8' and 'i8': signed integers and floats must use @rem or @mod
-    try expectEqual(@rem(left, right), -2);
-    try expectEqual(@mod(left, right), 1);
-}
-
-test "余り算 符号あり 負÷負" {
-    const left: i8 = -8;
-    const right: i8 = -3;
-
-    // try expectEqual(left % right, 2); // build error: remainder division with 'i8' and 'i8': signed integers and floats must use @rem or @mod
-    try expectEqual(@rem(left, right), -2);
-    try expectEqual(@mod(left, right), -2);
-}
-
-test "余り算 符号あり ゼロ除算" {
-    // const left: i8 = 8;
-    // const right: i8 = 0;
-
-    // try expectEqual(left % right, 2); // build error: division by zero here causes undefined behavior
-    // try expectEqual(@rem(left, right), 2); // build error: division by zero here causes undefined behavior
-    // try expectEqual(@mod(left, right), 2); // build error: division by zero here causes undefined behavior
+    try expectEqual(divTruncate(i8, left, right), error.DivideByZero);
+    try expectEqual(remTruncate(i8, left, right), error.DivideByZero);
+    try expectEqual(divFloor(i8, left, right), error.DivideByZero);
+    try expectEqual(remFloor(i8, left, right), error.DivideByZero);
+    try expectEqual(divCeil(i8, left, right), error.DivideByZero);
+    try expectEqual(remCeil(i8, left, right), error.DivideByZero);
+    try expectEqual(divEuclid(i8, left, right), error.DivideByZero);
+    try expectEqual(remEuclid(i8, left, right), error.DivideByZero);
 }
 
 test "左ビットシフト 符号なし" {
