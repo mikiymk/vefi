@@ -540,6 +540,14 @@ test "足し算 符号あり 下にオーバーフロー" {
     // try expectEqual(addUnsafe(i8, left, right), 0); // panic: integer overflow
 }
 
+test "足し算 extend すべての値が範囲内になる" {
+    try expectEqualWithType(u9, addExtend(u8, 0xff, 0xff), 0x1fe);
+    try expectEqualWithType(u9, addExtend(u8, 0, 0), 0);
+
+    try expectEqualWithType(i9, addExtend(i8, 0x7f, 0x7f), 0xfe);
+    try expectEqualWithType(i9, addExtend(i8, -0x80, -0x80), -0x100);
+}
+
 // 引き算
 
 /// 二つの整数を左から右を引いた結果を返します。
@@ -675,12 +683,57 @@ test "引き算 符号あり 下にオーバーフロー" {
     // try expectEqual(subUnsafe(i8, left, right), 0); // panic: integer overflow
 }
 
-test "引き算 拡張" {
+test "引き算 extend すべての値が範囲内になる" {
     try expectEqualWithType(i9, subExtend(u8, 0, 0xff), -0xff);
     try expectEqualWithType(i9, subExtend(u8, 0xff, 0), 0xff);
 
     try expectEqualWithType(i9, subExtend(i8, 0x7f, -0x80), 0xff);
     try expectEqualWithType(i9, subExtend(i8, -0x80, 0x7f), -0xff);
+}
+
+// 掛け算
+
+/// 二つの整数を掛けた結果を返します。
+/// 結果の値が型の上限より大きい場合はエラーを返します。
+pub fn mul(T: type, left: T, right: T) OverflowError!T {
+    const result, const carry = @mulWithOverflow(left, right);
+    if (carry == 1) {
+        return OverflowError.IntegerOverflow;
+    }
+
+    return result;
+}
+
+/// 二つの整数を掛けた結果を返します。
+/// 結果の値が型の上限より大きい場合は剰余の値を返します。
+pub fn mulWrapping(T: type, left: T, right: T) T {
+    return left *% right;
+}
+
+/// 二つの整数を掛けた結果を返します。
+/// 結果の値が値が型の上限より大きい場合は最大値・最小値に制限されます。
+pub fn mulSaturation(T: type, left: T, right: T) T {
+    return left *| right;
+}
+
+/// 二つの整数を掛けた結果を返します。
+/// 結果の値が値が型の上限より大きい場合はタプルの2番目の値に1を返します。
+pub fn mulOverflow(T: type, left: T, right: T) struct { T, u1 } {
+    const result, const carry = @mulWithOverflow(left, right);
+
+    return .{ result, carry };
+}
+
+/// 二つの整数を掛けた結果を返します。
+/// すべての結果の値が収まるように結果の型を拡張します。
+pub fn mulExtend(T: type, left: T, right: T) Extend(T, sizeOf(T)) {
+    return @as(Extend(T, sizeOf(T)), left) * right;
+}
+
+/// 二つの整数を掛けた結果を返します。
+/// 結果の値が値が型の上限より大きい場合は未定義動作になります。
+pub fn mulUnsafe(T: type, left: T, right: T) T {
+    return left * right;
 }
 
 test "掛け算 符号なし" {
@@ -692,6 +745,13 @@ test "掛け算 符号なし" {
     try expectEqual(left *| right, 12);
     try expectEqual(@mulWithOverflow(left, right)[0], 12);
     try expectEqual(@mulWithOverflow(left, right)[1], 0);
+
+    try expectEqual(mul(u8, left, right), 12);
+    try expectEqual(mulWrapping(u8, left, right), 12);
+    try expectEqual(mulSaturation(u8, left, right), 12);
+    try expectEqual(mulOverflow(u8, left, right), .{ 12, 0 });
+    try expectEqualWithType(u16, mulExtend(u8, left, right), 12);
+    try expectEqual(mulUnsafe(u8, left, right), 12);
 }
 
 test "掛け算 符号なし 上にオーバーフロー" {
@@ -703,6 +763,13 @@ test "掛け算 符号なし 上にオーバーフロー" {
     try expectEqual(left *| right, 0xff);
     try expectEqual(@mulWithOverflow(left, right)[0], 0);
     try expectEqual(@mulWithOverflow(left, right)[1], 1);
+
+    try expectEqual(mul(u8, left, right), OverflowError.IntegerOverflow);
+    try expectEqual(mulWrapping(u8, left, right), 0);
+    try expectEqual(mulSaturation(u8, left, right), 0xff);
+    try expectEqual(mulOverflow(u8, left, right), .{ 0, 1 });
+    try expectEqualWithType(u16, mulExtend(u8, left, right), 0x100);
+    // try expectEqual(mulUnsafe(u8, left, right), 0); // panic: integer overflow
 }
 
 test "掛け算 符号あり" {
@@ -714,6 +781,13 @@ test "掛け算 符号あり" {
     try expectEqual(left *| right, -8);
     try expectEqual(@mulWithOverflow(left, right)[0], -8);
     try expectEqual(@mulWithOverflow(left, right)[1], 0);
+
+    try expectEqual(mul(i8, left, right), -8);
+    try expectEqual(mulWrapping(i8, left, right), -8);
+    try expectEqual(mulSaturation(i8, left, right), -8);
+    try expectEqual(mulOverflow(i8, left, right), .{ -8, 0 });
+    try expectEqualWithType(i16, mulExtend(i8, left, right), -8);
+    try expectEqual(mulUnsafe(i8, left, right), -8);
 }
 
 test "掛け算 符号あり 上にオーバーフロー" {
@@ -725,6 +799,13 @@ test "掛け算 符号あり 上にオーバーフロー" {
     try expectEqual(left *| right, 0x7f);
     try expectEqual(@mulWithOverflow(left, right)[0], -0x80);
     try expectEqual(@mulWithOverflow(left, right)[1], 1);
+
+    try expectEqual(mul(i8, left, right), OverflowError.IntegerOverflow);
+    try expectEqual(mulWrapping(i8, left, right), -0x80);
+    try expectEqual(mulSaturation(i8, left, right), 0x7f);
+    try expectEqual(mulOverflow(i8, left, right), .{ -0x80, 1 });
+    try expectEqualWithType(i16, mulExtend(i8, left, right), 0x80);
+    // try expectEqual(mulUnsafe(i8, left, right), 0); // panic: integer overflow
 }
 
 test "掛け算 符号あり 下にオーバーフロー" {
@@ -736,6 +817,13 @@ test "掛け算 符号あり 下にオーバーフロー" {
     try expectEqual(left *| right, -0x80);
     try expectEqual(@mulWithOverflow(left, right)[0], 0);
     try expectEqual(@mulWithOverflow(left, right)[1], 1);
+
+    try expectEqual(mul(i8, left, right), OverflowError.IntegerOverflow);
+    try expectEqual(mulWrapping(i8, left, right), 0);
+    try expectEqual(mulSaturation(i8, left, right), -0x80);
+    try expectEqual(mulOverflow(i8, left, right), .{ 0, 1 });
+    try expectEqualWithType(i16, mulExtend(i8, left, right), -0x100);
+    // try expectEqual(mulUnsafe(i8, left, right), 0); // panic: integer overflow
 }
 
 test "割り算 符号なし 余りなし" {
