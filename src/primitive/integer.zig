@@ -79,8 +79,10 @@ pub fn Unsigned(T: type) type {
 }
 
 /// ビット数をnビット増やした同じ符号の整数を返します。
-fn Extend(T: type, n: u16) type {
-    return Integer(signOf(T), sizeOf(T) + n);
+fn Extend(T: type, n: i17) type {
+    return Integer(signOf(T), cast(u16, sizeOf(T) + n) catch |e| switch (e) {
+        error.IntegerOverflow => std.debug.panic("value {d} is not in the u16 range.", .{sizeOf(T) + n}),
+    });
 }
 
 test "符号とビットサイズから整数型を作成する" {
@@ -475,6 +477,13 @@ test "足し算 符号なし 上にオーバーフロー" {
     try expectEqual(left +| right, 0xff);
     try expectEqual(@addWithOverflow(left, right)[0], 0);
     try expectEqual(@addWithOverflow(left, right)[1], 1);
+
+    try expectEqual(add(u8, left, right), OverflowError.IntegerOverflow);
+    try expectEqual(addWrapping(u8, left, right), 0);
+    try expectEqual(addSaturation(u8, left, right), 0xff);
+    try expectEqual(addOverflow(u8, left, right), .{ 0, 1 });
+    try expectEqualWithType(u9, addExtend(u8, left, right), 0x100);
+    // try expectEqual(addUnsafe(u8, left, right), 0); // panic: integer overflow
 }
 
 test "足し算 符号あり" {
@@ -486,6 +495,13 @@ test "足し算 符号あり" {
     try expectEqual(left +| right, 4);
     try expectEqual(@addWithOverflow(left, right)[0], 4);
     try expectEqual(@addWithOverflow(left, right)[1], 0);
+
+    try expectEqual(add(i8, left, right), 4);
+    try expectEqual(addWrapping(i8, left, right), 4);
+    try expectEqual(addSaturation(i8, left, right), 4);
+    try expectEqual(addOverflow(i8, left, right), .{ 4, 0 });
+    try expectEqualWithType(i9, addExtend(i8, left, right), 4);
+    try expectEqual(addUnsafe(i8, left, right), 4);
 }
 
 test "足し算 符号あり 上にオーバーフロー" {
@@ -497,6 +513,13 @@ test "足し算 符号あり 上にオーバーフロー" {
     try expectEqual(left +| right, 0x7f);
     try expectEqual(@addWithOverflow(left, right)[0], -0x80);
     try expectEqual(@addWithOverflow(left, right)[1], 1);
+
+    try expectEqual(add(i8, left, right), OverflowError.IntegerOverflow);
+    try expectEqual(addWrapping(i8, left, right), -0x80);
+    try expectEqual(addSaturation(i8, left, right), 0x7f);
+    try expectEqual(addOverflow(i8, left, right), .{ -0x80, 1 });
+    try expectEqualWithType(i9, addExtend(i8, left, right), 0x80);
+    // try expectEqual(addUnsafe(i8, left, right), 0); // panic: integer overflow
 }
 
 test "足し算 符号あり 下にオーバーフロー" {
@@ -508,6 +531,58 @@ test "足し算 符号あり 下にオーバーフロー" {
     try expectEqual(left +| right, -0x80);
     try expectEqual(@addWithOverflow(left, right)[0], 0x7f);
     try expectEqual(@addWithOverflow(left, right)[1], 1);
+
+    try expectEqual(add(i8, left, right), OverflowError.IntegerOverflow);
+    try expectEqual(addWrapping(i8, left, right), 0x7f);
+    try expectEqual(addSaturation(i8, left, right), -0x80);
+    try expectEqual(addOverflow(i8, left, right), .{ 0x7f, 1 });
+    try expectEqualWithType(i9, addExtend(i8, left, right), -0x81);
+    // try expectEqual(addUnsafe(i8, left, right), 0); // panic: integer overflow
+}
+
+// 引き算
+
+/// 二つの整数を左から右を引いた結果を返します。
+/// 結果の値が型の上限より大きい場合はエラーを返します。
+pub fn sub(T: type, left: T, right: T) OverflowError!T {
+    const result, const carry = @subWithOverflow(left, right);
+    if (carry == 1) {
+        return OverflowError.IntegerOverflow;
+    }
+
+    return result;
+}
+
+/// 二つの整数を左から右を引いた結果を返します。
+/// 結果の値が型の上限より大きい場合は剰余の値を返します。
+pub fn subWrapping(T: type, left: T, right: T) T {
+    return left -% right;
+}
+
+/// 二つの整数を左から右を引いた結果を返します。
+/// 結果の値が値が型の上限より大きい場合は最大値・最小値に制限されます。
+pub fn subSaturation(T: type, left: T, right: T) T {
+    return left -| right;
+}
+
+/// 二つの整数を左から右を引いた結果を返します。
+/// 結果の値が値が型の上限より大きい場合はタプルの2番目の値に1を返します。
+pub fn subOverflow(T: type, left: T, right: T) struct { T, u1 } {
+    const result, const carry = @subWithOverflow(left, right);
+
+    return .{ result, carry };
+}
+
+/// 二つの整数を左から右を引いた結果を返します。
+/// すべての結果の値が収まるように結果の型を拡張します。
+pub fn subExtend(T: type, left: T, right: T) Signed(Extend(T, 1)) {
+    return @as(Signed(Extend(T, 1)), left) - right;
+}
+
+/// 二つの整数を左から右を引いた結果を返します。
+/// 結果の値が値が型の上限より大きい場合は未定義動作になります。
+pub fn subUnsafe(T: type, left: T, right: T) T {
+    return left - right;
 }
 
 test "引き算 符号なし" {
@@ -519,6 +594,13 @@ test "引き算 符号なし" {
     try expectEqual(left -| right, 2);
     try expectEqual(@subWithOverflow(left, right)[0], 2);
     try expectEqual(@subWithOverflow(left, right)[1], 0);
+
+    try expectEqual(sub(u8, left, right), 2);
+    try expectEqual(subWrapping(u8, left, right), 2);
+    try expectEqual(subSaturation(u8, left, right), 2);
+    try expectEqual(subOverflow(u8, left, right), .{ 2, 0 });
+    try expectEqualWithType(i9, subExtend(u8, left, right), 2);
+    try expectEqual(subUnsafe(u8, left, right), 2);
 }
 
 test "引き算 符号なし 下にオーバーフロー" {
@@ -530,6 +612,13 @@ test "引き算 符号なし 下にオーバーフロー" {
     try expectEqual(left -| right, 0);
     try expectEqual(@subWithOverflow(left, right)[0], 0xfe);
     try expectEqual(@subWithOverflow(left, right)[1], 1);
+
+    try expectEqual(sub(u8, left, right), OverflowError.IntegerOverflow);
+    try expectEqual(subWrapping(u8, left, right), 0xfe);
+    try expectEqual(subSaturation(u8, left, right), 0);
+    try expectEqual(subOverflow(u8, left, right), .{ 0xfe, 1 });
+    try expectEqualWithType(i9, subExtend(u8, left, right), -2);
+    // try expectEqual(subUnsafe(u8, left, right), 0); // panic: integer overflow
 }
 
 test "引き算 符号あり" {
@@ -541,6 +630,13 @@ test "引き算 符号あり" {
     try expectEqual(left -| right, -2);
     try expectEqual(@subWithOverflow(left, right)[0], -2);
     try expectEqual(@subWithOverflow(left, right)[1], 0);
+
+    try expectEqual(sub(i8, left, right), -2);
+    try expectEqual(subWrapping(i8, left, right), -2);
+    try expectEqual(subSaturation(i8, left, right), -2);
+    try expectEqual(subOverflow(i8, left, right), .{ -2, 0 });
+    try expectEqualWithType(i9, subExtend(i8, left, right), -2);
+    try expectEqual(subUnsafe(i8, left, right), -2);
 }
 
 test "引き算 符号あり 上にオーバーフロー" {
@@ -552,6 +648,13 @@ test "引き算 符号あり 上にオーバーフロー" {
     try expectEqual(left -| right, 0x7f);
     try expectEqual(@subWithOverflow(left, right)[0], -0x80);
     try expectEqual(@subWithOverflow(left, right)[1], 1);
+
+    try expectEqual(sub(i8, left, right), OverflowError.IntegerOverflow);
+    try expectEqual(subWrapping(i8, left, right), -0x80);
+    try expectEqual(subSaturation(i8, left, right), 0x7f);
+    try expectEqual(subOverflow(i8, left, right), .{ -0x80, 1 });
+    try expectEqualWithType(i9, subExtend(i8, left, right), 0x80);
+    // try expectEqual(subUnsafe(i8, left, right), 0); // panic: integer overflow
 }
 
 test "引き算 符号あり 下にオーバーフロー" {
@@ -563,6 +666,21 @@ test "引き算 符号あり 下にオーバーフロー" {
     try expectEqual(left -| right, -0x80);
     try expectEqual(@subWithOverflow(left, right)[0], 0x7f);
     try expectEqual(@subWithOverflow(left, right)[1], 1);
+
+    try expectEqual(sub(i8, left, right), OverflowError.IntegerOverflow);
+    try expectEqual(subWrapping(i8, left, right), 0x7f);
+    try expectEqual(subSaturation(i8, left, right), -0x80);
+    try expectEqual(subOverflow(i8, left, right), .{ 0x7f, 1 });
+    try expectEqualWithType(i9, subExtend(i8, left, right), -0x81);
+    // try expectEqual(subUnsafe(i8, left, right), 0); // panic: integer overflow
+}
+
+test "引き算 拡張" {
+    try expectEqualWithType(i9, subExtend(u8, 0, 0xff), -0xff);
+    try expectEqualWithType(i9, subExtend(u8, 0xff, 0), 0xff);
+
+    try expectEqualWithType(i9, subExtend(i8, 0x7f, -0x80), 0xff);
+    try expectEqualWithType(i9, subExtend(i8, -0x80, 0x7f), -0xff);
 }
 
 test "掛け算 符号なし" {
@@ -866,31 +984,3 @@ test "右ビットシフト 符号あり 正の数" {
     try expectEqual(left >> right, asSigned(u8, 0b11110111));
     try expectEqual(@shrExact(left, right), asSigned(u8, 0b11110111));
 }
-
-pub fn IntegerWrap(Int: type) type {
-    lib.assert.assertStatic(isInteger(Int));
-
-    return struct {
-        pub const Value = Int;
-        pub const signedness = signOf(Int);
-        pub const bits = sizeOf(Int);
-
-        const Self = @This();
-
-        value: Int,
-    };
-}
-
-pub const U8 = IntegerWrap(u8);
-pub const U16 = IntegerWrap(u16);
-pub const U32 = IntegerWrap(u32);
-pub const U64 = IntegerWrap(u64);
-pub const U128 = IntegerWrap(u128);
-pub const USize = IntegerWrap(usize);
-
-pub const I8 = IntegerWrap(i8);
-pub const I16 = IntegerWrap(i16);
-pub const I32 = IntegerWrap(i32);
-pub const I64 = IntegerWrap(i64);
-pub const I128 = IntegerWrap(i128);
-pub const ISize = IntegerWrap(isize);
