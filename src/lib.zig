@@ -20,7 +20,7 @@ pub const common = @import("common.zig");
 pub const string = @import("string.zig");
 pub const time = @import("time.zig");
 
-pub const input_output = struct {};
+pub const input_output = @import("input_output.zig");
 pub const file_system = struct {};
 pub const network = struct {};
 pub const memory = struct {};

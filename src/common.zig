@@ -31,6 +31,34 @@ pub fn equal(left: anytype, right: @TypeOf(left)) bool {
 
             return true;
         },
+        .Array => {
+            for (left, right) |l, r| {
+                if (!equal(l, r)) {
+                    return false;
+                }
+            }
+
+            return true;
+        },
+        .Pointer => |p| {
+            switch (p.size) {
+                .Slice => {
+                    if (left.len != right.len) {
+                        return false;
+                    }
+
+                    for (left, right) |l, r| {
+                        if (!equal(l, r)) {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                },
+                else => return left == right,
+            }
+        },
+
         else => return left == right,
     }
 }

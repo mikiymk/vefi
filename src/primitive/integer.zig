@@ -45,6 +45,7 @@ const assert = lib.assert.assert;
 const expect = lib.assert.expect;
 const expectEqual = lib.assert.expectEqual;
 const expectEqualWithType = lib.assert.expectEqualWithType;
+const expectEqualString = lib.assert.expectEqualString;
 
 /// このデータ構造は Zig 言語コード生成で使用されるため、コンパイラー実装と同期を保つ必要があります。
 pub const Signedness = std.builtin.Signedness;
@@ -1366,6 +1367,48 @@ test "割り算 符号あり ゼロ除算" {
     try expectEqual(remEuclid(i8, left, right), error.DivideByZero);
 }
 
+// 左ビットシフト
+
+fn Log2Type(T: type) type {
+    const size = sizeOf(T);
+
+    if (size <= 1) {
+        return u0;
+    }
+    const size_log = std.math.log2(size - 1) + 1;
+
+    return Integer(.unsigned, size_log);
+}
+
+test Log2Type {
+    try expectEqual(Log2Type(u0), u0);
+    try expectEqual(Log2Type(u1), u0);
+    try expectEqual(Log2Type(u2), u1);
+    try expectEqual(Log2Type(u3), u2);
+    try expectEqual(Log2Type(u4), u2);
+    try expectEqual(Log2Type(u5), u3);
+    try expectEqual(Log2Type(u6), u3);
+    try expectEqual(Log2Type(u7), u3);
+    try expectEqual(Log2Type(u8), u3);
+    try expectEqual(Log2Type(u9), u4);
+    try expectEqual(Log2Type(u16), u4);
+    try expectEqual(Log2Type(u17), u5);
+
+    try expectEqual(Log2Type(i8), u3);
+    try expectEqual(Log2Type(i9), u4);
+    try expectEqual(Log2Type(i16), u4);
+    try expectEqual(Log2Type(i17), u5);
+}
+
+/// 整数の左を右のビット数だけ左にずらした結果を返します。
+/// 除数が0の場合はエラーを返します。
+/// 結果の値が値が型の上限より大きい場合はエラーを返します。
+///
+/// 結果は商を0に近いように丸めます。
+pub fn shiftLeft(T: type, left: T, right: Log2Type(T)) DivError!T {
+    return left << right;
+}
+
 test "左ビットシフト 符号なし" {
     const left: u8 = 0b00000111;
     const right: u3 = 3;
@@ -1448,4 +1491,129 @@ test "右ビットシフト 符号あり 正の数" {
 
     try expectEqual(left >> right, asSigned(u8, 0b11110111));
     try expectEqual(@shrExact(left, right), asSigned(u8, 0b11110111));
+}
+
+pub fn abs(n: anytype) @TypeOf(n) {
+    if (isUnsignedInteger(@TypeOf(n))) {
+        return n;
+    }
+
+    if (n < 0) {
+        return -n;
+    } else {
+        return n;
+    }
+}
+
+/// 2つの整数を比較します。
+pub fn equal(T: type, left: T, right: T) bool {
+    return left == right;
+}
+
+test equal {
+    try expectEqual(equal(u8, 0, 0), true);
+    try expectEqual(equal(u8, 1, 2), false);
+    try expectEqual(equal(i8, 64, 64), true);
+    try expectEqual(equal(i8, 64, 63), false);
+}
+
+/// 2つの整数を比較します。
+/// 左辺値が右辺値より大きいかどうかを判定します。
+pub fn compare(T: type, left: T, right: T) lib.common.Order {
+    if (left == right) {
+        return .equal;
+    } else if (left > right) {
+        return .greater_than;
+    } else {
+        return .less_than;
+    }
+}
+
+test compare {
+    try expectEqual(compare(u8, 0, 0), .equal);
+    try expectEqual(compare(u8, 1, 2), .less_than);
+    try expectEqual(compare(i8, 64, 64), .equal);
+    try expectEqual(compare(i8, 64, 63), .greater_than);
+}
+
+pub const IntegerToStringOptions = struct {
+    /// 2 〜 36進法
+    radix: u10 = 10,
+    /// 数字の配列。 長さをradix以上にする必要がある。
+    numerals: []const u8 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+
+    show_plus: bool = false,
+
+    prefix: ?[]const u8 = null,
+    suffix: ?[]const u8 = null,
+};
+
+/// 整数を文字列に変換します。
+pub fn formatInteger(a: std.mem.Allocator, n: anytype, options: IntegerToStringOptions) ![]const u8 {
+    const N = @TypeOf(n);
+
+    assert(isInteger(N));
+    assert(2 <= options.radix and options.radix <= 36);
+    assert(options.numerals.len >= options.radix);
+
+    // u65535で最大19729桁
+    const Array = lib.collection.dynamic_array.DynamicArray(u8);
+    var array = Array.init();
+
+    var has_sign = true;
+    if (n < 0) {
+        try array.push(a, '-');
+    } else if (options.show_plus) {
+        try array.push(a, '+');
+    } else {
+        has_sign = false;
+    }
+
+    if (n == 0) {
+        try array.push(a, '0');
+
+        const slice = try array.copyToSlice(a);
+        array.deinit(a);
+
+        return slice;
+    }
+
+    var num = abs(n);
+
+    while (num != 0) {
+        const div_mod = divRemTruncate(N, num, 10) catch |err| switch (err) {
+            error.DivideByZero => unreachable,
+            error.IntegerOverflow => unreachable,
+        };
+
+        const digit: u8 = castUnsafe(u8, div_mod.remainder + '0');
+
+        if (has_sign) {
+            try array.insert(a, 1, digit);
+        } else {
+            try array.insert(a, 0, digit);
+        }
+
+        num = div_mod.quotient;
+    }
+
+    const slice = try array.copyToSlice(a);
+    array.deinit(a);
+
+    return slice;
+}
+
+test formatInteger {
+    const a = std.testing.allocator;
+    {
+        const s = try formatInteger(a, @as(u8, 0), .{});
+        defer a.free(s);
+        try expectEqualString(s, "0");
+    }
+
+    {
+        const s = try formatInteger(a, max(u64), .{});
+        defer a.free(s);
+        try expectEqualString(s, "18446744073709551615");
+    }
 }

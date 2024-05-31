@@ -7,6 +7,9 @@
 const std = @import("std");
 const lib = @import("../lib.zig");
 
+const expect = lib.assert.expectEqual;
+const expectString = lib.assert.expectEqualString;
+
 /// 値が真偽値型かどうかを判定します。
 pub fn isBoolean(value: anytype) bool {
     return @TypeOf(value) == bool;
@@ -17,9 +20,19 @@ pub fn isTrue(value: bool) bool {
     return value;
 }
 
+test isTrue {
+    try expect(isTrue(true), true);
+    try expect(isTrue(false), false);
+}
+
 /// 真偽値が偽かどうかを判定します。
 pub fn isFalse(value: bool) bool {
     return !value;
+}
+
+test isFalse {
+    try expect(isFalse(true), false);
+    try expect(isFalse(false), true);
 }
 
 /// 2つの真偽値の論理和を計算します。
@@ -30,8 +43,15 @@ pub fn isFalse(value: bool) bool {
 /// | `true`  | `false` | `false` |
 /// | `false` | `true`  | `false` |
 /// | `false` | `false` | `false` |
-pub fn lAnd(x: bool, y: bool) bool {
+pub fn logicalAnd(x: bool, y: bool) bool {
     return x and y;
+}
+
+test logicalAnd {
+    try expect(logicalAnd(true, true), true);
+    try expect(logicalAnd(true, false), false);
+    try expect(logicalAnd(false, true), false);
+    try expect(logicalAnd(false, false), false);
 }
 
 /// 2つの真偽値の否定論理和を計算します。
@@ -42,8 +62,15 @@ pub fn lAnd(x: bool, y: bool) bool {
 /// | `true`  | `false` | `true`  |
 /// | `false` | `true`  | `true`  |
 /// | `false` | `false` | `true`  |
-pub fn lNotAnd(x: bool, y: bool) bool {
+pub fn logicalNotAnd(x: bool, y: bool) bool {
     return !(x and y);
+}
+
+test logicalNotAnd {
+    try expect(logicalNotAnd(true, true), false);
+    try expect(logicalNotAnd(true, false), true);
+    try expect(logicalNotAnd(false, true), true);
+    try expect(logicalNotAnd(false, false), true);
 }
 
 /// 2つの真偽値の論理積を計算します。
@@ -54,8 +81,15 @@ pub fn lNotAnd(x: bool, y: bool) bool {
 /// | `true`  | `false` | `true`  |
 /// | `false` | `true`  | `true`  |
 /// | `false` | `false` | `false` |
-pub fn lOr(x: bool, y: bool) bool {
+pub fn logicalOr(x: bool, y: bool) bool {
     return x or y;
+}
+
+test logicalOr {
+    try expect(logicalOr(true, true), true);
+    try expect(logicalOr(true, false), true);
+    try expect(logicalOr(false, true), true);
+    try expect(logicalOr(false, false), false);
 }
 
 /// 2つの真偽値の否定論理積を計算します。
@@ -66,8 +100,15 @@ pub fn lOr(x: bool, y: bool) bool {
 /// | `true`  | `false` | `false` |
 /// | `false` | `true`  | `false` |
 /// | `false` | `false` | `true`  |
-pub fn lNotOr(x: bool, y: bool) bool {
+pub fn logicalNotOr(x: bool, y: bool) bool {
     return !(x or y);
+}
+
+test logicalNotOr {
+    try expect(logicalNotOr(true, true), false);
+    try expect(logicalNotOr(true, false), false);
+    try expect(logicalNotOr(false, true), false);
+    try expect(logicalNotOr(false, false), true);
 }
 
 /// 2つの真偽値の排他的論理和を計算します。
@@ -78,8 +119,15 @@ pub fn lNotOr(x: bool, y: bool) bool {
 /// | `true`  | `false` | `true`  |
 /// | `false` | `true`  | `true`  |
 /// | `false` | `false` | `false` |
-pub fn lExOr(x: bool, y: bool) bool {
+pub fn logicalXor(x: bool, y: bool) bool {
     return x != y;
+}
+
+test logicalXor {
+    try expect(logicalXor(true, true), false);
+    try expect(logicalXor(true, false), true);
+    try expect(logicalXor(false, true), true);
+    try expect(logicalXor(false, false), false);
 }
 
 /// 2つの真偽値の否定排他的論理和を計算します。
@@ -90,8 +138,15 @@ pub fn lExOr(x: bool, y: bool) bool {
 /// | `true`  | `false` | `false` |
 /// | `false` | `true`  | `false` |
 /// | `false` | `false` | `true`  |
-pub fn lNotExOr(x: bool, y: bool) bool {
+pub fn logicalNotXor(x: bool, y: bool) bool {
     return x == y;
+}
+
+test logicalNotXor {
+    try expect(logicalNotXor(true, true), true);
+    try expect(logicalNotXor(true, false), false);
+    try expect(logicalNotXor(false, true), false);
+    try expect(logicalNotXor(false, false), true);
 }
 
 /// 2つの真偽値の否定を計算します。
@@ -100,8 +155,25 @@ pub fn lNotExOr(x: bool, y: bool) bool {
 /// | ------- | ------- |
 /// | `true`  | `false` |
 /// | `false` | `true`  |
-pub fn lNot(x: bool) bool {
+pub fn logicalNot(x: bool) bool {
     return !x;
+}
+
+test logicalNot {
+    try expect(logicalNot(true), false);
+    try expect(logicalNot(false), true);
+}
+
+/// 2つの真偽値を比較します。
+pub fn equal(x: bool, y: bool) bool {
+    return x == y;
+}
+
+test equal {
+    try expect(equal(true, true), true);
+    try expect(equal(false, false), true);
+    try expect(equal(true, false), false);
+    try expect(equal(false, true), false);
 }
 
 /// 2つの真偽値を比較します。
@@ -110,62 +182,33 @@ pub fn lNot(x: bool) bool {
 /// true == true;
 /// true > false;
 /// ```
-pub fn compare(a: bool, b: bool) lib.common.Order {
-    if (a == b) {
+pub fn compare(x: bool, y: bool) lib.common.Order {
+    if (x == y) {
         return .equal;
-    } else if (a) {
+    } else if (x) {
         return .greater_than;
     } else {
         return .less_than;
     }
 }
 
-const assert = lib.assert;
-
-test "boolean is true or false" {
-    try assert.expectEqual(isTrue(true), true);
-    try assert.expectEqual(isTrue(false), false);
-
-    try assert.expectEqual(isFalse(true), false);
-    try assert.expectEqual(isFalse(false), true);
+test compare {
+    try expect(compare(true, true), .equal);
+    try expect(compare(false, false), .equal);
+    try expect(compare(true, false), .greater_than);
+    try expect(compare(false, true), .less_than);
 }
 
-test "boolean calculate" {
-    try assert.expectEqual(lAnd(true, true), true);
-    try assert.expectEqual(lAnd(true, false), false);
-    try assert.expectEqual(lAnd(false, true), false);
-    try assert.expectEqual(lAnd(false, false), false);
+/// 真偽値を文字列に変換します。
+pub fn toString(x: bool) []const u8 {
+    if (x) {
+        return "true";
+    } else {
+        return "false";
+    }
+}
 
-    try assert.expectEqual(lNotAnd(true, true), false);
-    try assert.expectEqual(lNotAnd(true, false), true);
-    try assert.expectEqual(lNotAnd(false, true), true);
-    try assert.expectEqual(lNotAnd(false, false), true);
-
-    try assert.expectEqual(lOr(true, true), true);
-    try assert.expectEqual(lOr(true, false), true);
-    try assert.expectEqual(lOr(false, true), true);
-    try assert.expectEqual(lOr(false, false), false);
-
-    try assert.expectEqual(lNotOr(true, true), false);
-    try assert.expectEqual(lNotOr(true, false), false);
-    try assert.expectEqual(lNotOr(false, true), false);
-    try assert.expectEqual(lNotOr(false, false), true);
-
-    try assert.expectEqual(lExOr(true, true), false);
-    try assert.expectEqual(lExOr(true, false), true);
-    try assert.expectEqual(lExOr(false, true), true);
-    try assert.expectEqual(lExOr(false, false), false);
-
-    try assert.expectEqual(lNotExOr(true, true), true);
-    try assert.expectEqual(lNotExOr(true, false), false);
-    try assert.expectEqual(lNotExOr(false, true), false);
-    try assert.expectEqual(lNotExOr(false, false), true);
-
-    try assert.expectEqual(lNot(true), false);
-    try assert.expectEqual(lNot(false), true);
-
-    try assert.expectEqual(compare(true, true), .equal);
-    try assert.expectEqual(compare(false, false), .equal);
-    try assert.expectEqual(compare(true, false), .greater_than);
-    try assert.expectEqual(compare(false, true), .less_than);
+test toString {
+    try expectString(toString(true), "true");
+    try expectString(toString(false), "false");
 }

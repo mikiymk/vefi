@@ -21,7 +21,7 @@ pub fn expect(ok: bool) error{AssertionFailed}!void {
 
 pub fn expectEqual(left: anytype, right: @TypeOf(left)) error{AssertionFailed}!void {
     if (!lib.common.equal(left, right)) {
-        std.debug.print("left: {!} != right: {!}\n", .{ left, right });
+        std.debug.print("left: {any} != right: {any}\n", .{ left, right });
 
         return error.AssertionFailed;
     }
@@ -36,6 +36,14 @@ pub fn expectEqualWithType(T: type, left: anytype, right: @TypeOf(left)) error{A
 
     if (!lib.common.equal(left, right)) {
         std.debug.print("left: {any} != right: {any}\n", .{ left, right });
+
+        return error.AssertionFailed;
+    }
+}
+
+pub fn expectEqualString(left: []const u8, right: []const u8) error{AssertionFailed}!void {
+    if (!lib.common.equal(left, right)) {
+        std.debug.print("left: \"{s}\"({d}) != right: \"{s}\"({d})\n", .{ left, left.len, right, right.len });
 
         return error.AssertionFailed;
     }
