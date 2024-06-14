@@ -5,7 +5,9 @@ pub const U8 = struct {
     pub const size: ?usize = 1;
 
     pub fn parse(bytes: []u8) struct { @This(), usize } {
-        return .{ .{ value: bytes[0] }, 1 };
+        const value = bytes[0];
+
+        return .{ .{ value = value }, 1 };
     }
 
     pub fn serialize(self: @This(), buf: *[]u8) []u8 {
@@ -21,7 +23,9 @@ pub const U16be = struct {
     pub const size: ?usize = 2;
 
     pub fn parse(bytes: []u8) struct { @This(), usize } {
-        return .{ .{ value: bytes[0] * 0xff + bytes[1] }, 2 };
+        const value = bytes[0] * 0xff + bytes[1];
+
+        return .{ .{ value = value }, 2 };
     }
 
     pub fn serialize(self: @This(), buf: *[]u8) []u8 {
@@ -38,7 +42,9 @@ pub const U16le = struct {
     pub const size: ?usize = 2;
 
     pub fn parse(bytes: []u8) struct { @This(), usize } {
-        return .{ .{ value: bytes[1] * 0xff + bytes[0] }, 2 };
+        const value = bytes[1] * 0xff + bytes[0];
+
+        return .{ .{ value = value }, 2 };
     }
 
     pub fn serialize(self: @This(), buf: *[]u8) []u8 {
