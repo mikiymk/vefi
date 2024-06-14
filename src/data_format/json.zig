@@ -1,5 +1,5 @@
-//!
-//!
+//! JSON (JavaScript Object Notation)
+//! https://ecma-international.org/publications-and-standards/standards/ecma-404/
 
 const lib = @import("../lib.zig");
 const hash_map = lib.collection.hash_map;
