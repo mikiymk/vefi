@@ -12,7 +12,7 @@
 const std = @import("std");
 const lib = @import("./lib.zig");
 
-pub const primitive = @import("primitive.zig");
+pub const zig_primitive = @import("zig_primitive.zig");
 pub const collection = @import("collection.zig");
 pub const math = @import("math.zig");
 pub const common = @import("common.zig");
@@ -25,7 +25,7 @@ pub const file_system = struct {};
 pub const network = struct {};
 pub const memory = struct {};
 
-pub const regular_expression = struct {};
+pub const regular_expression = @import("regular_expression.zig");
 pub const graphic = struct {};
 pub const types = struct {
     pub fn typeName(comptime T: type) []const u8 {
@@ -36,9 +36,9 @@ pub const types = struct {
 pub const random = struct {};
 pub const locale = struct {};
 
-pub const file_format = @import("file_format.zig");
+pub const data_format = @import("data_format.zig");
 pub const language = struct {
-    //! 自然言語
+    // 自然言語
 };
 
 pub const assert = @import("assert.zig");
