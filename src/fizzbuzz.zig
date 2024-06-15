@@ -1,5 +1,5 @@
 const std = @import("std");
-const lib = @import("./lib.zig");
+const lib = @import("root.zig");
 
 const Fizz = struct {
     count: usize,

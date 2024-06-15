@@ -39,7 +39,7 @@
 //!
 
 const std = @import("std");
-const lib = @import("../lib.zig");
+const lib = @import("../root.zig");
 
 const assert = lib.assert.assert;
 const expect = lib.assert.expect;

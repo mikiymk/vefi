@@ -1,3 +1,8 @@
+//!
+
+const lib = @import("../root.zig");
+
+const is_big_endian = lib.builtin.endian == .big;
 
 pub const U8 = struct {
     value: u8,
@@ -7,7 +12,7 @@ pub const U8 = struct {
     pub fn parse(bytes: []u8) struct { @This(), usize } {
         const value = bytes[0];
 
-        return .{ .{ value = value }, 1 };
+        return .{ .{ .value = value }, 1 };
     }
 
     pub fn serialize(self: @This(), buf: *[]u8) []u8 {
@@ -25,7 +30,7 @@ pub const U16be = struct {
     pub fn parse(bytes: []u8) struct { @This(), usize } {
         const value = bytes[0] * 0xff + bytes[1];
 
-        return .{ .{ value = value }, 2 };
+        return .{ .{ .value = value }, 2 };
     }
 
     pub fn serialize(self: @This(), buf: *[]u8) []u8 {
@@ -44,7 +49,7 @@ pub const U16le = struct {
     pub fn parse(bytes: []u8) struct { @This(), usize } {
         const value = bytes[1] * 0xff + bytes[0];
 
-        return .{ .{ value = value }, 2 };
+        return .{ .{ .value = value }, 2 };
     }
 
     pub fn serialize(self: @This(), buf: *[]u8) []u8 {

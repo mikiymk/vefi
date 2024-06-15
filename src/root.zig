@@ -10,9 +10,10 @@
 //! php https://www.php.net/manual/ja/funcref.php
 
 const std = @import("std");
-const lib = @import("./lib.zig");
+const lib = @import("root.zig");
 
-pub const zig_primitive = @import("zig_primitive.zig");
+pub const zig = @import("zig.zig");
+pub const builtin = @import("builtin.zig");
 pub const collection = @import("collection.zig");
 pub const math = @import("math.zig");
 pub const common = @import("common.zig");

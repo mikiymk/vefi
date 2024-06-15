@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const AllocatorError = Allocator.Error;
 
-const lib = @import("../lib.zig");
+const lib = @import("../root.zig");
 
 /// 動的配列
 pub fn DynamicArray(comptime T: type) type {

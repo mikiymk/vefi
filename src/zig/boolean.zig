@@ -5,7 +5,7 @@
 //! 真偽値は`true`(真)と`false`(偽)の2つの値を持ちます。
 
 const std = @import("std");
-const lib = @import("../lib.zig");
+const lib = @import("../root.zig");
 
 const expect = lib.assert.expectEqual;
 const expectString = lib.assert.expectEqualString;

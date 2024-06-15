@@ -1,7 +1,7 @@
 //!
 
 const std = @import("std");
-const lib = @import("../lib.zig");
+const lib = @import("../root.zig");
 const Allocator = std.mem.Allocator;
 const AllocError = Allocator.Error;
 

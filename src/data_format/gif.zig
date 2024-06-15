@@ -1,6 +1,12 @@
 //! GIF (GRAPHICS INTERCHANGE FORMAT)
 //! https://www.w3.org/Graphics/GIF/spec-gif89a.txt
 
+const lib = @import("../root.zig");
+
+const number = lib.data_format.number;
+const string = lib.data_format.string;
+const utils = lib.data_format.utils;
+
 pub const Header = utils.Block(.{
     .signature = string.Fixed("GIF"),
     .version = string.Enums(.{
@@ -14,10 +20,10 @@ pub const LogicalScreenDescriptor = utils.Block(.{
     .logical_screen_height = number.U16le,
 
     .pack = utils.Pack(1, .{
-         .global_color_table_flag = bool,
-         .color_resolution = u3,
-         .sort_flag = bool,
-         .size_of_global_color_table = u3,
+        .global_color_table_flag = bool,
+        .color_resolution = u3,
+        .sort_flag = bool,
+        .size_of_global_color_table = u3,
     }),
 
     .background_color_index = number.U8,
@@ -64,10 +70,10 @@ pub const GraphicControlExtention = utils.Block(.{
     .pack = utils.Pack(.{
         .reserved = u3,
         .disposal_method = enum(u3) {
-            .no_disposal = 0,
-            .do_not_disposal = 1,
-            .restore_to_background = 2,
-            .restore_to_previous = 3,
+            no_disposal = 0,
+            do_not_disposal = 1,
+            restore_to_background = 2,
+            restore_to_previous = 3,
         },
         .user_input_flag = bool,
         .transparent_color_flag = bool,

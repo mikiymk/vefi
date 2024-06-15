@@ -1,7 +1,7 @@
 //! zigのtype型
 
 const std = @import("std");
-const lib = @import("../lib.zig");
+const lib = @import("../root.zig");
 
 /// 型をわかりやすい文字列に変換する。
 pub fn toString(T: type) []const u8 {

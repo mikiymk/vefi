@@ -1,5 +1,5 @@
 const std = @import("std");
-const lib = @import("./lib.zig");
+const lib = @import("root.zig");
 
 pub fn assert(ok: bool) void {
     if (!ok) {

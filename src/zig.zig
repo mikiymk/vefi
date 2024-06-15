@@ -1,7 +1,7 @@
 //! zigの基本の型と操作
 
 const std = @import("std");
-const lib = @import("./lib.zig");
+const lib = @import("root.zig");
 
 pub const boolean = @import("zig/boolean.zig");
 pub const integer = @import("zig/integer.zig");

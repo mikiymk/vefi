@@ -1,12 +1,12 @@
 const std = @import("std");
-const lib = @import("./lib.zig");
+const lib = @import("root.zig");
 
 const BigInteger = @import("bigint.zig").BigInteger;
 const fizz_buzz = @import("./fizzbuzz.zig");
 
 test {
     _ = @import("bigint.zig");
-    _ = @import("lib.zig");
+    _ = @import("root.zig");
 }
 
 pub fn main() !void {

@@ -1,7 +1,7 @@
 //! JSON (JavaScript Object Notation)
 //! https://ecma-international.org/publications-and-standards/standards/ecma-404/
 
-const lib = @import("../lib.zig");
+const lib = @import("../root.zig");
 const hash_map = lib.collection.hash_map;
 
 pub const JsonType = union(enum) {

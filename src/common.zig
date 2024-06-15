@@ -1,5 +1,5 @@
 const std = @import("std");
-const lib = @import("./lib.zig");
+const lib = @import("root.zig");
 
 pub fn equal(left: anytype, right: @TypeOf(left)) bool {
     const info = @typeInfo(@TypeOf(left));
