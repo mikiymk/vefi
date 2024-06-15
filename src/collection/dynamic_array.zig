@@ -5,7 +5,7 @@ const AllocatorError = Allocator.Error;
 const lib = @import("../root.zig");
 
 /// 動的配列
-pub fn DynamicArray(comptime T: type) type {
+pub fn DynamicArray(T: type) type {
     return struct {
         value: []T,
         size: usize,

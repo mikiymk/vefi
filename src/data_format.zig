@@ -4,6 +4,8 @@ const lib = @import("root.zig");
 // バイナリファイルの一部
 
 pub const number = @import("data_format/number.zig");
+pub const string = @import("data_format/string.zig");
+pub const utils = @import("data_format/utils.zig");
 
 // バイナリファイル
 

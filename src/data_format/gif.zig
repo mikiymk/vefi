@@ -7,12 +7,10 @@ const number = lib.data_format.number;
 const string = lib.data_format.string;
 const utils = lib.data_format.utils;
 
-pub const Header = utils.Block(.{ .{ .signature, string.Fixed("GIF") }, .{
-    .version, string.Enums(.{
-        .{ "87a", .version_87a },
-        .{ "89a", .version_89a },
-    }),
-} });
+pub const Header = utils.Block(.{
+    .{ .signature, string.Fixed(3) },
+    .{ .version, string.Fixed(3) },
+});
 
 pub const LogicalScreenDescriptor = utils.Block(.{
     .logical_screen_width = number.u16_le,

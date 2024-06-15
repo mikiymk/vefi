@@ -7,12 +7,6 @@ pub fn assert(ok: bool) void {
     }
 }
 
-pub fn assertStatic(comptime ok: bool) void {
-    if (!ok) {
-        @compileError("assertion failed");
-    }
-}
-
 pub fn expect(ok: bool) error{AssertionFailed}!void {
     if (!ok) {
         return error.AssertionFailed;

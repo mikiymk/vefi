@@ -1369,7 +1369,7 @@ test "割り算 符号あり ゼロ除算" {
 
 // 左ビットシフト
 
-fn Log2Type(T: type) type {
+pub fn Log2Type(T: type) type {
     const size = sizeOf(T);
 
     if (size <= 1) {
