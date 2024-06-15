@@ -3,6 +3,8 @@ const lib = @import("root.zig");
 
 // バイナリファイルの一部
 
+pub const number = @import("data_format/number.zig");
+
 // バイナリファイル
 
 pub const gif = @import("data_format/gif.zig");

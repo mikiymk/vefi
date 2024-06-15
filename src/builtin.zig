@@ -2,4 +2,4 @@
 
 const builtin = @import("builtin");
 
-const endian = builtin.cpu.arch.endian();
+pub const endian = builtin.cpu.arch.endian();
