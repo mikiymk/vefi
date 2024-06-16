@@ -12,7 +12,7 @@
 const std = @import("std");
 const lib = @import("root.zig");
 
-pub const zig = @import("zig.zig");
+const zig_test = @import("zig_test.zig");
 pub const builtin = @import("builtin.zig");
 pub const collection = @import("collection.zig");
 pub const math = @import("math.zig");
