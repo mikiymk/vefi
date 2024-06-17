@@ -45,9 +45,13 @@ test "合同型" {}
 
 test "不透明型" {}
 
-test "制御構造 ブロック" {}
-test "制御構造 if" {}
-test "制御構造 switch" {}
-test "制御構造 for" {}
-test "制御構造 while" {}
-test "制御構造 defer" {}
+test "ブロック文" {}
+test "if文" {}
+test "switch文" {}
+test "for文" {}
+test "while文" {}
+test "defer文" {}
+
+test "演算子 +" {}
+
+test "組み込み関数 @TypeOf" {}
