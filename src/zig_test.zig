@@ -252,65 +252,72 @@ test "番兵つき定数スライス型" {
     consume(.{var_02});
 }
 
+const Struct_01 = struct { x: u32, y: u32, z: u32 };
+const Struct_02 = struct { x: u8 = 16, y: u8, z: u8 };
+const Struct_03 = extern struct { x: u32, y: u32, z: u32 };
+const Struct_04 = packed struct { x: u32, y: u32, z: u32 };
+const Struct_05 = struct { u32, u32, u32 };
+
 test "構造体型" {
-    const Struct_01 = struct { x: u32, y: u32, z: u32 };
     const var_01 = Struct_01{ .x = 5, .y = 10, .z = 15 };
     const var_02: Struct_01 = .{ .x = 5, .y = 10, .z = 15 };
 
-    const Struct_02 = struct { r: u8 = 16, g: u8, b: u8, a: u8 };
-    const var_03: Struct_02 = .{ .r = 5, .g = 10, .b = 15, .a = 20 };
-    const var_04: Struct_02 = .{ .g = 10, .b = 15, .a = 20 }; // デフォルト値を使用する
+    const var_03: Struct_02 = .{ .x = 5, .y = 10, .z = 15 };
+    const var_04: Struct_02 = .{ .y = 10, .z = 15 }; // デフォルト値を使用する
 
     consume(.{ var_01, var_02, var_03, var_04 });
 }
 test "構造体型 C-ABIレイアウト" {
-    const Struct_01 = extern struct { x: u32, y: u32, z: u32 };
-    const var_01: Struct_01 = .{ .x = 5, .y = 10, .z = 15 };
+    const var_01: Struct_03 = .{ .x = 5, .y = 10, .z = 15 };
 
     consume(.{var_01});
 }
 test "構造体型 パックレイアウト" {
-    const Struct_01 = packed struct { x: u32, y: u32, z: u32 };
-    const var_01: Struct_01 = .{ .x = 5, .y = 10, .z = 15 };
+    const var_01: Struct_04 = .{ .x = 5, .y = 10, .z = 15 };
 
     consume(.{var_01});
 }
 test "構造体型 タプル" {
-    const Struct_01 = struct { u32, u32, u32 };
-    const var_01: Struct_01 = .{ 5, 10, 15 };
+    const var_01: Struct_05 = .{ 5, 10, 15 };
 
     consume(.{var_01});
 }
 
+const Enum_01 = enum { first, second, third };
+const Enum_02 = enum(u8) { first = 1, second = 2, third = 3 };
+const Enum_03 = enum(u8) { first = 4, second, third };
+const Enum_04 = enum(u8) { first = 1, second = 2, third = 3, _ };
+
 test "列挙型" {
-    const Enum_01 = enum { first, second, third };
     const var_01 = Enum_01.first;
     const var_02: Enum_01 = .second;
 
     consume(.{ var_01, var_02 });
 }
 test "列挙型 数値型つき" {
-    const Enum_01 = enum(u8) { first = 1, second = 2, third = 3 };
-    const var_01 = Enum_01.first;
-    const var_02: Enum_01 = .second;
+    const var_01 = Enum_02.first;
+    const var_02: Enum_02 = .second;
 
-    const Enum_02 = enum(u8) { first = 4, second, third };
-    const var_03 = Enum_02.first;
-    const var_04: Enum_02 = .second;
+    const var_03 = Enum_03.first;
+    const var_04: Enum_03 = .second;
 
     consume(.{ var_01, var_02, var_03, var_04 });
 }
 test "列挙型 非網羅的" {
-    const Enum_01 = enum(u8) { first = 1, second = 2, third = 3, _ };
-    const var_01 = Enum_01.first;
-    const var_02: Enum_01 = .second;
-    const var_03: Enum_01 = @enumFromInt(0xff);
+    const var_01 = Enum_04.first;
+    const var_02: Enum_04 = .second;
+    const var_03: Enum_04 = @enumFromInt(0xff);
 
     consume(.{ var_01, var_02, var_03 });
 }
 
+const Union_01 = union { int: i32, bool: bool, void: void };
+const Union_02 = union(Enum_01) { first: i32, second: bool, third: void };
+const Union_03 = union(enum) { first: i32, second: bool, third: void };
+const Union_04 = extern union { first: i32, second: bool, third: void };
+const Union_05 = packed union { first: i32, second: bool, third: void };
+
 test "合同型" {
-    const Union_01 = union { int: i32, bool: bool, void: void };
     const var_01 = Union_01{ .int = 123456 };
     const var_02 = Union_01{ .bool = false };
     const var_03 = Union_01{ .void = void{} };
@@ -318,39 +325,34 @@ test "合同型" {
     consume(.{ var_01, var_02, var_03 });
 }
 test "合同型 タグ付き" {
-    const Enum_01 = enum { int, bool, void };
-    const Union_02 = union(Enum_01) { int: i32, bool: bool, void: void };
-    const var_01 = Union_02{ .int = 123456 };
-    const var_02 = Union_02{ .bool = false };
-    const var_03 = Union_02{ .void = void{} };
+    const var_01 = Union_02{ .first = 123456 };
+    const var_02 = Union_02{ .second = false };
+    const var_03 = Union_02{ .third = void{} };
 
-    const Union_03 = union(enum) { int: i32, bool: bool, void: void };
-    const var_04 = Union_03{ .int = 123456 };
-    const var_05 = Union_03{ .bool = false };
-    const var_06 = Union_03{ .void = void{} };
+    const var_04 = Union_03{ .first = 123456 };
+    const var_05 = Union_03{ .second = false };
+    const var_06 = Union_03{ .third = void{} };
 
     consume(.{ var_01, var_02, var_03, var_04, var_05, var_06 });
 }
 test "合同型 C-ABIレイアウト" {
-    const Union_01 = extern union { int: i32, bool: bool, void: void };
-    const var_01 = Union_01{ .int = 123456 };
-    const var_02 = Union_01{ .bool = false };
-    const var_03 = Union_01{ .void = void{} };
+    const var_01 = Union_04{ .first = 123456 };
+    const var_02 = Union_04{ .second = false };
+    const var_03 = Union_04{ .third = void{} };
 
     consume(.{ var_01, var_02, var_03 });
 }
 test "合同型 パックレイアウト" {
-    const Union_01 = packed union { int: i32, bool: bool, void: void };
-    const var_01 = Union_01{ .int = 123456 };
-    const var_02 = Union_01{ .bool = false };
-    const var_03 = Union_01{ .void = void{} };
+    const var_01 = Union_05{ .first = 123456 };
+    const var_02 = Union_05{ .second = false };
+    const var_03 = Union_05{ .third = void{} };
 
     consume(.{ var_01, var_02, var_03 });
 }
 
-test "不透明型" {
-    const Opaque_01 = opaque {};
+const Opaque_01 = opaque {};
 
+test "不透明型" {
     consume(.{Opaque_01});
 }
 
@@ -360,46 +362,55 @@ test "ブロック文" {
     }
 }
 test "ブロック文 ラベル付き" {
-    blk: {
-        consume(42);
+    const var_01 = blk: {
+        break :blk 42;
+    };
 
-        break :blk;
-    }
+    try assert.expectEqual(var_01, 42);
 }
 
 test "if文" {
     const var_01: u8 = 42;
+    var sum: i32 = 5;
 
     if (var_01 == 42) {
-        consume(var_01);
+        sum += var_01;
     }
+
+    try assert.expectEqual(sum, 47);
 }
 test "if文 if-else" {
     const var_01: u8 = 42;
+    var sum: i32 = 5;
 
     if (var_01 == 42) {
-        consume(var_01);
+        sum += var_01;
     } else {
-        consume(100);
+        sum -= var_01;
     }
+
+    try assert.expectEqual(sum, 47);
 }
 test "if文 if-else-if-else" {
     const var_01: u8 = 42;
+    var sum: i32 = 5;
 
     if (var_01 == 42) {
-        consume(var_01);
+        sum += var_01;
     } else if (var_01 == 0) {
-        consume(-42);
+        sum -= var_01;
     } else {
-        consume(100);
+        sum += 30;
     }
+
+    try assert.expectEqual(sum, 47);
 }
 
 test "switch文 整数型" {
     const var_01: u8 = 42;
-    const var_02 = 10; // コンパイル時に既知
+    const var_02 = 21; // コンパイル時に既知
 
-    _ = switch (var_01) {
+    const result: i32 = switch (var_01) {
         1 => 1,
         2, 3, 4 => 2,
         5...7 => 3,
@@ -409,67 +420,310 @@ test "switch文 整数型" {
 
         else => 6,
     };
+
+    try assert.expectEqual(result, 5);
 }
 test "switch文 整数型 網羅的" {
     const var_01: u2 = 3;
 
-    _ = switch (var_01) {
+    const result: i32 = switch (var_01) {
         0 => 1,
         1, 2, 3 => 2,
     };
+
+    try assert.expectEqual(result, 2);
 }
 test "switch文 列挙型" {
-    const Enum_01 = enum { first, second, third };
     const var_01: Enum_01 = .second;
 
-    _ = switch (var_01) {
+    const result: i32 = switch (var_01) {
         .first, .second => 1,
         .third => 2,
     };
+
+    try assert.expectEqual(result, 1);
 }
 test "switch文 列挙型 非網羅的" {
-    const Enum_01 = enum { first, second, third };
     const var_01: Enum_01 = .second;
 
-    _ = switch (var_01) {
+    const result: i32 = switch (var_01) {
         .first => 1,
         else => 2,
     };
+
+    try assert.expectEqual(result, 2);
 }
 test "switch文 合同型" {
-    const Enum_01 = enum { first, second, third };
-    const var_01: Enum_01 = .second;
+    const var_01: Union_02 = .{ .second = false };
 
-    _ = switch (var_01) {
+    const result: i32 = switch (var_01) {
         .first => 1,
-        else => 2,
+        .second => 2,
+        .third => 3,
     };
+
+    try assert.expectEqual(result, 2);
+}
+test "switch文 合同型 値のキャプチャ" {
+    const var_01: Union_02 = .{ .second = false };
+
+    const result: i32 = switch (var_01) {
+        .first => |f| f % 5,
+        .second => |s| if (s) 5 else 10,
+        .third => |_| 8,
+    };
+
+    try assert.expectEqual(result, 10);
 }
 
-test "for文" {
+test "for文 配列" {
     const var_01: [5]i32 = .{ 1, 2, 3, 4, 5 };
+    var sum: i32 = 1;
 
     for (var_01) |v| {
-        consume(v);
+        sum += v;
     }
+
+    try assert.expectEqual(sum, 16);
 }
-test "for文 for-else" {
+test "for文 配列の変更" {
+    var var_01: [5]i32 = .{ 1, 2, 3, 4, 5 };
+
+    for (&var_01) |*v| {
+        v.* = 6;
+    }
+
+    try assert.expectEqual(var_01[1], 6);
+}
+test "for文 配列の単要素ポインタ" {
+    var var_01: [5]i32 = .{ 1, 2, 3, 4, 5 };
+    const var_02: *[5]i32 = &var_01;
+    var sum: i32 = 1;
+
+    for (var_02) |v| {
+        sum += v;
+    }
+
+    try assert.expectEqual(sum, 16);
+}
+test "for文 配列の単要素ポインタの変更" {
+    var var_01: [5]i32 = .{ 1, 2, 3, 4, 5 };
+    const var_02: *[5]i32 = &var_01;
+
+    for (var_02) |*v| {
+        v.* = 6;
+    }
+
+    try assert.expectEqual(var_02[1], 6);
+}
+test "for文 配列の単要素定数ポインタ" {
     const var_01: [5]i32 = .{ 1, 2, 3, 4, 5 };
+    const var_02: *const [5]i32 = &var_01;
+    var sum: i32 = 1;
+
+    for (var_02) |v| {
+        sum += v;
+    }
+
+    try assert.expectEqual(sum, 16);
+}
+// for文 複数要素ポインタ
+// for文 番兵つき複数要素ポインタ
+test "for文 スライス型" {
+    var var_01: [5]i32 = .{ 1, 2, 3, 4, 5 };
+    const var_02: []i32 = &var_01;
+    var sum: i32 = 1;
+
+    for (var_02) |v| {
+        sum += v;
+    }
+
+    try assert.expectEqual(sum, 16);
+}
+test "for文 スライス型の変更" {
+    var var_01: [5]i32 = .{ 1, 2, 3, 4, 5 };
+    const var_02: []i32 = &var_01;
+
+    for (var_02) |*v| {
+        v.* = 6;
+    }
+
+    try assert.expectEqual(var_02[1], 6);
+}
+test "for文 定数スライス型" {
+    var var_01: [5]i32 = .{ 1, 2, 3, 4, 5 };
+    const var_02: []const i32 = &var_01;
+    var sum: i32 = 1;
+
+    for (var_02) |v| {
+        sum += v;
+    }
+
+    try assert.expectEqual(sum, 16);
+}
+test "for文 番兵つきスライス型" {
+    var var_01: [5:0]i32 = .{ 1, 2, 3, 4, 5 };
+    const var_02: [:0]i32 = &var_01;
+    var sum: i32 = 1;
+
+    for (var_02) |v| {
+        sum += v;
+    }
+
+    try assert.expectEqual(sum, 16);
+}
+test "for文 番兵つきスライス型の変更" {
+    var var_01: [5:0]i32 = .{ 1, 2, 3, 4, 5 };
+    const var_02: [:0]i32 = &var_01;
+
+    for (var_02) |*v| {
+        v.* = 6;
+    }
+
+    try assert.expectEqual(var_02[1], 6);
+}
+test "for文 番兵つき定数スライス型" {
+    var var_01: [5:0]i32 = .{ 1, 2, 3, 4, 5 };
+    const var_02: [:0]const i32 = &var_01;
+    var sum: i32 = 1;
+
+    for (var_02) |v| {
+        sum += v;
+    }
+
+    try assert.expectEqual(sum, 16);
+}
+test "for文 インデックス付き" {
+    const var_01: [5]i32 = .{ 1, 2, 3, 4, 5 };
+    var sum: i32 = 1;
+
+    for (var_01, 0..) |v, i| {
+        sum += v * @as(i32, @intCast(i));
+    }
+
+    try assert.expectEqual(sum, 41);
+}
+test "for文 break" {
+    const var_01: [5]i32 = .{ 1, 2, 3, 4, 5 };
+    var sum: i32 = 1;
 
     for (var_01) |v| {
-        consume(v);
+        if (v == 4) {
+            break;
+        }
+
+        sum += v;
+    }
+
+    try assert.expectEqual(sum, 7);
+}
+test "for文 continue" {
+    const var_01: [5]i32 = .{ 1, 2, 3, 4, 5 };
+    var sum: i32 = 1;
+
+    for (var_01) |v| {
+        if (v == 4) {
+            continue;
+        }
+
+        sum += v;
+    }
+
+    try assert.expectEqual(sum, 12);
+}
+test "for文 else 抜け出さない場合" {
+    const var_01: [5]i32 = .{ 1, 2, 3, 4, 5 };
+    var sum: i32 = 1;
+
+    for (var_01) |v| {
+        if (v == 4) {
+            continue;
+        }
+
+        sum += v;
     } else {
-        consume(var_01);
+        sum = 99;
     }
+
+    try assert.expectEqual(sum, 99);
+}
+test "for文 else 抜け出す場合" {
+    const var_01: [5]i32 = .{ 1, 2, 3, 4, 5 };
+    var sum: i32 = 1;
+
+    for (var_01) |v| {
+        if (v == 4) {
+            break;
+        }
+
+        sum += v;
+    } else {
+        sum = 99;
+    }
+
+    try assert.expectEqual(sum, 7);
 }
 
 test "while文" {
     var var_01: i32 = 1;
+    var sum: i32 = 1;
 
-    while (var_01 > 0) {
-        var_01 *%= 2;
+    while (var_01 < 5) {
+        var_01 += 1;
+        sum += var_01;
     }
+
+    try assert.expectEqual(sum, 15);
 }
+test "while文 break" {
+    var var_01: i32 = 1;
+    var sum: i32 = 1;
+
+    while (var_01 < 5) {
+        var_01 += 1;
+
+        if (var_01 == 3) {
+            break;
+        }
+
+        sum += var_01;
+    }
+
+    try assert.expectEqual(sum, 3);
+}
+test "while文 continue" {
+    var var_01: i32 = 1;
+    var sum: i32 = 1;
+
+    while (var_01 < 5) {
+        var_01 += 1;
+
+        if (var_01 == 3) {
+            continue;
+        }
+
+        sum += var_01;
+    }
+
+    try assert.expectEqual(sum, 12);
+}
+test "while文 コンティニュー式" {
+    var var_01: i32 = 1;
+    var sum: i32 = 1;
+
+    while (var_01 < 5) : (var_01 += 1) {
+        if (var_01 == 3) {
+            continue;
+        }
+
+        sum += var_01;
+    }
+
+    try assert.expectEqual(sum, 8);
+}
+test "while文 else 抜け出す場合" {}
+test "while文 else 抜け出さない場合" {}
+test "while文 else 値を返す" {}
 
 test "defer文" {}
 
