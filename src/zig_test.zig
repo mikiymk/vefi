@@ -83,15 +83,30 @@ test "整数型" {
     const var2: i65535 = -40;
 }
 
-test "浮動小数点数型" {}
+test "浮動小数点数型" {
+    const var1: f16 = 0.01;
+    const var1: f32 = 0.001;
+    const var1: f64 = 0.0001;
+    const var1: f80 = 0.00001;
+    const var1: f128 = 0.000001;
+}
 
-test "comptime_int" {}
+test "comptime_int" {
+    const var1: comptime_int = 999_999;
+}
 
-test "comptime_float" {}
+test "comptime_float" {
+    const var1: comptime_float = 0.0000000009;
+}
 
-test "bool" {}
+test "bool" {
+    const var1: bool = true;
+    const var1: bool = false;
+}
 
-test "void" {}
+test "void" {
+    const var1: void = void{};
+}
 
 test "C互換数値型" {}
 
