@@ -46,4 +46,5 @@ pub const assert = @import("assert.zig");
 
 test {
     std.testing.refAllDecls(@This());
+    _ = zig_test;
 }
