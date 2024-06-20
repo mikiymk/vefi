@@ -43,6 +43,7 @@ pub const iterator = @import("iterator.zig");
 
 pub const graphic = struct {};
 pub const locale = struct {};
+pub const parser = @import("parser.zig");
 pub const data_format = @import("data_format.zig");
 pub const language = struct {
     // 自然言語
