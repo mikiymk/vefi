@@ -52,3 +52,25 @@ pub fn Tuple(comptime fields: [_]type) type {
         }
     };
 }
+
+pub fn Struct(comptime fields: [_]struct{ []const u8, type }) type {
+    return struct {
+        pub const Value = @Type(.{ .Struct = .{
+            .fields = fields,
+            .is_tuple = false,
+        }});
+        pub fn parse(bytes: []const u8) ParseResult(@This()) {
+            var value: Value = undefined;
+            var read_count: usize = 0;
+
+            inline for (fields) |field| {
+                const field_name, const field_parser = field;
+                const tuple_value, const read_size = field_parser.parse(bytes[read_count..]);
+                @field(value, field_name) = tuple_value;
+                read_count += read_size;
+            }
+
+            return .{ value, read_count };
+        }
+    };
+}
