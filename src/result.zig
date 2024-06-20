@@ -6,8 +6,8 @@ pub fn Result(S: type, F: type) type {
         pub const Success = S;
         pub const Failure = F;
 
-        pub fn isResult(self: type) bool {
-            return self == Result(self.Success, self.Failure);
+        pub fn isResult(Self: type) bool {
+            return Self == Result(Self.Success, Self.Failure);
         }
     };
 }
