@@ -13,9 +13,17 @@ const std = @import("std");
 const lib = @import("root.zig");
 
 const zig_test = @import("zig_test.zig");
+
 pub const builtin = @import("builtin.zig");
+
+pub const types = struct {
+    pub fn typeName(comptime T: type) []const u8 {
+        return @typeName(T);
+    }
+};
 pub const collection = @import("collection.zig");
 pub const math = @import("math.zig");
+
 pub const common = @import("common.zig");
 
 pub const string = @import("string.zig");
@@ -26,15 +34,11 @@ pub const file_system = struct {};
 pub const network = struct {};
 pub const memory = struct {};
 
+pub const result = @import("result.zig");
 pub const regular_expression = @import("regular_expression.zig");
 pub const graphic = struct {};
-pub const types = struct {
-    pub fn typeName(comptime T: type) []const u8 {
-        return @typeName(T);
-    }
-};
-
-pub const random = struct {};
+pub const random = @import("random.zig");
+pub const iterator = @import("iterator.zig");
 pub const locale = struct {};
 
 pub const data_format = @import("data_format.zig");
