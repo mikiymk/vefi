@@ -78,6 +78,8 @@ test "文字列リテラル 複数行" {
         \\a\tbc
     ;
 }
+test "列挙型リテラル" {}
+test "構造体型リテラル" {}
 
 test "リテラルの型" {
     try assert.expectEqual(@TypeOf(42), comptime_int);
@@ -102,17 +104,19 @@ test "整数型" {
     const var_03: u32 = 5000;
     const var_04: u64 = 50000;
     const var_05: u128 = 500000;
-    const var_06: i8 = -50;
-    const var_07: i16 = -500;
-    const var_08: i32 = -5000;
-    const var_09: i64 = -50000;
-    const var_10: i128 = -500000;
+    const var_06: usize = 5000000;
+    const var_07: i8 = -50;
+    const var_08: i16 = -500;
+    const var_09: i32 = -5000;
+    const var_10: i64 = -50000;
+    const var_11: i128 = -500000;
+    const var_12: isize = -5000000;
 
     // 任意幅の整数型
-    const var_11: u0 = 0;
-    const var_12: i65535 = -40;
+    const var_13: u0 = 0;
+    const var_14: i65535 = -40;
 
-    consume(.{ var_01, var_02, var_03, var_04, var_05, var_06, var_07, var_08, var_09, var_10, var_11, var_12 });
+    consume(.{ var_01, var_02, var_03, var_04, var_05, var_06, var_07, var_08, var_09, var_10, var_11, var_12, var_13, var_14 });
 }
 
 test "浮動小数点数型" {
