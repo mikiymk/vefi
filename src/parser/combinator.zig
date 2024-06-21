@@ -74,3 +74,21 @@ pub fn Struct(comptime fields: [_]struct{ []const u8, type }) type {
         }
     };
 }
+
+pub fn ArrayFix(Item: type, length: usize) type {
+    return struct {
+        pub const Value = [length]Item.Value;
+        pub fn parse(bytes: []const u8) ParseResult(@This()) {
+            var value: Value = undefined;
+            var read_count: usize = 0;
+
+            for (&value) |*item| {
+                const item_value, const read_size = Item.parse(bytes[read_count..]);
+                item.* = item_value;
+                read_count += read_size;
+            }
+
+            return .{ value, read_count };
+        }
+    };
+}
