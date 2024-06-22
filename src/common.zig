@@ -31,6 +31,15 @@ pub fn equal(left: anytype, right: @TypeOf(left)) bool {
 
             return true;
         },
+        .Union => {
+            if (@intFromEnum(left) != @intFromEnum(right)) {
+                return false;
+            }
+
+            const tag_name = @tagName(left);
+
+            return equal(@field(left, tag_name), @field(right, tag_name));
+        },
         .Array => {
             for (left, right) |l, r| {
                 if (!equal(l, r)) {
@@ -44,6 +53,43 @@ pub fn equal(left: anytype, right: @TypeOf(left)) bool {
             switch (p.size) {
                 .Slice => return lib.types.Slice.equal(left, right),
                 else => return left == right,
+            }
+        },
+        .Type => {
+            if (left == right) {
+                return true;
+            }
+
+            const left_info = @typeInfo(left);
+            const right_info = @typeInfo(right);
+
+            switch (left_info) {
+                .Struct => |l| {
+                    switch (right_info) {
+                        .Struct => |r| {
+                            if (l.layout != r.layout or
+                                l.backing_integer != r.backing_integer or
+                                l.fields.len != r.fields.len or
+                                l.decls.len != r.decls.len or
+                                l.is_tuple != r.is_tuple)
+                            {
+                                return false;
+                            }
+
+                            for (l.fields, r.fields) |lf, rf| {
+                                if (!equal(lf.type, rf.type) or
+                                    !equal(lf.name, rf.name))
+                                {
+                                    return false;
+                                }
+                            }
+
+                            return true;
+                        },
+                        else => return false,
+                    }
+                },
+                else => return left_info == right_info,
             }
         },
 

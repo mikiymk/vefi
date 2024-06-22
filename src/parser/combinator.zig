@@ -7,7 +7,7 @@ pub fn ParseResult(Parser: type) type {
 
 pub fn U8() type {
     return struct {
-        pub const Value = u8;
+        pub const Value: type = u8;
         pub fn parse(bytes: []const u8) ParseResult(@This()) {
             if (bytes.len < 1) {
                 return error.ParseError;
@@ -29,7 +29,7 @@ test U8 {
 
 pub fn ConstString(comptime keyword: []const u8) type {
     return struct {
-        pub const Value = []const u8;
+        pub const Value: type = []const u8;
         pub fn parse(bytes: []const u8) ParseResult(@This()) {
             if (bytes.len < keyword.len) {
                 return error.ParseError;
@@ -55,19 +55,23 @@ test ConstString {
 }
 
 pub fn Tuple(comptime fields: anytype) type {
-    comptime lib.assert.assert(lib.types.Array.isArray(fields));
+    comptime lib.assert.assert(lib.types.Tuple.isTuple(@TypeOf(fields)));
 
     return struct {
-        pub const Value = @Type(.{ .Struct = .{
-            .fields = fields,
-            .is_tuple = true,
-        } });
+        pub const Value: type = lib.types.Tuple.Tuple(&blk: {
+            var struct_fields: [fields.len]lib.types.Tuple.Field = undefined;
+            for (&struct_fields, fields) |*sf, f| {
+                sf.* = .{ .type = f.Value };
+            }
+
+            break :blk struct_fields;
+        }, .{});
         pub fn parse(bytes: []const u8) ParseResult(@This()) {
             var value: Value = undefined;
             var read_count: usize = 0;
 
             inline for (fields, 0..) |field, i| {
-                const tuple_value, const read_size = field.parse(bytes[read_count..]);
+                const tuple_value, const read_size = try field.parse(bytes[read_count..]);
                 value[i] = tuple_value;
                 read_count += read_size;
             }
@@ -77,12 +81,22 @@ pub fn Tuple(comptime fields: anytype) type {
     };
 }
 
+test Tuple {
+    const Parser = Tuple(.{ U8(), U8(), U8() });
+    const bytes = [_]u8{ 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
+
+    try lib.assert.expectEqual(Parser.Value, struct { u8, u8, u8 });
+    try lib.assert.expectEqual(Parser.parse(bytes[0..]), .{ .{ 0x01, 0x23, 0x45 }, 3 });
+    try lib.assert.expectEqual(Parser.parse(bytes[3..]), .{ .{ 0x67, 0x89, 0xab }, 3 });
+    try lib.assert.expectEqual(Parser.parse(bytes[6..]), error.ParseError);
+}
+
 pub fn Struct(comptime fields: anytype) type {
     comptime lib.assert.assert(lib.types.Array.isArray(fields));
     comptime lib.assert.assert(lib.types.Struct.equalType(lib.types.Array.ItemOf(fields), struct { []const u8, type }));
 
     return struct {
-        pub const Value = @Type(.{ .Struct = .{
+        pub const Value: type = @Type(.{ .Struct = .{
             .fields = fields,
             .is_tuple = false,
         } });
