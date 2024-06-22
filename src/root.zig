@@ -16,11 +16,7 @@ const zig_test = @import("zig_test.zig");
 
 pub const builtin = @import("builtin.zig");
 
-pub const types = struct {
-    pub fn typeName(comptime T: type) []const u8 {
-        return @typeName(T);
-    }
-};
+pub const types = @import("types.zig");
 pub const collection = @import("collection.zig");
 pub const math = @import("math.zig");
 
