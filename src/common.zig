@@ -101,7 +101,7 @@ pub fn equal(left: anytype, right: @TypeOf(left)) bool {
                         else => return false,
                     }
                 },
-                else => return left_info == right_info,
+                else => return equal(left_info, right_info),
             }
         },
 
