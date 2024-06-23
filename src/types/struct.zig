@@ -3,14 +3,16 @@ const lib = @import("../root.zig");
 
 pub const Field = struct {
     type: type,
+    name: [:0]const u8,
     default_value: ?*const anyopaque = null,
     is_comptime: bool = false,
     alignment: comptime_int = 0,
 
-    pub fn init(Type: type, comptime default_value: ?Type, is_comptime: ?bool, alignment: ?comptime_int) @This() {
+    pub fn init(Type: type, name: [:0]const u8, comptime default_value: ?Type, is_comptime: ?bool, alignment: ?comptime_int) @This() {
         if (default_value == null) {
             return .{
                 .type = Type,
+                .name = name,
                 .default_value = null,
                 .is_comptime = is_comptime orelse false,
                 .alignment = alignment orelse 0,
@@ -19,16 +21,17 @@ pub const Field = struct {
 
         return .{
             .type = ?Type,
+            .name = name,
             .default_value = @as(*const anyopaque, @ptrCast(&default_value)),
             .is_comptime = is_comptime orelse false,
             .alignment = alignment orelse 0,
         };
     }
 
-    pub fn toBuiltin(self: @This(), comptime index: usize) lib.builtin.Type.StructField {
+    pub fn toBuiltin(self: @This()) lib.builtin.Type.StructField {
         return .{
             .type = self.type,
-            .name = &lib.types.Integer.toStringComptime(index, 10),
+            .name = self.name,
             .default_value = self.default_value,
             .is_comptime = self.is_comptime,
             .alignment = self.alignment,
@@ -36,7 +39,7 @@ pub const Field = struct {
     }
 };
 
-pub const TupleOptions = struct {
+pub const StructOptions = struct {
     layout: ContainerLayout = .auto,
     /// Only valid if layout is .@"packed"
     backing_integer: ?type = null,
@@ -67,10 +70,10 @@ pub const TupleOptions = struct {
     };
 };
 
-pub fn Tuple(comptime fields: []const Field, comptime options: TupleOptions) type {
+pub fn Struct(comptime fields: []const Field, comptime options: StructOptions) type {
     var fields_builtin: [fields.len]lib.builtin.Type.StructField = undefined;
-    for (&fields_builtin, fields, 0..) |*fb, f, i| {
-        fb.* = f.toBuiltin(i);
+    for (&fields_builtin, fields) |*fb, f| {
+        fb.* = f.toBuiltin();
     }
 
     const decls_builtin: [options.decls.len]lib.builtin.Type.Declaration = undefined;
@@ -83,15 +86,15 @@ pub fn Tuple(comptime fields: []const Field, comptime options: TupleOptions) typ
         .backing_integer = options.backing_integer,
         .fields = &fields_builtin,
         .decls = &decls_builtin,
-        .is_tuple = true,
+        .is_tuple = false,
     } });
 }
 
-test Tuple {
-    _ = Tuple(&.{}, .{});
-    _ = Tuple(&.{ .{ .type = u8 }, .{ .type = u8 } }, .{});
-    _ = Tuple(&.{Field.init(u8, null, null, null)}, .{});
-    _ = Tuple(&.{Field.init(u8, 0, null, null)}, .{});
+test Struct {
+    _ = Struct(&.{}, .{});
+    _ = Struct(&.{ .{ .type = u8, .name = "foo" }, .{ .type = u8, .name = "bar" } }, .{});
+    _ = Struct(&.{Field.init(u8, "foo", null, null, null)}, .{});
+    _ = Struct(&.{Field.init(u8, "foo", 0, null, null)}, .{});
 }
 
 pub fn isTuple(value: type) bool {

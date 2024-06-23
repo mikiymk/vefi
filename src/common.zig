@@ -67,6 +67,10 @@ pub fn equal(left: anytype, right: @TypeOf(left)) bool {
                 .Struct => |l| {
                     switch (right_info) {
                         .Struct => |r| {
+                            if (!l.is_tuple or !r.is_tuple) {
+                                return false;
+                            }
+
                             if (l.layout != r.layout or
                                 l.backing_integer != r.backing_integer or
                                 l.fields.len != r.fields.len or
@@ -76,9 +80,17 @@ pub fn equal(left: anytype, right: @TypeOf(left)) bool {
                                 return false;
                             }
 
-                            for (l.fields, r.fields) |lf, rf| {
+                            inline for (l.fields, r.fields) |lf, rf| {
                                 if (!equal(lf.type, rf.type) or
                                     !equal(lf.name, rf.name))
+                                {
+                                    return false;
+                                }
+                            }
+
+                            for (l.decls, r.decls) |ld, rd| {
+                                if (!equal(ld.type, rd.type) or
+                                    !equal(ld.name, rd.name))
                                 {
                                     return false;
                                 }

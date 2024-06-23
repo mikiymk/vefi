@@ -5,6 +5,7 @@ pub fn ParseResult(Parser: type) type {
     return error{ParseError}!struct { Parser.Value, usize };
 }
 
+/// 1バイトを符号無し整数として読み込む
 pub fn U8() type {
     return struct {
         pub const Value: type = u8;
@@ -91,22 +92,31 @@ test Tuple {
     try lib.assert.expectEqual(Parser.parse(bytes[6..]), error.ParseError);
 }
 
-pub fn Struct(comptime fields: anytype) type {
-    comptime lib.assert.assert(lib.types.Array.isArray(fields));
-    comptime lib.assert.assert(lib.types.Struct.equalType(lib.types.Array.ItemOf(fields), struct { []const u8, type }));
-
+pub fn Struct(comptime fields: []const struct { []const u8, type }) type {
     return struct {
-        pub const Value: type = @Type(.{ .Struct = .{
-            .fields = fields,
-            .is_tuple = false,
-        } });
+        pub const Value: type = lib.types.Struct.Struct(&blk: {
+            var struct_fields: [fields.len]lib.types.Struct.Field = undefined;
+            for (&struct_fields, fields) |*sf, f| {
+                var name: [f[0].len:0]u8 = undefined;
+                for (&name, f[0]) |*n, fnm| {
+                    n.* = fnm;
+                }
+
+                sf.* = .{
+                    .name = &name,
+                    .type = f[1].Value,
+                };
+            }
+
+            break :blk struct_fields;
+        }, .{});
         pub fn parse(bytes: []const u8) ParseResult(@This()) {
             var value: Value = undefined;
             var read_count: usize = 0;
 
             inline for (fields) |field| {
                 const field_name, const field_parser = field;
-                const tuple_value, const read_size = field_parser.parse(bytes[read_count..]);
+                const tuple_value, const read_size = try field_parser.parse(bytes[read_count..]);
                 @field(value, field_name) = tuple_value;
                 read_count += read_size;
             }
@@ -114,6 +124,15 @@ pub fn Struct(comptime fields: anytype) type {
             return .{ value, read_count };
         }
     };
+}
+
+test Struct {
+    const Parser = Struct(&.{ .{ "foo", U8() }, .{ "bar", U8() }, .{ "baz", U8() } });
+    const bytes = [_]u8{ 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
+
+    try lib.assert.expectEqual(Parser.parse(bytes[0..]), .{ .{ .foo = 0x01, .bar = 0x23, .baz = 0x45 }, 3 });
+    try lib.assert.expectEqual(Parser.parse(bytes[3..]), .{ .{ .foo = 0x67, .bar = 0x89, .baz = 0xab }, 3 });
+    try lib.assert.expectEqual(Parser.parse(bytes[6..]), error.ParseError);
 }
 
 pub fn ArrayFix(Item: type, length: usize) type {
@@ -124,7 +143,7 @@ pub fn ArrayFix(Item: type, length: usize) type {
             var read_count: usize = 0;
 
             for (&value) |*item| {
-                const item_value, const read_size = Item.parse(bytes[read_count..]);
+                const item_value, const read_size = try Item.parse(bytes[read_count..]);
                 item.* = item_value;
                 read_count += read_size;
             }
@@ -132,6 +151,16 @@ pub fn ArrayFix(Item: type, length: usize) type {
             return .{ value, read_count };
         }
     };
+}
+
+test ArrayFix {
+    const Parser = ArrayFix(U8(), 3);
+    const bytes = [_]u8{ 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
+
+    try lib.assert.expectEqual(Parser.Value, [3]u8);
+    try lib.assert.expectEqual(Parser.parse(bytes[0..]), .{ .{ 0x01, 0x23, 0x45 }, 3 });
+    try lib.assert.expectEqual(Parser.parse(bytes[3..]), .{ .{ 0x67, 0x89, 0xab }, 3 });
+    try lib.assert.expectEqual(Parser.parse(bytes[6..]), error.ParseError);
 }
 
 test {
