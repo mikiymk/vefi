@@ -16,10 +16,7 @@ test isSlice {
     try lib.assert.expect(!isSlice([*]const u8));
 }
 
-pub fn equal(left: anytype, right: anytype) bool {
-    comptime lib.assert.assert(isSlice(@TypeOf(left)));
-    comptime lib.assert.assert(isSlice(@TypeOf(right)));
-
+pub fn equal(T: type, left: []const T, right: []const T) bool {
     if (left.len != right.len) {
         return false;
     }
@@ -44,10 +41,10 @@ test equal {
     const var_08: []const u8 = &var_03;
     const var_09: []const u8 = &var_04;
 
-    try lib.assert.expect(equal(var_05, var_06));
-    try lib.assert.expect(equal(var_05, var_07));
-    try lib.assert.expect(!equal(var_05, var_08));
-    try lib.assert.expect(!equal(var_05, var_09));
+    try lib.assert.expect(equal(u8, var_05, var_06));
+    try lib.assert.expect(equal(u8, var_05, var_07));
+    try lib.assert.expect(!equal(u8, var_05, var_08));
+    try lib.assert.expect(!equal(u8, var_05, var_09));
 }
 
 test {

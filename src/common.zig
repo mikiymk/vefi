@@ -51,7 +51,7 @@ pub fn equal(left: anytype, right: @TypeOf(left)) bool {
         },
         .Pointer => |p| {
             switch (p.size) {
-                .Slice => return lib.types.Slice.equal(left, right),
+                .Slice => return lib.types.Slice.equal(p.child, left, right),
                 else => return left == right,
             }
         },
