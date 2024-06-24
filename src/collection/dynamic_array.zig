@@ -62,6 +62,13 @@ pub fn DynamicArray(T: type) type {
             return slice;
         }
 
+        pub fn moveToSlice(self: *@This(), allocator: Allocator) AllocatorError![]const T {
+            const slice = try self.copyToSlice(allocator);
+            self.deinit();
+
+            return slice;
+        }
+
         fn extendSize(self: *@This(), allocator: Allocator) AllocatorError!void {
             const new_length = if (self.size == 0) 5 else self.size * 2;
 
