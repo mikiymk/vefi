@@ -1,21 +1,31 @@
-pub fn Map(iterator: Iterator, NewType: type) type {
-    comptime assert(isIterator(@TypeOf(iterator)));
-    comptime assert(!isOptional(NewType));
 
-    const T = ItemOf(@TypeOf(iterator));
+/// イテレータの`next()`が返す型を得る。
+pub fn ItemOf(Iterator: type) type {
+    const info = @typeInfo(@TypeOf(Iterator.next));
+
+    return types.Optional.NonOptional(info.Fn.return_type);
+}
+
+/// それぞれの値を変更して出力するイテレータ
+pub fn Map(Iterator: type, NewType: type) type {
+    assert(isIterator(Iterator));
+    assert(!isOptional(NewType));
+
+    const T = ItemOf(Iterator);
     return struct {
         iterator: Iterator,
         map_fn: *const fn (value: T) NewType;
 
         pub fn next(self: *@This()) ?NewType {
-            return self.map_fn(self.next() orelse return null);
+            return self.map_fn(self.iterator.next() orelse return null);
         }
     };
 }
 
+/// それぞれの値を変更して出力するイテレータ
 pub fn map(
-    iterator: anytype,
     NewType: type,
+    iterator: anytype,
     map_fn: *const fn(value: ItemOf(@TypeOf(iterator))) NewType,
 ) Map(@TypeOf(iterator), NewType) {
     return .{
