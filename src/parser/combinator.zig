@@ -262,6 +262,34 @@ test ArraySentinel {
     try lib.assert.expectEqual(Parser.parse(allocator, bytes[6..]), error.ParseError);
 }
 
+pub fn ArrayCount(Count: type, Item: type) type {
+    const DynamicItemArray = lib.collection.dynamic_array.DynamicArray(Item.Value);
+    return struct {
+        pub const Value = []const Item.Value;
+        pub fn parse(allocator: lib.allocator.Allocator, bytes: []const u8) ParseResult(@This()) {
+            var value = DynamicItemArray.init();
+            defer value.deinit(allocator);
+            var read_count: usize = 0;
+            var item_count = 0;
+
+            const count, const count_size = try Count.parse(allocator, bytes[read_count..])
+
+            while (item_count < count) : (item_count += 1) {
+                const item_value, const read_size = try Item.parse(allocator, bytes[read_count..]);
+                try value.push(allocator, item_value);
+                read_count += read_size;
+            }
+
+            const slice = try value.copyToSlice(allocator);
+            return .{ slice, read_count + sentinel_size };
+        }
+    };
+}
+
+test ArrayCount {
+
+}
+
 test {
     std.testing.refAllDecls(@This());
 }
