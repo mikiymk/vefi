@@ -32,6 +32,7 @@ pub const fs = file_system;
 pub const network = struct {};
 pub const memory = struct {};
 
+pub const functional = @import("functional.zig");
 pub const allocator = @import("allocator.zig");
 pub const result = @import("result.zig");
 pub const regular_expression = @import("regular_expression.zig");
