@@ -52,6 +52,9 @@ test {
     _ = literals;
     _ = types;
     _ = statements;
+    _ = type_coercion;
+    _ = operators;
+    _ = builtin_functions;
 }
 
 const literals = struct {
@@ -1015,6 +1018,33 @@ const statements = struct {
     }
 };
 
-test "演算子 +" {}
+const type_coercion = struct {
+    test "整数型 小さい型から大きい型へ" {
+        const var_01: u8 = value(5);
+        const var_02: u16 = var_01;
 
-test "組み込み関数 @TypeOf" {}
+        consume(.{var_01, var_02});
+    }
+
+    test "整数型 符号なしから符号付きへ" {
+        const var_01: u8 = value(5);
+        const var_02: i9 = var_01;
+
+        consume(.{var_01, var_02});
+    }
+
+    test "整数型から浮動小数点数型へ" {
+        const var_01: u8 = value(5);
+        const var_02: f16 = var_01;
+
+        consume(.{var_01, var_02});
+    }
+};
+
+const operators = struct {
+    test "+" {}
+};
+
+const builtin_functions = struct {
+    test "@TypeOf" {}
+};
