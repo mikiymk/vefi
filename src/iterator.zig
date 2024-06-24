@@ -10,8 +10,8 @@ pub fn ItemOf(Iterator: type) type {
 pub fn Map(Iterator: type, NewType: type) type {
     assert(isIterator(Iterator));
     assert(!isOptional(NewType));
-
     const T = ItemOf(Iterator);
+
     return struct {
         iterator: Iterator,
         map_fn: *const fn (value: T) NewType;
@@ -31,5 +31,23 @@ pub fn map(
     return .{
         .iterator = iterator,
         .map_fn = map_fn,
+    };
+}
+
+pub fn Filter(Iterator: type) type {
+    assert(isIterator(Iterator))
+    const T = ItemOf(Iterator);
+
+    return struct {
+        iterator: Iterator,
+        filter_fn: *const fn (value: T) bool;
+
+        pub fn next(self: *@This()) ?T {
+            return while (self.iterator.next()) |value| {
+                if (self.filter_fn(value)) {
+                    break value;
+                }
+            } else null;
+        }
     };
 }
