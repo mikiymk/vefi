@@ -12,10 +12,15 @@
 const std = @import("std");
 const lib = @import("root.zig");
 
-const zig_test = @import("zig_test.zig");
+test {
+    std.testing.refAllDecls(@This());
+    _ = @import("zig_test.zig");
+}
 
 pub const builtin = @import("builtin.zig");
 
+/// depracated
+pub const zig = @import("zig.zig");
 pub const types = @import("types.zig");
 pub const collection = @import("collection.zig");
 pub const math = @import("math.zig");
@@ -48,8 +53,3 @@ pub const language = struct {
 };
 
 pub const assert = @import("assert.zig");
-
-test {
-    std.testing.refAllDecls(@This());
-    _ = zig_test;
-}

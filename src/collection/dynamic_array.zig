@@ -1,8 +1,12 @@
 const std = @import("std");
+const lib = @import("../root.zig");
+
+test {
+    std.testing.refAllDecls(@This());
+}
+
 const Allocator = std.mem.Allocator;
 const AllocatorError = Allocator.Error;
-
-const lib = @import("../root.zig");
 
 /// 動的配列
 pub fn DynamicArray(T: type) type {

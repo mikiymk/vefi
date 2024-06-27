@@ -3,6 +3,10 @@
 const std = @import("std");
 const lib = @import("root.zig");
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 pub const boolean = @import("zig/boolean.zig");
 pub const integer = @import("zig/integer.zig");
 pub const floating = @import("zig/floating.zig");
@@ -20,7 +24,3 @@ pub const pointer = @import("zig/pointer.zig");
 pub const slice = @import("zig/slice.zig");
 
 pub const types = @import("zig/types.zig");
-
-test {
-    std.testing.refAllDecls(@This());
-}

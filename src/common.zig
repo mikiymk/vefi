@@ -1,6 +1,10 @@
 const std = @import("std");
 const lib = @import("root.zig");
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 pub fn equal(left: anytype, right: @TypeOf(left)) bool {
     const info = @typeInfo(@TypeOf(left));
 
@@ -114,7 +118,3 @@ pub const Order = enum {
     greater_than,
     less_than,
 };
-
-test {
-    std.testing.refAllDecls(@This());
-}

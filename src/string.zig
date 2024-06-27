@@ -1,6 +1,10 @@
 const std = @import("std");
 const lib = @import("root.zig");
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 /// java: https://docs.oracle.com/javase/jp/8/docs/technotes/guides/intl/encoding.doc.html
 /// javascript: https://encoding.spec.whatwg.org/#names-and-labels
 /// javascript: https://developer.mozilla.org/docs/Web/API/Encoding_API/Encodings
@@ -18,7 +22,3 @@ pub const Encoding = enum {
 
 pub const ascii_string = struct {};
 pub const utf8_string = struct {};
-
-test {
-    std.testing.refAllDecls(@This());
-}

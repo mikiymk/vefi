@@ -1,6 +1,10 @@
 const std = @import("std");
 const lib = @import("root.zig");
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 const String = []const u8;
 const Array = std.ArrayListUnmanaged(u8);
 

@@ -1,6 +1,10 @@
 const std = @import("std");
 const lib = @import("root.zig");
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 const Fizz = struct {
     count: usize,
     name: []const u8,
@@ -32,8 +36,4 @@ pub fn fizz(n: u32, writer: anytype, options: FizzOptions) !void {
 
         try writer.print("{s}", .{options.separator});
     }
-}
-
-test {
-    std.testing.refAllDecls(@This());
 }

@@ -1,6 +1,10 @@
 const std = @import("std");
 const lib = @import("../root.zig");
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 pub const Options = struct {
     sign: Sign,
     bits: u16,
@@ -77,8 +81,4 @@ pub fn toStringComptime(comptime int: anytype, comptime radix: u6) [digitCount(i
     str[str.len] = 0;
 
     return str;
-}
-
-test {
-    std.testing.refAllDecls(@This());
 }

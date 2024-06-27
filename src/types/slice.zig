@@ -1,6 +1,10 @@
 const std = @import("std");
 const lib = @import("../root.zig");
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 pub fn isSlice(value: type) bool {
     const Type = @typeInfo(value);
 
@@ -45,8 +49,4 @@ test equal {
     try lib.assert.expect(equal(u8, var_05, var_07));
     try lib.assert.expect(!equal(u8, var_05, var_08));
     try lib.assert.expect(!equal(u8, var_05, var_09));
-}
-
-test {
-    std.testing.refAllDecls(@This());
 }

@@ -1,7 +1,12 @@
 //! GIF (GRAPHICS INTERCHANGE FORMAT)
 //! https://www.w3.org/Graphics/GIF/spec-gif89a.txt
 
+const std = @import("std");
 const lib = @import("../root.zig");
+
+// test {
+//     std.testing.refAllDecls(@This());
+// }
 
 const number = lib.data_format.number;
 const string = lib.data_format.string;

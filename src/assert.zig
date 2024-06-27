@@ -1,6 +1,10 @@
 const std = @import("std");
 const lib = @import("root.zig");
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 pub fn assert(ok: bool) void {
     if (!ok) {
         unreachable;
@@ -49,8 +53,4 @@ pub fn expectEqualString(left: []const u8, right: []const u8) error{AssertionFai
 
         return error.AssertionFailed;
     }
-}
-
-test {
-    std.testing.refAllDecls(@This());
 }

@@ -1,6 +1,10 @@
 const std = @import("std");
 const lib = @import("../root.zig");
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 pub fn Fixed(length: usize) type {
     return struct {
         pub const value_type: type = [length]u8;

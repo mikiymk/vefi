@@ -1,6 +1,10 @@
 const std = @import("std");
 const lib = @import("../root.zig");
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 pub fn ParseResult(Parser: type) type {
     return (error{ParseError} || lib.allocator.AllocatorError)!struct { Parser.Value, usize };
 }
@@ -272,7 +276,8 @@ pub fn ArrayCount(Count: type, Item: type) type {
             var read_count: usize = 0;
             var item_count = 0;
 
-            const count, const count_size = try Count.parse(allocator, bytes[read_count..])
+            const count, const count_size = try Count.parse(allocator, bytes[read_count..]);
+            read_count += count_size;
 
             while (item_count < count) : (item_count += 1) {
                 const item_value, const read_size = try Item.parse(allocator, bytes[read_count..]);
@@ -281,15 +286,9 @@ pub fn ArrayCount(Count: type, Item: type) type {
             }
 
             const slice = try value.copyToSlice(allocator);
-            return .{ slice, read_count + sentinel_size };
+            return .{ slice, read_count };
         }
     };
 }
 
-test ArrayCount {
-
-}
-
-test {
-    std.testing.refAllDecls(@This());
-}
+test ArrayCount {}

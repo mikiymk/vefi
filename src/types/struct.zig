@@ -1,6 +1,10 @@
 const std = @import("std");
 const lib = @import("../root.zig");
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 pub const Field = struct {
     type: type,
     name: [:0]const u8,
@@ -120,8 +124,4 @@ test ItemOf {
     try lib.assert.expectEqual(ItemOf(struct { u8, i32, f64 }, 0), u8);
     try lib.assert.expectEqual(ItemOf(struct { u8, i32, f64 }, 1), i32);
     try lib.assert.expectEqual(ItemOf(struct { u8, i32, f64 }, 2), f64);
-}
-
-test {
-    std.testing.refAllDecls(@This());
 }

@@ -1,6 +1,10 @@
 const std = @import("std");
 const lib = @import("root.zig");
 
+test {
+    std.testing.refAllDecls(@This());
+}
+
 pub const dynamic_array = @import("collection/dynamic_array.zig");
 
 pub const list = @import("collection/list.zig");
@@ -21,7 +25,3 @@ pub const bidirectional_map = struct {};
 pub const ordered_map = struct {};
 
 pub const bit_array = struct {};
-
-test {
-    std.testing.refAllDecls(@This());
-}

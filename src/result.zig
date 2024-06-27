@@ -1,3 +1,10 @@
+const std = @import("std");
+const lib = @import("root.zig");
+
+test {
+    std.testing.refAllDecls(@This());
+}
+
 pub fn Result(S: type, F: type) type {
     return union(enum) {
         success: Success,

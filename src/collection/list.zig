@@ -2,6 +2,11 @@
 
 const std = @import("std");
 const lib = @import("../root.zig");
+
+test {
+    std.testing.refAllDecls(@This());
+}
+
 const Allocator = std.mem.Allocator;
 const AllocError = Allocator.Error;
 
