@@ -70,6 +70,7 @@ pub fn equal(left: anytype, right: @TypeOf(left)) bool {
 
             return left == right;
         },
+        .Vector => return @reduce(.And, left == right),
         .Type => {
             if (left == right) {
                 return true;
