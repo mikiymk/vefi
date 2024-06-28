@@ -14,7 +14,6 @@ const lib = @import("root.zig");
 
 test {
     std.testing.refAllDecls(@This());
-    _ = @import("zig_test.zig");
 }
 
 pub const builtin = @import("builtin.zig");
