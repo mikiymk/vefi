@@ -56,8 +56,19 @@ pub fn equal(left: anytype, right: @TypeOf(left)) bool {
         .Pointer => |p| {
             switch (p.size) {
                 .Slice => return lib.types.Slice.equal(p.child, left, right),
-                else => return left == right,
+                .One => {
+                    const child_info = @typeInfo(p.child);
+                    switch (child_info) {
+                        .Array => |a| { // *[n]T as []T
+                            return lib.types.Slice.equal(a.child, left, right);
+                        },
+                        else => {},
+                    }
+                },
+                else => {},
             }
+
+            return left == right;
         },
         .Type => {
             if (left == right) {

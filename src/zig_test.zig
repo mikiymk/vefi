@@ -2,7 +2,18 @@
 //!
 //! Zig言語の基本の書き方を確認する。
 
-const lib = @import("./root.zig");
+const std = @import("std");
+const lib = @import("root.zig");
+
+test {
+    _ = literals;
+    _ = types;
+    _ = statements;
+    _ = type_coercion;
+    _ = operators;
+    _ = builtin_functions;
+}
+
 const assert = lib.assert;
 
 /// 使用しない変数を使用するための関数
@@ -13,7 +24,7 @@ fn value(x: anytype) @TypeOf(x) {
 }
 
 const Struct_01 = struct { x: u32, y: u32, z: u32 };
-const Struct_02 = struct { x: u8 = 16, y: u8, z: u8 };
+const Struct_02 = struct { x: u32 = 16, y: u32, z: u32 };
 const Struct_03 = extern struct { x: u32, y: u32, z: u32 };
 const Struct_04 = packed struct { x: u32, y: u32, z: u32 };
 const Struct_05 = struct { u32, u32, u32 };
@@ -47,15 +58,6 @@ const Union_06 = union(enum) {
 };
 
 const Opaque_01 = opaque {};
-
-test {
-    _ = literals;
-    _ = types;
-    _ = statements;
-    _ = type_coercion;
-    _ = operators;
-    _ = builtin_functions;
-}
 
 const literals = struct {
     test "整数リテラル 10進数" {
@@ -139,6 +141,10 @@ const literals = struct {
         _ = .{};
     }
 
+    test "エラーリテラル" {
+        consume(error.Error);
+    }
+
     test "リテラルの型" {
         try assert.expectEqual(@TypeOf(42), comptime_int);
         try assert.expectEqual(@TypeOf(0b0101), comptime_int);
@@ -157,6 +163,8 @@ const literals = struct {
         try assert.expectEqual(@TypeOf(.enum_literal), @TypeOf(.enum_literal));
 
         try assert.expectEqual(@TypeOf(.{}), @TypeOf(.{}));
+
+        try assert.expectEqual(error{Error}, @TypeOf(error.Error));
     }
 };
 
@@ -171,6 +179,8 @@ const types = struct {
         _ = enums;
         _ = unions;
         _ = opaques;
+        _ = optionals;
+        _ = errors;
     }
 
     const primitive_types = struct {
@@ -228,8 +238,9 @@ const types = struct {
 
         test "void型" {
             const var_01: void = void{};
+            const var_02: void = {};
 
-            consume(.{var_01});
+            consume(.{ var_01, var_02 });
         }
 
         test "noreturn型" {
@@ -473,6 +484,39 @@ const types = struct {
     const opaques = struct {
         test "不透明型" {
             consume(.{Opaque_01});
+        }
+    };
+
+    const optionals = struct {
+        test "任意型" {
+            const var_01: u8 = 5;
+            const var_02: ?u8 = 5;
+            const var_03: ?u8 = null;
+            const var_04: ??u8 = 5;
+            const var_05: u8 = var_04.?.?;
+
+            consume(.{ var_01, var_02, var_03, var_04, var_05 });
+        }
+    };
+
+    const errors = struct {
+        test "エラー集合型" {
+            const var_01: error{E} = error.E;
+            const var_02: error{ E, R } = error.R;
+
+            consume(.{ var_01, var_02 });
+        }
+
+        fn returnErrorUnion() !u8 {
+            return 0;
+        }
+
+        test "エラー合同型" {
+            const var_01: error{E}!u8 = 5;
+            const var_02: error{E}!u8 = error.E;
+            const var_03 = returnErrorUnion();
+
+            consume(.{ var_01, var_02, var_03 });
         }
     };
 };
@@ -1019,32 +1063,923 @@ const statements = struct {
 };
 
 const type_coercion = struct {
-    test "整数型 小さい型から大きい型へ" {
+    test "整数型 小さい型 → 大きい型" {
         const var_01: u8 = value(5);
         const var_02: u16 = var_01;
 
-        consume(.{var_01, var_02});
+        consume(.{ var_01, var_02 });
     }
 
-    test "整数型 符号なしから符号付きへ" {
+    test "整数型 符号なし → 符号付き" {
         const var_01: u8 = value(5);
         const var_02: i9 = var_01;
 
-        consume(.{var_01, var_02});
+        consume(.{ var_01, var_02 });
     }
 
-    test "整数型から浮動小数点数型へ" {
+    test "整数型 → 浮動小数点数型" {
         const var_01: u8 = value(5);
         const var_02: f16 = var_01;
 
-        consume(.{var_01, var_02});
+        consume(.{ var_01, var_02 });
+    }
+
+    test "番兵つき配列 → 配列" {
+        const var_01: [3:0]u8 = .{ 1, 2, 3 };
+        const var_02: [3]u8 = var_01;
+
+        consume(.{ var_01, var_02 });
+    }
+
+    test "ベクトル型 → 配列" {
+        const var_01: @Vector(3, u8) = .{ 1, 2, 3 };
+        const var_02: [3]u8 = var_01;
+
+        consume(.{ var_01, var_02 });
+    }
+
+    test "配列 → ベクトル型" {
+        const var_01: [3]u8 = .{ 1, 2, 3 };
+        const var_02: @Vector(3, u8) = var_01;
+
+        consume(.{ var_01, var_02 });
+    }
+
+    test "ポインタ → 定数ポインタ" {
+        var var_01: u8 = 5;
+        const var_02: *u8 = &var_01;
+        const var_03: *const u8 = var_02;
+
+        consume(.{ var_01, var_02, var_03 });
+    }
+
+    test "単要素ポインタ → 要素数1の配列の単要素ポインタ" {
+        var var_01: u8 = 5;
+        const var_02: *const u8 = &var_01;
+        const var_03: *const [1]u8 = var_02;
+
+        consume(.{ var_01, var_02, var_03 });
+    }
+
+    test "配列の単要素ポインタ → 複数要素ポインタ" {
+        var var_01: [3]u8 = .{ 1, 2, 3 };
+        const var_02: *const [3]u8 = &var_01;
+        const var_03: [*]const u8 = var_02;
+
+        consume(.{ var_01, var_02, var_03 });
+    }
+
+    test "配列の単要素ポインタ → スライス型" {
+        var var_01: [3]u8 = .{ 1, 2, 3 };
+        const var_02: *const [3]u8 = &var_01;
+        const var_03: []const u8 = var_02;
+
+        consume(.{ var_01, var_02, var_03 });
+    }
+
+    test "合併型 → 列挙型" {
+        const var_01: Union_02 = .{ .second = false };
+        const var_02: Enum_01 = var_01;
+
+        consume(.{ var_01, var_02 });
+    }
+
+    test "通常の型 → 任意型" {
+        const var_01: u8 = 5;
+        const var_02: ?u8 = var_01;
+
+        consume(.{ var_01, var_02 });
+    }
+
+    test "エラー集合型 小さい型 → 大きい型" {
+        const var_01: error{E} = error.E;
+        const var_02: error{ E, R } = var_01;
+
+        consume(.{ var_01, var_02 });
+    }
+
+    test "通常の型 → エラー合併型" {
+        const var_01: u8 = 5;
+        const var_02: error{E}!u8 = var_01;
+
+        consume(.{ var_01, var_02 });
     }
 };
 
 const operators = struct {
-    test "+" {}
+    test {
+        _ = arithmetic;
+        _ = bitwise;
+        _ = logical;
+        _ = compare;
+    }
+
+    const arithmetic = struct {
+        test "中置 二項 +" {
+            {
+                const var_01: u8 = 5;
+                const var_02: u8 = 6;
+                const var_03: u8 = var_01 + var_02;
+
+                try assert.expectEqual(var_03, 11);
+            }
+
+            {
+                const var_01: f32 = 5.5;
+                const var_02: f32 = 6.75;
+                const var_03: f32 = var_01 + var_02;
+
+                try assert.expectEqual(var_03, 12.25);
+            }
+
+            {
+                const var_01: [3]u8 = .{ 1, 2, 3 };
+                const var_02: [*]const u8 = &var_01;
+                const var_03: usize = 1;
+                const var_04: [*]const u8 = var_02 + var_03;
+
+                try assert.expectEqual(var_04[0], 2);
+            }
+        }
+
+        test "中置 二項 +%" {
+            {
+                const var_01: u8 = 5;
+                const var_02: u8 = 6;
+                const var_03: u8 = var_01 +% var_02;
+
+                try assert.expectEqual(var_03, 11);
+            }
+
+            {
+                const var_01: u8 = 5;
+                const var_02: u8 = 255;
+                const var_03: u8 = var_01 +% var_02;
+
+                try assert.expectEqual(var_03, 4);
+            }
+        }
+
+        test "中置 二項 +|" {
+            {
+                const var_01: u8 = 5;
+                const var_02: u8 = 6;
+                const var_03: u8 = var_01 +| var_02;
+
+                try assert.expectEqual(var_03, 11);
+            }
+
+            {
+                const var_01: u8 = 5;
+                const var_02: u8 = 255;
+                const var_03: u8 = var_01 +| var_02;
+
+                try assert.expectEqual(var_03, 255);
+            }
+        }
+
+        test "中置 二項 -" {
+            {
+                const var_01: u8 = 5;
+                const var_02: u8 = 3;
+                const var_03: u8 = var_01 - var_02;
+
+                try assert.expectEqual(var_03, 2);
+            }
+
+            {
+                const var_01: f32 = 5.5;
+                const var_02: f32 = 6.75;
+                const var_03: f32 = var_01 - var_02;
+
+                try assert.expectEqual(var_03, -1.25);
+            }
+        }
+
+        test "中置 二項 -%" {
+            {
+                const var_01: u8 = 5;
+                const var_02: u8 = 3;
+                const var_03: u8 = var_01 -% var_02;
+
+                try assert.expectEqual(var_03, 2);
+            }
+
+            {
+                const var_01: u8 = 5;
+                const var_02: u8 = 8;
+                const var_03: u8 = var_01 -% var_02;
+
+                try assert.expectEqual(var_03, 253);
+            }
+        }
+
+        test "中置 二項 -|" {
+            {
+                const var_01: u8 = 5;
+                const var_02: u8 = 3;
+                const var_03: u8 = var_01 -| var_02;
+
+                try assert.expectEqual(var_03, 2);
+            }
+
+            {
+                const var_01: u8 = 5;
+                const var_02: u8 = 8;
+                const var_03: u8 = var_01 -| var_02;
+
+                try assert.expectEqual(var_03, 0);
+            }
+        }
+
+        test "中置 二項 *" {
+            {
+                const var_01: u8 = 5;
+                const var_02: u8 = 6;
+                const var_03: u8 = var_01 * var_02;
+
+                try assert.expectEqual(var_03, 30);
+            }
+
+            {
+                const var_01: f32 = 5.5;
+                const var_02: f32 = 6.75;
+                const var_03: f32 = var_01 * var_02;
+
+                try assert.expectEqual(var_03, 37.125);
+            }
+        }
+
+        test "中置 二項 *%" {
+            {
+                const var_01: u8 = 5;
+                const var_02: u8 = 6;
+                const var_03: u8 = var_01 *% var_02;
+
+                try assert.expectEqual(var_03, 30);
+            }
+
+            {
+                const var_01: u8 = 5;
+                const var_02: u8 = 55;
+                const var_03: u8 = var_01 *% var_02;
+
+                try assert.expectEqual(var_03, 275 % 256);
+            }
+        }
+
+        test "中置 二項 *|" {
+            {
+                const var_01: u8 = 5;
+                const var_02: u8 = 6;
+                const var_03: u8 = var_01 *| var_02;
+
+                try assert.expectEqual(var_03, 30);
+            }
+
+            {
+                const var_01: u8 = 5;
+                const var_02: u8 = 55;
+                const var_03: u8 = var_01 *| var_02;
+
+                try assert.expectEqual(var_03, 255);
+            }
+        }
+
+        test "中置 二項 /" {
+            {
+                const var_01: u8 = 13;
+                const var_02: u8 = 6;
+                const var_03: u8 = var_01 / var_02;
+
+                try assert.expectEqual(var_03, 2);
+            }
+
+            {
+                const var_01: f32 = 13.75;
+                const var_02: f32 = 5.5;
+                const var_03: f32 = var_01 / var_02;
+
+                try assert.expectEqual(var_03, 2.5);
+            }
+        }
+
+        test "中置 二項 %" {
+            {
+                const var_01: u8 = 13;
+                const var_02: u8 = 6;
+                const var_03: u8 = var_01 % var_02;
+
+                try assert.expectEqual(var_03, 1);
+            }
+
+            {
+                const var_01: f32 = 13.75;
+                const var_02: f32 = 5.5;
+                const var_03: f32 = var_01 % var_02;
+
+                try assert.expectEqual(var_03, 2.75);
+            }
+        }
+
+        test "前置 単項 -" {
+            {
+                const var_01: i8 = 13;
+                const var_02: i8 = -var_01;
+
+                try assert.expectEqual(var_02, -13);
+            }
+
+            {
+                const var_01: f32 = 13.75;
+                const var_02: f32 = -var_01;
+
+                try assert.expectEqual(var_02, -13.75);
+            }
+        }
+
+        test "前置 単項 -%" {
+            {
+                const var_01: i8 = 13;
+                const var_02: i8 = -%var_01;
+
+                try assert.expectEqual(var_02, -13);
+            }
+
+            {
+                const var_01: i8 = -128;
+                const var_02: i8 = -%var_01;
+
+                try assert.expectEqual(var_02, -128);
+            }
+        }
+    };
+
+    const bitwise = struct {
+        test "中置 二項 <<" {
+            {
+                const var_01: i8 = 11; // 0b0000 1011
+                const var_02: u3 = 1;
+                const var_03: i8 = var_01 << var_02;
+
+                try assert.expectEqual(var_03, 22);
+            }
+
+            {
+                const var_01: i8 = 11; // 0b0000 1011
+                const var_02: u3 = 6;
+                const var_03: i8 = var_01 << var_02;
+
+                try assert.expectEqual(var_03, -64);
+            }
+        }
+
+        test "中置 二項 <<|" {
+            {
+                const var_01: i8 = 11; // 0b0000 1011
+                const var_02: u3 = 1;
+                const var_03: i8 = var_01 <<| var_02;
+
+                try assert.expectEqual(var_03, 22);
+            }
+
+            {
+                const var_01: i8 = 11; // 0b0000 1011
+                const var_02: u3 = 6;
+                const var_03: i8 = var_01 <<| var_02;
+
+                try assert.expectEqual(var_03, 127);
+            }
+        }
+
+        test "中置 二項 >>" {
+            {
+                const var_01: i8 = 11; // 0b0000 1011
+                const var_02: u3 = 1;
+                const var_03: i8 = var_01 >> var_02;
+
+                try assert.expectEqual(var_03, 5);
+            }
+
+            {
+                const var_01: i8 = 11; // 0b0000 1011
+                const var_02: u3 = 6;
+                const var_03: i8 = var_01 >> var_02;
+
+                try assert.expectEqual(var_03, 0);
+            }
+        }
+
+        test "中置 二項 &" {
+            const var_01: i8 = 3; // 0b0000 0011
+            const var_02: i8 = 10; // 0b0000 1010
+            const var_03: i8 = var_01 & var_02;
+
+            try assert.expectEqual(var_03, 2);
+        }
+
+        test "中置 二項 |" {
+            const var_01: i8 = 3; // 0b0000 0011
+            const var_02: i8 = 10; // 0b0000 1010
+            const var_03: i8 = var_01 | var_02;
+
+            try assert.expectEqual(var_03, 11);
+        }
+
+        test "中置 二項 ^" {
+            const var_01: i8 = 3; // 0b0000 0011
+            const var_02: i8 = 10; // 0b0000 1010
+            const var_03: i8 = var_01 ^ var_02;
+
+            try assert.expectEqual(var_03, 9);
+        }
+
+        test "前置 単項 ~" {
+            const var_01: i8 = 83; // 0b0101 0011
+            const var_02: i8 = ~var_01;
+
+            try assert.expectEqual(var_02, -84);
+        }
+    };
+
+    const logical = struct {
+        test "中置 二項 and" {
+            const var_01: bool = true and true;
+            const var_02: bool = false and false;
+            const var_03: bool = true and false;
+            const var_04: bool = false and true;
+
+            try assert.expectEqual(var_01, true);
+            try assert.expectEqual(var_02, false);
+            try assert.expectEqual(var_03, false);
+            try assert.expectEqual(var_04, false);
+        }
+
+        test "中置 二項 or" {
+            const var_01: bool = true or true;
+            const var_02: bool = false or false;
+            const var_03: bool = true or false;
+            const var_04: bool = false or true;
+
+            try assert.expectEqual(var_01, true);
+            try assert.expectEqual(var_02, false);
+            try assert.expectEqual(var_03, true);
+            try assert.expectEqual(var_04, true);
+        }
+
+        test "前置 単項 !" {
+            const var_01: bool = !true;
+            const var_02: bool = !false;
+
+            try assert.expectEqual(var_01, false);
+            try assert.expectEqual(var_02, true);
+        }
+    };
+
+    const compare = struct {
+        test "中置 二項 ==" {
+            {
+                const var_01: i8 = 3;
+                const var_02: i8 = 4;
+                const var_03: bool = var_01 == var_02;
+
+                try assert.expectEqual(var_03, false);
+            }
+
+            {
+                const var_01: f32 = 3.0;
+                const var_02: f32 = 3.0;
+                const var_03: bool = var_01 == var_02;
+
+                try assert.expectEqual(var_03, true);
+            }
+
+            {
+                const var_01: bool = true;
+                const var_02: bool = true;
+                const var_03: bool = var_01 == var_02;
+
+                try assert.expectEqual(var_03, true);
+            }
+
+            {
+                const var_01: type = u8;
+                const var_02: type = struct { u8, u8 };
+                const var_03: bool = var_01 == var_02;
+
+                try assert.expectEqual(var_03, false);
+            }
+
+            {
+                const var_01: ?u8 = 5;
+                const var_02: ?u8 = null;
+                const var_03: bool = var_01 == null;
+                const var_04: bool = var_02 == null;
+
+                try assert.expectEqual(var_03, false);
+                try assert.expectEqual(var_04, true);
+            }
+        }
+
+        test "中置 二項 !=" {
+            {
+                const var_01: i8 = 3;
+                const var_02: i8 = 4;
+                const var_03: bool = var_01 != var_02;
+
+                try assert.expectEqual(var_03, true);
+            }
+
+            {
+                const var_01: f32 = 3.0;
+                const var_02: f32 = 3.0;
+                const var_03: bool = var_01 != var_02;
+
+                try assert.expectEqual(var_03, false);
+            }
+
+            {
+                const var_01: bool = true;
+                const var_02: bool = true;
+                const var_03: bool = var_01 != var_02;
+
+                try assert.expectEqual(var_03, false);
+            }
+
+            {
+                const var_01: type = u8;
+                const var_02: type = struct { u8, u8 };
+                const var_03: bool = var_01 != var_02;
+
+                try assert.expectEqual(var_03, true);
+            }
+
+            {
+                const var_01: ?u8 = 5;
+                const var_02: ?u8 = null;
+                const var_03: bool = var_01 != null;
+                const var_04: bool = var_02 != null;
+
+                try assert.expectEqual(var_03, true);
+                try assert.expectEqual(var_04, false);
+            }
+        }
+
+        test "中置 二項 >" {
+            {
+                const var_01: i8 = 3;
+                const var_02: i8 = 4;
+                const var_03: bool = var_01 > var_02;
+
+                try assert.expectEqual(var_03, false);
+            }
+
+            {
+                const var_01: f32 = 3.0;
+                const var_02: f32 = 2.5;
+                const var_03: bool = var_01 > var_02;
+
+                try assert.expectEqual(var_03, true);
+            }
+        }
+
+        test "中置 二項 >=" {
+            {
+                const var_01: i8 = 3;
+                const var_02: i8 = 4;
+                const var_03: bool = var_01 >= var_02;
+
+                try assert.expectEqual(var_03, false);
+            }
+
+            {
+                const var_01: f32 = 3.0;
+                const var_02: f32 = 2.5;
+                const var_03: bool = var_01 >= var_02;
+
+                try assert.expectEqual(var_03, true);
+            }
+        }
+
+        test "中置 二項 <" {
+            {
+                const var_01: i8 = 3;
+                const var_02: i8 = 4;
+                const var_03: bool = var_01 < var_02;
+
+                try assert.expectEqual(var_03, true);
+            }
+
+            {
+                const var_01: f32 = 3.0;
+                const var_02: f32 = 2.5;
+                const var_03: bool = var_01 < var_02;
+
+                try assert.expectEqual(var_03, false);
+            }
+        }
+
+        test "中置 二項 <=" {
+            {
+                const var_01: i8 = 3;
+                const var_02: i8 = 4;
+                const var_03: bool = var_01 <= var_02;
+
+                try assert.expectEqual(var_03, true);
+            }
+
+            {
+                const var_01: f32 = 3.0;
+                const var_02: f32 = 2.5;
+                const var_03: bool = var_01 <= var_02;
+
+                try assert.expectEqual(var_03, false);
+            }
+        }
+    };
+
+    test "後置 ()" {
+        const function: fn () void = struct {
+            pub fn f() void {}
+        }.f;
+
+        function();
+    }
+
+    test "前置 単項 &" {
+        const var_01: u8 = 5;
+        const var_02: *const u8 = &var_01;
+
+        try assert.expectEqual(var_02, &var_01);
+    }
+
+    test "後置 単項 .*" {
+        const var_01: u8 = 5;
+        const var_02: *const u8 = &var_01;
+        const var_03: u8 = var_02.*;
+
+        try assert.expectEqual(var_03, 5);
+    }
+
+    test "後置 []" {
+        {
+            const var_01: [3]u8 = .{ 1, 2, 3 };
+            const var_02: u8 = var_01[0];
+            const var_03: *const [2]u8 = var_01[1..];
+            const var_04: *const [2]u8 = var_01[0..2];
+
+            try assert.expectEqual(var_02, 1);
+            try assert.expectEqual(var_03, &.{ 2, 3 });
+            try assert.expectEqual(var_04, &.{ 1, 2 });
+        }
+
+        {
+            const var_01: [3]u8 = .{ 1, 2, 3 };
+            const var_02: *const [3]u8 = &var_01;
+            const var_03: u8 = var_02[0];
+            const var_04: *const [2]u8 = var_02[1..];
+            const var_05: *const [2]u8 = var_02[0..2];
+
+            try assert.expectEqual(var_03, 1);
+            try assert.expectEqual(var_04, &.{ 2, 3 });
+            try assert.expectEqual(var_05, &.{ 1, 2 });
+        }
+
+        {
+            const var_01: [3]u8 = .{ 1, 2, 3 };
+            const var_02: [*]const u8 = &var_01;
+            const var_03: u8 = var_02[0];
+            const var_04: [*]const u8 = var_02[1..];
+            const var_05: [*]const u8 = var_02[0..2];
+
+            try assert.expectEqual(var_03, 1);
+            try assert.expectEqual(var_04[0], 2);
+            try assert.expectEqual(var_04[1], 3);
+            try assert.expectEqual(var_05[0], 1);
+            try assert.expectEqual(var_05[1], 2);
+        }
+
+        {
+            const var_01: [3]u8 = .{ 1, 2, 3 };
+            const var_02: []const u8 = &var_01;
+            const var_03: u8 = var_02[0];
+            const var_04: []const u8 = var_02[1..];
+            const var_05: []const u8 = var_02[0..2];
+
+            try assert.expectEqual(var_03, 1);
+            try assert.expectEqual(var_04, &.{ 2, 3 });
+            try assert.expectEqual(var_05, &.{ 1, 2 });
+        }
+    }
+
+    test "中置 二項 ++" {
+        {
+            const var_01: [3]u8 = .{ 1, 2, 3 };
+            const var_02: [4]u8 = .{ 4, 5, 6, 7 };
+            const var_03: [7]u8 = var_01 ++ var_02;
+
+            try assert.expectEqual(var_03, .{ 1, 2, 3, 4, 5, 6, 7 });
+        }
+
+        {
+            const var_01: [3]u8 = .{ 1, 2, 3 };
+            const var_02: [4]u8 = .{ 4, 5, 6, 7 };
+            const var_03: *const [3]u8 = &var_01;
+            const var_04: *const [4]u8 = &var_02;
+            const var_05: *const [7]u8 = var_03 ++ var_04;
+
+            try assert.expectEqual(var_05, &.{ 1, 2, 3, 4, 5, 6, 7 });
+        }
+    }
+
+    test "中置 二項 **" {
+        {
+            const var_01: [3]u8 = .{ 1, 2, 3 };
+            const var_02: [9]u8 = var_01 ** 3;
+
+            try assert.expectEqual(var_02, .{ 1, 2, 3, 1, 2, 3, 1, 2, 3 });
+        }
+
+        {
+            const var_01: [3]u8 = .{ 1, 2, 3 };
+            const var_02: *const [3]u8 = &var_01;
+            const var_03: *const [9]u8 = var_02 ** 3;
+
+            try assert.expectEqual(var_03, &.{ 1, 2, 3, 1, 2, 3, 1, 2, 3 });
+        }
+    }
+
+    test "中置 二項 orelse" {
+        const var_01: ?u8 = 5;
+        const var_02: ?u8 = null;
+        const var_03: u8 = var_01 orelse 10;
+        const var_04: u8 = var_02 orelse 11;
+
+        try assert.expectEqual(var_03, 5);
+        try assert.expectEqual(var_04, 11);
+    }
+
+    test "後置 単項 .?" {
+        const var_01: ?u8 = 5;
+        const var_02: u8 = var_01.?;
+
+        try assert.expectEqual(var_02, 5);
+    }
+
+    test "中置 二項 catch" {
+        const var_01: error{E}!u8 = 5;
+        const var_02: error{E}!u8 = error.E;
+        const var_03: u8 = var_01 catch 10;
+        const var_04: u8 = var_02 catch 11;
+
+        try assert.expectEqual(var_03, 5);
+        try assert.expectEqual(var_04, 11);
+    }
 };
 
 const builtin_functions = struct {
+    test "@addrSpaceCast" {
+        const var_01: u8 = 5;
+        const var_02: *const u8 = &var_01;
+        const var_03: *const u8 = @addrSpaceCast(var_02);
+
+        consume(.{ var_01, var_02, var_03 });
+    }
+
+    test "@addWithOverflow" {
+        const var_01: u8 = 16;
+        const var_02: u8 = 250;
+        const var_03 = @addWithOverflow(var_01, var_02);
+
+        try assert.expectEqual(var_03, .{ 10, 1 });
+    }
+
+    test "@alignCast" {
+        const var_01: *align(4) const u8 = @ptrFromInt(0x04);
+        const var_02: *align(2) const u8 = @alignCast(var_01);
+
+        consume(.{ var_01, var_02 });
+    }
+
+    test "@alignOf" {
+        const var_01: comptime_int = @alignOf(u8);
+
+        consume(.{var_01});
+    }
+
+    test "@as" {}
+    test "@atomicLoad" {}
+    test "@atomicRmw" {}
+    test "@atomicStore" {}
+    test "@bitCast" {}
+    test "@bitOffsetOf" {}
+    test "@bitSizeOf" {}
+    test "@breakpoint" {}
+    test "@mulAdd" {}
+    test "@byteSwap" {}
+    test "@bitReverse" {}
+    test "@offsetOf" {}
+    test "@call" {}
+    test "@cDefine" {}
+    test "@cImport" {}
+    test "@cInclude" {}
+    test "@clz" {}
+    test "@cmpxchgStrong" {}
+    test "@cmpxchgWeak" {}
+    test "@compileError" {}
+    test "@compileLog" {}
+    test "@constCast" {}
+    test "@ctz" {}
+    test "@cUndef" {}
+    test "@cVaArg" {}
+    test "@cVaCopy" {}
+    test "@cVaEnd" {}
+    test "@cVaStart" {}
+    test "@divExact" {}
+    test "@divFloor" {}
+    test "@divTrunc" {}
+    test "@embedFile" {}
+    test "@enumFromInt" {}
+    test "@errorFromInt" {}
+    test "@errorName" {}
+    test "@errorReturnTrace" {}
+    test "@errorCast" {}
+    test "@export" {}
+    test "@extern" {}
+    test "@fence" {}
+    test "@field" {}
+    test "@fieldParentPtr" {}
+    test "@floatCast" {}
+    test "@floatFromInt" {}
+    test "@frameAddress" {}
+    test "@hasDecl" {}
+    test "@hasField" {}
+    test "@import" {}
+    test "@inComptime" {}
+    test "@intCast" {}
+    test "@intFromBool" {}
+    test "@intFromEnum" {}
+    test "@intFromError" {}
+    test "@intFromFloat" {}
+    test "@intFromPtr" {}
+    test "@max" {}
+    test "@memcpy" {}
+    test "@memset" {}
+    test "@min" {}
+    test "@wasmMemorySize" {}
+    test "@wasmMemoryGrow" {}
+    test "@mod" {}
+    test "@mulWithOverflow" {}
+    test "@panic" {}
+    test "@popCount" {}
+    test "@prefetch" {}
+    test "@ptrCast" {}
+    test "@ptrFromInt" {}
+    test "@rem" {}
+    test "@returnAddress" {}
+    test "@select" {}
+    test "@setAlignStack" {}
+    test "@setCold" {}
+    test "@setEvalBranchQuota" {}
+    test "@setFloatMode" {}
+    test "@setRuntimeSafety" {}
+    test "@shlExact" {}
+    test "@shlWithOverflow" {}
+    test "@shrExact" {}
+    test "@shuffle" {}
+    test "@sizeOf" {}
+    test "@splat" {}
+    test "@reduce" {}
+    test "@src" {}
+    test "@sqrt" {}
+    test "@sin" {}
+    test "@cos" {}
+    test "@tan" {}
+    test "@exp" {}
+    test "@exp2" {}
+    test "@log" {}
+    test "@log2" {}
+    test "@log10" {}
+    test "@abs" {}
+    test "@floor" {}
+    test "@ceil" {}
+    test "@trunc" {}
+    test "@round" {}
+    test "@subWithOverflow" {}
+    test "@tagName" {}
+    test "@This" {}
+    test "@trap" {}
+    test "@truncate" {}
+    test "@Type" {}
+    test "@typeInfo" {}
+    test "@typeName" {}
     test "@TypeOf" {}
+    test "@unionInit" {}
+    test "@Vector" {}
+    test "@volatileCast" {}
+    test "@workGroupId" {}
+    test "@workGroupSize" {}
+    test "@workItemId" {}
 };
+
+const undefined_behaviors = struct {};
