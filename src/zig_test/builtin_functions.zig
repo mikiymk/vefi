@@ -167,54 +167,194 @@ const number_functions = struct {
         try eqApprox(@tan(V3{ 1.0, 2.0, 3.0 }), V3{ 1.55740, -2.18503, -0.14254 }, @splat(1e-5));
     }
 
-    test "@exp" {}
-    test "@exp2" {}
-    test "@log" {}
-    test "@log2" {}
-    test "@log10" {}
-    test "@abs" {}
-    test "@floor" {}
-    test "@ceil" {}
-    test "@trunc" {}
-    test "@round" {}
-    test "@mulAdd" {}
-    test "@byteSwap" {}
-    test "@bitReverse" {}
-    test "@memcpy" {}
-    test "@memset" {}
+    test "@exp" {
+        // 値から、底eの指数関数の値を返す。
+        const V3 = @Vector(3, f32);
+        try eqApprox(@exp(@as(f32, 1.0)), 2.71828, 1e-5);
+        try eqApprox(@exp(@as(f32, 3.14)), 23.10386, 1e-5);
+        try eqApprox(@exp(V3{ 1.0, 2.0, 3.0 }), V3{ 2.71828, 7.38905, 20.08553 }, @splat(1e-5));
+    }
+
+    test "@exp2" {
+        // 値から、底2の指数関数の値を返す。
+        const V3 = @Vector(3, f32);
+        try eqApprox(@exp2(@as(f32, 1.0)), 2.0, 1e-5);
+        try eqApprox(@exp2(@as(f32, 3.14)), 8.81524, 1e-5);
+        try eqApprox(@exp2(V3{ 1.0, 2.0, 3.0 }), V3{ 2.0, 4.0, 8.0 }, @splat(1e-5));
+    }
+
+    test "@log" {
+        // 値から、自然対数(底eの対数関数)の値を返す。
+        const V3 = @Vector(3, f32);
+        try eqApprox(@log(@as(f32, 1.0)), 0.0, 1e-5);
+        try eqApprox(@log(@as(f32, 3.14)), 1.14422, 1e-5);
+        try eqApprox(@log(V3{ 1.0, 2.0, 3.0 }), V3{ 0.0, 0.69314, 1.09861 }, @splat(1e-5));
+    }
+
+    test "@log2" {
+        // 値から、底2の対数関数の値を返す。
+        const V3 = @Vector(3, f32);
+        try eqApprox(@log2(@as(f32, 1.0)), 0.0, 1e-5);
+        try eqApprox(@log2(@as(f32, 3.14)), 1.65076, 1e-5);
+        try eqApprox(@log2(V3{ 1.0, 2.0, 3.0 }), V3{ 0.0, 1.0, 1.58496 }, @splat(1e-5));
+    }
+
+    test "@log10" {
+        // 値から、底2の対数関数の値を返す。
+        const V3 = @Vector(3, f32);
+        try eqApprox(@log10(@as(f32, 1.0)), 0.0, 1e-5);
+        try eqApprox(@log10(@as(f32, 3.14)), 0.49693, 1e-5);
+        try eqApprox(@log10(V3{ 1.0, 2.0, 3.0 }), V3{ 0.0, 0.30103, 0.47712 }, @splat(1e-5));
+    }
+
+    test "@abs" {
+        // 値から、絶対値の値を返す。
+        const V3 = @Vector(3, f32);
+        try eq(@abs(@as(u8, 5)), 5);
+        try eq(@abs(@as(i8, -6)), 6);
+        try eq(@abs(@as(f32, 1.0)), 1.0);
+        try eq(@abs(@as(f32, -2.0)), 2.0);
+        try eq(@abs(V3{ 1.0, -2.0, 3.0 }), V3{ 1.0, 2.0, 3.0 });
+    }
+
+    test "@floor" {
+        // 値から、値を超えない最大の整数を返す。
+        const V3 = @Vector(3, f32);
+        try eq(@floor(@as(f32, 1.0)), 1.0);
+        try eq(@floor(@as(f32, 1.9)), 1.0);
+        try eq(@floor(@as(f32, -2.0)), -2.0);
+        try eq(@floor(@as(f32, -2.9)), -3.0);
+        try eq(@floor(V3{ 1.5, -2.6, 3.7 }), V3{ 1.0, -3.0, 3.0 });
+    }
+
+    test "@ceil" {
+        // 値から、値より小さくない最小の整数を返す。
+        const V3 = @Vector(3, f32);
+        try eq(@ceil(@as(f32, 1.0)), 1.0);
+        try eq(@ceil(@as(f32, 1.9)), 2.0);
+        try eq(@ceil(@as(f32, -2.0)), -2.0);
+        try eq(@ceil(@as(f32, -2.9)), -2.0);
+        try eq(@ceil(V3{ 1.5, -2.6, 3.7 }), V3{ 2.0, -2.0, 4.0 });
+    }
+
+    test "@trunc" {
+        // 値から、0に向かって丸めた整数を返す。
+        const V3 = @Vector(3, f32);
+        try eq(@trunc(@as(f32, 1.0)), 1.0);
+        try eq(@trunc(@as(f32, 1.9)), 1.0);
+        try eq(@trunc(@as(f32, -2.0)), -2.0);
+        try eq(@trunc(@as(f32, -2.9)), -2.0);
+        try eq(@trunc(V3{ 1.5, -2.6, 3.7 }), V3{ 1.0, -2.0, 3.0 });
+    }
+
+    test "@round" {
+        // 値から、0から離れるように丸めた整数を返す。
+        const V3 = @Vector(3, f32);
+        try eq(@round(@as(f32, 1.0)), 1.0);
+        try eq(@round(@as(f32, 1.9)), 2.0);
+        try eq(@round(@as(f32, -2.0)), -2.0);
+        try eq(@round(@as(f32, -2.9)), -3.0);
+        try eq(@round(V3{ 1.5, -2.6, 3.7 }), V3{ 2.0, -3.0, 4.0 });
+    }
+
+    test "@mulAdd" {
+        // 値から、融合積和演算(`a * b + c`を1回の丸めで計算する)の値を返す。
+        const V3 = @Vector(3, f32);
+        try eq(@mulAdd(f32, 1.0, 2.0, 3.0), 5.0);
+        try eq(@mulAdd(f16, 1 + 0x0.008, 1 + 0x0.008, -(1 + 2 * 0x0.008)), 0x0.008 * 0x0.008);
+        try eq((1 + 0x0.008) * (1 + 0x0.008) - (1 + 2 * 0x0.008), 0x0.008 * 0x0.008);
+        try eq(@mulAdd(V3, .{ 1.5, 2.5, 3.5 }, .{ 4.5, 5.5, 6.5 }, .{ 7.5, 8.5, 9.5 }), V3{ 14.25, 22.25, 32.25 });
+    }
+
+    test "@byteSwap" {
+        // 値から、バイトのエンディアンを変更した値を返す。
+        const V3 = @Vector(3, u32);
+        try eq(@byteSwap(@as(u32, 0xffeeaabb)), 0xbbaaeeff);
+        try eq(@byteSwap(@as(u24, 0xffeeaa)), 0xaaeeff);
+        try eq(@byteSwap(V3{ 0x11223344, 0x55667788, 0x99aabbcc }), .{ 0x44332211, 0x88776655, 0xccbbaa99 });
+    }
+
+    test "@bitReverse" {
+        // 値から、ビットを逆転した値を返す。
+        const V3 = @Vector(3, u8);
+        try eq(@bitReverse(@as(u8, 0b11000101)), 0b10100011);
+        try eq(@bitReverse(V3{ 0b01010101, 0b00110011, 0b00001111 }), .{ 0b10101010, 0b11001100, 0b11110000 });
+    }
+
+    test "@memcpy" {
+        // 1つの配列からもう一つの配列に値を複製する。
+        const source: [3]u8 = .{ 1, 2, 3 };
+        var dest: [3]u8 = undefined;
+
+        @memcpy(&dest, &source);
+
+        try eq(dest, .{ 1, 2, 3 });
+    }
+
+    test "@memset" {
+        // 配列に値を設定する。
+        var dest: [3]u8 = undefined;
+
+        @memset(&dest, 5);
+
+        try eq(dest, .{ 5, 5, 5 });
+    }
 };
 
 const type_cast = struct {
+    test "@as" {
+        // 明示的に型強制をする。
+        const var_01 = @as(u8, 5);
+
+        try eq(@TypeOf(var_01), u8);
+    }
+
     test "@alignCast" {
+        // 型のアライメントを変更する。
         const var_01: *align(4) const u8 = @ptrFromInt(0x04);
         const var_02: *align(2) const u8 = @alignCast(var_01);
+        const var_03: []align(4) const u8 = @as(*align(4) const [1]u8, var_01);
+        const var_04: []align(2) const u8 = @alignCast(var_03);
+        const var_05: ?*align(4) const u8 = var_01;
+        const var_06: ?*align(2) const u8 = @alignCast(var_05);
 
-        consume(.{ var_01, var_02 });
+        consume(.{ var_01, var_02, var_03, var_04, var_05, var_06 });
     }
 
-    test "@as" {
-        const var_01: comptime_int = @alignOf(u8);
+    const Struct_01 = packed struct {
+        foo: u8,
+        bar: u8,
+        baz: u8,
+        bam: u8,
+    };
 
-        consume(.{var_01});
+    test "@bitCast" {
+        // ビットをそのまま、バイトサイズの同じ型に変更する。
+        const var_01: u32 = 0xbe200000;
+
+        try eq(@as(i32, @bitCast(var_01)), -0x41e00000);
+        try eq(@as(f32, @bitCast(var_01)), -0.15625);
+        try (eq(@as(Struct_01, @bitCast(var_01)), .{ .foo = 0xbe, .bar = 0x20, .baz = 0x00, .bam = 0x00 }) catch
+            eq(@as(Struct_01, @bitCast(var_01)), .{ .foo = 0x00, .bar = 0x00, .baz = 0x20, .bam = 0xbe }));
     }
 
-    test "@bitCast" {}
-    test "@enumFromInt" {}
-    test "@errorFromInt" {}
     test "@constCast" {}
     test "@floatCast" {}
-    test "@floatFromInt" {}
     test "@errorCast" {}
     test "@intCast" {}
+    test "@ptrCast" {}
+    test "@volatileCast" {}
+    test "@truncate" {}
+
+    test "@enumFromInt" {}
+    test "@errorFromInt" {}
+    test "@floatFromInt" {}
     test "@intFromBool" {}
     test "@intFromEnum" {}
     test "@intFromError" {}
     test "@intFromFloat" {}
     test "@intFromPtr" {}
-    test "@ptrCast" {}
     test "@ptrFromInt" {}
-    test "@truncate" {}
-    test "@volatileCast" {}
 };
 
 const atomic = struct {
