@@ -54,3 +54,14 @@ pub fn expectEqualString(left: []const u8, right: []const u8) error{AssertionFai
         return error.AssertionFailed;
     }
 }
+
+pub fn expectEqualApproximate(left: anytype, right: @TypeOf(left), tolerance: @TypeOf(left)) error{AssertionFailed}!void {
+    if (!lib.math.float_point.equalApproximateAbsolute(left, right, tolerance)) {
+        std.debug.print(
+            "left: {any} - right: {any} = {any} > {any}\n",
+            .{ left, right, @abs(left - right), tolerance },
+        );
+
+        return error.AssertionFailed;
+    }
+}
