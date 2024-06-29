@@ -5,8 +5,8 @@ test {
     std.testing.refAllDecls(@This());
 }
 
-const Allocator = std.mem.Allocator;
-const AllocatorError = Allocator.Error;
+const Allocator = lib.allocator.Allocator;
+const AllocatorError = lib.allocator.AllocatorError;
 
 /// 動的配列
 pub fn DynamicArray(T: type) type {
@@ -22,7 +22,7 @@ pub fn DynamicArray(T: type) type {
             };
         }
 
-        /// メモリを解放する。
+        /// すべてのメモリを解放する。
         pub fn deinit(self: *@This(), allocator: Allocator) void {
             allocator.free(self.value);
         }
@@ -47,9 +47,17 @@ pub fn DynamicArray(T: type) type {
         }
 
         /// 配列の`N`番目の要素を返す。
-        /// Nが配列の長さより大きい場合、nullを返す。
-        pub fn get(n: usize) ?*T {
-            _ = n;
+        /// `N`が配列の長さより大きい場合、nullを返す。
+        pub fn get(self: @This(), index: usize) ?T {
+            if (index >= self.size) return null;
+            return self.value[index];
+        }
+
+        /// 配列の`N`番目の要素を返す。
+        /// `N`が配列の長さより大きい場合、nullを返す。
+        pub fn getRef(self: @This(), index: usize) ?*T {
+            if (index >= self.size) return null;
+            return @ptrCast(self.value.ptr + index);
         }
 
         pub fn insert(self: *@This(), allocator: Allocator, index: usize, item: T) AllocatorError!void {
@@ -57,18 +65,25 @@ pub fn DynamicArray(T: type) type {
                 try self.extendSize(allocator);
             }
 
-            var value = item;
-            for (self.value[index .. self.size + 1], 0..) |e, i| {
-                self.value[i] = value;
-                value = e;
-            }
-
-            self.value[index] = item;
             self.size += 1;
+
+            var value = item;
+            for (self.value[index..self.size]) |*e| {
+                const tmp = value;
+                value = e.*;
+                e.* = tmp;
+            }
         }
 
-        pub fn delete(n: usize) void {
-            _ = n;
+        pub fn delete(self: *@This(), index: usize) ?T {
+            const value = self.get(index) orelse return null;
+
+            self.size -= 1;
+            for (self.value[index..self.size], self.value[(index + 1)..(self.size + 1)]) |*e, f| {
+                e.* = f;
+            }
+
+            return value;
         }
 
         pub fn asSlice(self: @This()) []const T {
@@ -78,13 +93,6 @@ pub fn DynamicArray(T: type) type {
         pub fn copyToSlice(self: @This(), allocator: Allocator) AllocatorError![]const T {
             var slice = try allocator.alloc(T, self.size);
             @memcpy(slice[0..self.size], self.value[0..self.size]);
-
-            return slice;
-        }
-
-        pub fn moveToSlice(self: *@This(), allocator: Allocator) AllocatorError![]const T {
-            const slice = try self.copyToSlice(allocator);
-            self.deinit();
 
             return slice;
         }
@@ -109,4 +117,47 @@ pub fn DynamicArray(T: type) type {
             self.value = new_values;
         }
     };
+}
+
+test DynamicArray {
+    const allocator = std.testing.allocator;
+    const DA = DynamicArray(u8);
+    const eq = lib.assert.expectEqual;
+
+    var array = DA.init();
+    defer array.deinit(allocator);
+
+    try array.push(allocator, 5);
+    try eq(array.asSlice(), &.{5});
+
+    try array.push(allocator, 6);
+    try array.push(allocator, 7);
+    try eq(array.asSlice(), &.{ 5, 6, 7 });
+
+    try eq(array.pop(), 7);
+    try eq(array.pop(), 6);
+    try eq(array.pop(), 5);
+    try eq(array.pop(), null);
+    try eq(array.asSlice(), &.{});
+
+    try array.push(allocator, 5);
+    try array.push(allocator, 6);
+    try array.push(allocator, 7);
+    try eq(array.asSlice(), &.{ 5, 6, 7 });
+
+    try eq(array.get(1), 6);
+    try eq(array.get(3), null);
+
+    try eq(array.getRef(1).?.*, 6);
+    try eq(array.getRef(3), null);
+
+    try array.insert(allocator, 1, 10);
+    try eq(array.asSlice(), &.{ 5, 10, 6, 7 });
+
+    try eq(array.delete(1), 10);
+    try eq(array.asSlice(), &.{ 5, 6, 7 });
+
+    const slice = try array.copyToSlice(allocator);
+    defer allocator.free(slice);
+    try eq(slice, &.{ 5, 6, 7 });
 }

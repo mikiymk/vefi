@@ -5,8 +5,9 @@ test {
     std.testing.refAllDecls(@This());
 }
 
+pub const ParseError = error{ParseError} || lib.allocator.AllocatorError;
 pub fn ParseResult(Parser: type) type {
-    return (error{ParseError} || lib.allocator.AllocatorError)!struct { Parser.Value, usize };
+    return ParseError!struct { Parser.Value, usize };
 }
 
 /// 1バイトを符号無し整数として読み込む

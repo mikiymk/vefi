@@ -7,12 +7,12 @@ test {
     std.testing.refAllDecls(@This());
 }
 
-const Allocator = std.mem.Allocator;
-const AllocError = Allocator.Error;
+const Allocator = lib.allocator.Allocator;
+const AllocatorError = lib.allocator.AllocatorError;
 
 /// 連結リスト
 ///
-/// - *T* リストが持つ値の型
+/// - **`T`** リストが持つ値の型
 pub fn List(comptime T: type) type {
     return struct {
         const Self = @This();
@@ -48,6 +48,23 @@ pub fn List(comptime T: type) type {
         /// 空のリストとして初期化する
         pub fn init() Self {
             return .{};
+        }
+
+        /// すべてのメモリを解放する。
+        pub fn deinit(self: *Self, a: Allocator) void {
+            var elem = self.value;
+            self.value = null;
+
+            while (elem) |e| {
+                const next = e.next;
+                a.destroy(e);
+
+                if (next) |n| {
+                    elem = n;
+                } else {
+                    return;
+                }
+            }
         }
 
         /// リストの要素数を数える
@@ -123,7 +140,7 @@ pub fn List(comptime T: type) type {
             }
         }
 
-        pub fn insertFirst(self: *Self, a: Allocator, value: T) AllocError!void {
+        pub fn insertFirst(self: *Self, a: Allocator, value: T) AllocatorError!void {
             const next: *Element = try a.create(Element);
             next.* = Element{
                 .next = self.value,
@@ -133,7 +150,7 @@ pub fn List(comptime T: type) type {
             self.value = next;
         }
 
-        pub fn insertLast(self: *Self, a: Allocator, value: T) AllocError!void {
+        pub fn insertLast(self: *Self, a: Allocator, value: T) AllocatorError!void {
             var elem = self.value;
             while (elem) |e| {
                 const next = e.next;
@@ -171,22 +188,6 @@ pub fn List(comptime T: type) type {
             _ = left;
             _ = right;
         }
-
-        pub fn clear(self: *Self, a: Allocator) void {
-            var elem = self.value;
-            self.value = null;
-
-            while (elem) |e| {
-                const next = e.next;
-                a.destroy(e);
-
-                if (next) |n| {
-                    elem = n;
-                } else {
-                    return;
-                }
-            }
-        }
     };
 }
 
@@ -198,9 +199,10 @@ fn assert(ok: bool) error{AssertionFailed}!void {
 
 test "list" {
     const L = List(u8);
-    const a = std.testing.allocator;
+    const allocator = std.testing.allocator;
 
     var list = L.init();
+    defer list.deinit(allocator);
 
     // list == []
     try assert(@TypeOf(list) == List(u8));
@@ -208,21 +210,19 @@ test "list" {
     try assert(list.getFirstElement() == null);
     try assert(list.getLastElement() == null);
 
-    try list.insertFirst(a, 5);
-    try list.insertFirst(a, 6);
+    try list.insertFirst(allocator, 5);
+    try list.insertFirst(allocator, 6);
 
     // list == [6, 5]
     try assert(list.size() == 2);
     try assert(list.getFirstElement().?.value == 6);
     try assert(list.getLastElement().?.value == 5);
 
-    try list.insertLast(a, 7);
-    try list.insertLast(a, 8);
+    try list.insertLast(allocator, 7);
+    try list.insertLast(allocator, 8);
 
     // list == [6, 5, 7, 8]
     try assert(list.size() == 4);
     try assert(list.getFirst() == 6);
     try assert(list.getLast() == 8);
-
-    list.clear(a);
 }

@@ -25,6 +25,7 @@ pub const collection = @import("collection.zig");
 pub const math = @import("math.zig");
 
 pub const common = @import("common.zig");
+pub const interface = @import("interface.zig");
 
 pub const string = @import("string.zig");
 pub const time = @import("time.zig");
