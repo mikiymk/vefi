@@ -94,16 +94,31 @@ test tuple {
 }
 
 /// 値を順番に読み込み、構造体にする。
-pub fn Struct(Value: type, comptime fields: anytype) type {
+pub fn Block(Value: type, comptime fields: anytype) type {
+    const field_names = blk: {
+        var names: [fields.len][]const u8 = undefined;
+        for (fields, &names) |f, *n| {
+            n.* = f[0];
+        }
+        break :blk names;
+    };
+
+    const ParserTuple = lib.types.Tuple(.{
+            fields.map(|f| @TypeOf(f[1]))
+        }, .{});
+
     return struct {
+        fields: ParserTuple,
+
         pub fn parse(allocator: lib.allocator.Allocator, bytes: []const u8) ParseResult(@This()) {
             var value: Value = undefined;
             var read_count: usize = 0;
 
-            for (fields) |field| {
-                const field_name, const field_parser = field;
-                const tuple_value, const read_size = try field_parser.parse(allocator, bytes[read_count..]);
-                @field(value, field_name) = tuple_value;
+            // @fieldの名前テーブルを生成しないようにinlineをつける
+            inline for (fields, names) |parser, name| {
+                const tuple_value, const read_size = try parser.parse(allocator, bytes[read_count..]);
+
+                @field(value, name) = tuple_value;
                 read_count += read_size;
             }
 
@@ -113,7 +128,9 @@ pub fn Struct(Value: type, comptime fields: anytype) type {
 }
 
 pub fn block(Value: type, comptime fields: []const struct { []const u8, type }) Struct(Value, fields) {
-    return .{};
+    const parsers = 0;
+
+    return .{ .fields = parsers };
 }
 
 test block {
@@ -128,10 +145,13 @@ test block {
 }
 
 /// 固定の回数を繰り返し読み込む。
-pub fn ArrayFixed(element: anytype, length: usize) type {
+pub fn ArrayFixed(Element: type) type {
     const Value = [length]ValueTypeOf(element);
 
     return struct {
+        element: Element,
+        length: usize,
+
         pub fn parse(allocator: lib.allocator.Allocator, input: []const u8) ParseResult(Value, error{}) {
             var value: Value = undefined;
             var read_count: usize = 0;
@@ -147,8 +167,8 @@ pub fn ArrayFixed(element: anytype, length: usize) type {
     };
 }
 
-pub fn arrayFixed(element: anytype, length: usize) ArrayFixed(element, length) {
-    return .{};
+pub fn arrayFixed(element: anytype, length: usize) ArrayFixed(element) {
+    return .{ .element = element, .length = length };
 }
 
 test arrayFixed {
@@ -167,6 +187,9 @@ pub fn ArraySentinel(element: anytype, sentinel: anytype) type {
     const Value = []const ValueTypeOf(element);
 
     return struct {
+        element: Element,
+        sentinel: Sentinel,
+
         pub fn parse(allocator: lib.allocator.Allocator, bytes: []const u8) ParseResult(Value, error{}) {
             var value = DynamicArray(ValueTypeOf(element)).init();
             defer value.deinit(allocator);
