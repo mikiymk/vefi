@@ -12,10 +12,29 @@ const number = lib.data_format.number;
 const string = lib.data_format.string;
 const utils = lib.data_format.utils;
 
-pub const Header = utils.Block(.{
-    .{ .signature, string.Fixed(3) },
-    .{ .version, string.Fixed(3) },
-});
+pub const Gif = struct {
+    header: Header,
+};
+
+pub fn parseGif(input: []const u8) ParseResult(Gif, error{}) {
+    const gif: Gif = undefined;
+
+    gif.header = try eater.eat(parseHeader);
+
+    return gif;
+}
+
+pub const Header = struct {
+    signature: [3]u8,
+    version: [3]u8,
+};
+
+pub fn parseHeader(input: []const u8) ParseResult(Header, error{}) {
+    return block(Header, &.{
+        .{ "signature", arrayFixed(3, byte) },
+        .{ "version", arrayFixed(3, byte) },
+    }).parse(input);
+}
 
 pub const LogicalScreenDescriptor = utils.Block(.{
     .logical_screen_width = number.u16_le,

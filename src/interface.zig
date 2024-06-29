@@ -10,7 +10,6 @@ pub const AnyType = struct {};
 pub const InterfaceOptions = struct {
     fields: []const Declaration = &.{},
     declarations: []const Declaration = &.{},
-    methods: []const Declaration = &.{},
 
     pub const Declaration = struct {
         name: []const u8,
