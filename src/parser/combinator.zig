@@ -18,9 +18,9 @@ test "parser interface" {
     try lib.assert.expect(ParserInterface.isImplements(Byte));
 }
 
-pub const ParseError = error{ParseError} || lib.allocator.AllocatorError;
-pub fn ParseResult(Value: type) type {
-    return ParseError!struct { Value, usize };
+pub const Error = error{ParseError} || lib.allocator.AllocatorError;
+pub fn Result(Value: type, Err: type) type {
+    return (Error || Err)!struct { Value, usize };
 }
 
 fn ValueTypeOf(Parser: type) type {
@@ -30,7 +30,7 @@ fn ValueTypeOf(Parser: type) type {
 }
 
 const Byte = struct {
-    pub fn parse(_: Allocator, input: []const u8) ParseResult(u8, error{}) {
+    pub fn parse(_: @This(), _: Allocator, input: []const u8) ParseResult(u8, error{}) {
         if (input.len < 1) {
             return error.ParseError;
         }
@@ -54,15 +54,17 @@ test byte {
 }
 
 /// 値を順番に読み込み、タプルにする。
-fn Tuple(Value: type, comptime fields: []const type) type {
+fn Tuple(Value: type, Fields: type) type {
     comptime lib.assert.assert(lib.types.Tuple.isTuple(@TypeOf(fields)));
 
     return struct {
+        fields: Fields,
+
         pub fn parse(allocator: Allocator, bytes: []const u8) ParseResult(Value, error{}) {
             var value: Value = undefined;
             var read_count: usize = 0;
 
-            for (fields, &value) |field, *v| {
+            for (self.fields, &value) |field, *v| {
                 const tuple_value, const read_size = try field.parse(allocator, bytes[read_count..]);
 
                 v.* = tuple_value;
@@ -74,14 +76,14 @@ fn Tuple(Value: type, comptime fields: []const type) type {
     };
 }
 
-pub fn tuple(Value: type, comptime fields: anytype) Tuple(Value, fields) {
-    return .{};
+pub fn tuple(Value: type, fields: anytype) Tuple(Value, @TypeOf(fields)) {
+    return .{ .fields = fields };
 }
 
 test tuple {
     const ParseInnerType = struct { u8, u8 };
     const ParseType = struct { u8, u8, ParseInnerType };
-    const parser = tuple(ParseType, &.{ byte, byte, tuple(ParseInnerType, &.{ byte, byte }) });
+    const parser = tuple(ParseType, .{ byte, byte, tuple(ParseInnerType, .{ byte, byte }) });
     const bytes = [_]u8{ 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
     const allocator = std.testing.allocator;
 
