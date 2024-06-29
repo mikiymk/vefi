@@ -32,14 +32,14 @@ fn ValueTypeOf(Parser: type) type {
 const Byte = struct {
     pub fn parse(_: @This(), _: Allocator, input: []const u8) ParseResult(u8, error{}) {
         if (input.len < 1) {
-            return error.ParseError;
+            return error.ReachEol;
         }
         return .{ input[0], 1 };
     }
 };
 
 /// 1バイトを符号無し整数として読み込む
-pub const byte = Byte{};
+pub const byte: Byte = .{};
 
 test byte {
     const bytes = [_]u8{ 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
@@ -53,7 +53,6 @@ test byte {
     try lib.assert.expectEqual(parser.parse(allocator, bytes[8..]), error.ParseError);
 }
 
-/// 値を順番に読み込み、タプルにする。
 fn Tuple(Value: type, Fields: type) type {
     comptime lib.assert.assert(lib.types.Tuple.isTuple(@TypeOf(fields)));
 
@@ -76,6 +75,7 @@ fn Tuple(Value: type, Fields: type) type {
     };
 }
 
+/// 値を順番に読み込み、タプルにする。
 pub fn tuple(Value: type, fields: anytype) Tuple(Value, @TypeOf(fields)) {
     return .{ .fields = fields };
 }
@@ -93,7 +93,6 @@ test tuple {
     try lib.assert.expectEqual(parser.parse(allocator, bytes[6..]), error.ParseError);
 }
 
-/// 値を順番に読み込み、構造体にする。
 pub fn Block(Value: type, comptime fields: anytype) type {
     const field_names = blk: {
         var names: [fields.len][]const u8 = undefined;
@@ -127,6 +126,7 @@ pub fn Block(Value: type, comptime fields: anytype) type {
     };
 }
 
+/// 値を順番に読み込み、構造体にする。
 pub fn block(Value: type, comptime fields: []const struct { []const u8, type }) Struct(Value, fields) {
     const parsers = 0;
 
@@ -144,7 +144,6 @@ test block {
     try lib.assert.expectEqual(parser.parse(allocator, bytes[6..]), error.ParseError);
 }
 
-/// 固定の回数を繰り返し読み込む。
 pub fn ArrayFixed(Element: type) type {
     const Value = [length]ValueTypeOf(element);
 
@@ -167,6 +166,7 @@ pub fn ArrayFixed(Element: type) type {
     };
 }
 
+/// 固定の回数を繰り返し読み込む。
 pub fn arrayFixed(element: anytype, length: usize) ArrayFixed(element) {
     return .{ .element = element, .length = length };
 }
@@ -218,7 +218,11 @@ pub fn ArraySentinel(element: anytype, sentinel: anytype) type {
     };
 }
 
-test ArraySentinel {
+pub fn arraySemtinel(element: anytype, sentinel: anytype) ArraySemtinel(@TypeOf(element), @TypeOf(sentinel)) {
+    return .{ .element = element, .sentinel = sentinel };
+}
+
+test arraySemtinel {
     const Parser = ArraySentinel(byte, constant(byte, 0x89));
     const bytes = [_]u8{ 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
     const allocator = std.testing.allocator;
@@ -266,7 +270,11 @@ pub fn ArrayCount(Count: type, Item: type) type {
     };
 }
 
-test ArrayCount {}
+pub fn arrayCounted(count: element, element: anytype) ArrayCounted(@TypeOf(count), @TypeOf(element)) {
+    return .{ .count = count, .element = element };
+}
+
+test arrayCounted {}
 
 /// 特定の値のみを読み込む。
 /// `==`で比較できる型が利用できる。
@@ -274,6 +282,7 @@ pub fn Constant(parser: anytype) type {
     const Value = ValueTypeOf(@TypeOf(parser));
 
     return struct {
+        parser: Parser,
         value: Value,
 
         pub fn parse(self: @This(), allocator: lib.allocator.Allocator, bytes: []const u8) ParseResult(Value) {
@@ -289,9 +298,7 @@ pub fn Constant(parser: anytype) type {
 }
 
 pub fn constant(parser: anytype, value: ValueTypeOf(@TypeOf(parser))) Constant(parser, value) {
-    return .{
-        .value = value,
-    };
+    return .{ .parser = parser, .value = value };
 }
 
 test constant {
