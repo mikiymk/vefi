@@ -5,4 +5,4 @@ test {
     std.testing.refAllDecls(@This());
 }
 
-pub const combinator = @import("combinator.zig");
+pub const combinator = @import("parser/combinator.zig");

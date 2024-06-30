@@ -10,7 +10,7 @@ const DynamicArray = lib.collection.dynamic_array.DynamicArray;
 
 const ParserInterface = lib.interface.Interface(.{
     .declarations = &.{
-        .{ "parse", fn (Allocator, []const u8) lib.interface.AnyType },
+        .{ .name = "parse", .type = fn (lib.interface.This, Allocator, []const u8) lib.interface.AnyType },
     },
 });
 
@@ -18,21 +18,27 @@ test "parser interface" {
     try lib.assert.expect(ParserInterface.isImplements(Byte));
 }
 
-pub const Error = error{ParseError} || lib.allocator.AllocatorError;
 pub fn Result(Value: type, Err: type) type {
-    return (Error || Err)!struct { Value, usize };
+    return (lib.allocator.AllocatorError || Err)!struct { Value, usize };
 }
 
 fn ValueTypeOf(Parser: type) type {
     const info = @typeInfo(@TypeOf(Parser.parse));
-    const return_type = @typeInfo(info.Fn.return_type.?);
+    const return_error_union = @typeInfo(info.Fn.return_type.?);
+    const return_type = @typeInfo(return_error_union.ErrorUnion.payload);
     return return_type.Struct.fields[0].type;
 }
 
+fn ErrorOf(Parser: type) type {
+    const info = @typeInfo(@TypeOf(Parser.parse));
+    const return_error_union = @typeInfo(info.Fn.return_type.?);
+    return return_error_union.ErrorUnion.error_set;
+}
+
 const Byte = struct {
-    pub fn parse(_: @This(), _: Allocator, input: []const u8) ParseResult(u8, error{}) {
+    pub fn parse(_: @This(), _: Allocator, input: []const u8) Result(u8, error{ReachToEof}) {
         if (input.len < 1) {
-            return error.ReachEol;
+            return error.ReachToEof;
         }
         return .{ input[0], 1 };
     }
@@ -47,23 +53,29 @@ test byte {
 
     const parser = byte;
 
-    try lib.assert.expectEqual(parser.Value, u8);
     try lib.assert.expectEqual(parser.parse(allocator, bytes[0..]), .{ 0x01, 1 });
     try lib.assert.expectEqual(parser.parse(allocator, bytes[1..]), .{ 0x23, 1 });
-    try lib.assert.expectEqual(parser.parse(allocator, bytes[8..]), error.ParseError);
+    try lib.assert.expectEqual(parser.parse(allocator, bytes[8..]), error.ReachToEof);
 }
 
 fn Tuple(Value: type, Fields: type) type {
-    comptime lib.assert.assert(lib.types.Tuple.isTuple(@TypeOf(fields)));
+    comptime lib.assert.assert(lib.types.Tuple.isTuple(Fields));
+    const Err = blk: {
+        var E = error{};
+        for (@typeInfo(Fields).Struct.fields) |field| {
+            E = E || ErrorOf(field.type);
+        }
+        break :blk E;
+    };
 
     return struct {
         fields: Fields,
 
-        pub fn parse(allocator: Allocator, bytes: []const u8) ParseResult(Value, error{}) {
+        pub fn parse(self: @This(), allocator: Allocator, bytes: []const u8) Result(Value, Err) {
             var value: Value = undefined;
             var read_count: usize = 0;
 
-            for (self.fields, &value) |field, *v| {
+            inline for (self.fields, &value) |field, *v| {
                 const tuple_value, const read_size = try field.parse(allocator, bytes[read_count..]);
 
                 v.* = tuple_value;
@@ -87,10 +99,9 @@ test tuple {
     const bytes = [_]u8{ 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
     const allocator = std.testing.allocator;
 
-    try lib.assert.expectEqual(parser.Value, struct { u8, u8, u8 });
     try lib.assert.expectEqual(parser.parse(allocator, bytes[0..]), .{ .{ 0x01, 0x23, .{ 0x45, 0x67 } }, 4 });
     try lib.assert.expectEqual(parser.parse(allocator, bytes[3..]), .{ .{ 0x67, 0x89, .{ 0xab, 0xcd } }, 4 });
-    try lib.assert.expectEqual(parser.parse(allocator, bytes[6..]), error.ParseError);
+    try lib.assert.expectEqual(parser.parse(allocator, bytes[6..]), error.ReachToEof);
 }
 
 pub fn Block(Value: type, comptime fields: anytype) type {
@@ -102,19 +113,31 @@ pub fn Block(Value: type, comptime fields: anytype) type {
         break :blk names;
     };
 
-    const ParserTuple = lib.types.Tuple(.{
-            fields.map(|f| @TypeOf(f[1]))
-        }, .{});
+    const ParserTuple = lib.types.Tuple.Tuple(&blk: {
+        var types: [fields.len]lib.types.Tuple.Field = undefined;
+        for (fields, &types) |field, *t| {
+            t.* = .{ .type = @TypeOf(field[1]) };
+        }
+        break :blk types;
+    }, .{});
+
+    const Err = blk: {
+        var E = error{};
+        for (fields) |field| {
+            E = E || ErrorOf(@TypeOf(field[1]));
+        }
+        break :blk E;
+    };
 
     return struct {
         fields: ParserTuple,
 
-        pub fn parse(allocator: lib.allocator.Allocator, bytes: []const u8) ParseResult(@This()) {
+        pub fn parse(self: @This(), allocator: Allocator, bytes: []const u8) Result(Value, Err) {
             var value: Value = undefined;
             var read_count: usize = 0;
 
             // @fieldの名前テーブルを生成しないようにinlineをつける
-            inline for (fields, names) |parser, name| {
+            inline for (self.fields, field_names) |parser, name| {
                 const tuple_value, const read_size = try parser.parse(allocator, bytes[read_count..]);
 
                 @field(value, name) = tuple_value;
@@ -127,8 +150,19 @@ pub fn Block(Value: type, comptime fields: anytype) type {
 }
 
 /// 値を順番に読み込み、構造体にする。
-pub fn block(Value: type, comptime fields: []const struct { []const u8, type }) Struct(Value, fields) {
-    const parsers = 0;
+pub fn block(Value: type, comptime fields: anytype) Block(Value, fields) {
+    const ParserTuple = lib.types.Tuple.Tuple(&blk: {
+        var types: [fields.len]lib.types.Tuple.Field = undefined;
+        for (fields, &types) |field, *t| {
+            t.* = .{ .type = @TypeOf(field[1]) };
+        }
+        break :blk types;
+    }, .{});
+
+    var parsers: ParserTuple = undefined;
+    inline for (fields, &parsers) |field, *p| {
+        p.* = field[1];
+    }
 
     return .{ .fields = parsers };
 }
@@ -141,22 +175,22 @@ test block {
 
     try lib.assert.expectEqual(parser.parse(allocator, bytes[0..]), .{ .{ .foo = 0x01, .bar = 0x23, .baz = 0x45 }, 3 });
     try lib.assert.expectEqual(parser.parse(allocator, bytes[3..]), .{ .{ .foo = 0x67, .bar = 0x89, .baz = 0xab }, 3 });
-    try lib.assert.expectEqual(parser.parse(allocator, bytes[6..]), error.ParseError);
+    try lib.assert.expectEqual(parser.parse(allocator, bytes[6..]), error.ReachToEof);
 }
 
-pub fn ArrayFixed(Element: type) type {
-    const Value = [length]ValueTypeOf(element);
+pub fn ArrayFixed(Element: type, length: usize) type {
+    const Value = [length]ValueTypeOf(Element);
+    const Err = ErrorOf(Element);
 
     return struct {
         element: Element,
-        length: usize,
 
-        pub fn parse(allocator: lib.allocator.Allocator, input: []const u8) ParseResult(Value, error{}) {
+        pub fn parse(self: @This(), allocator: Allocator, input: []const u8) Result(Value, Err) {
             var value: Value = undefined;
             var read_count: usize = 0;
 
             for (&value) |*item| {
-                const item_value, const read_size = try element.parse(allocator, input[read_count..]);
+                const item_value, const read_size = try self.element.parse(allocator, input[read_count..]);
                 item.* = item_value;
                 read_count += read_size;
             }
@@ -167,8 +201,8 @@ pub fn ArrayFixed(Element: type) type {
 }
 
 /// 固定の回数を繰り返し読み込む。
-pub fn arrayFixed(element: anytype, length: usize) ArrayFixed(element) {
-    return .{ .element = element, .length = length };
+pub fn arrayFixed(element: anytype, comptime length: usize) ArrayFixed(@TypeOf(element), length) {
+    return .{ .element = element };
 }
 
 test arrayFixed {
@@ -176,27 +210,41 @@ test arrayFixed {
     const bytes = [_]u8{ 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
     const allocator = std.testing.allocator;
 
-    try lib.assert.expectEqual(parser.Value, [3]u8);
     try lib.assert.expectEqual(parser.parse(allocator, bytes[0..]), .{ .{ 0x01, 0x23, 0x45 }, 3 });
     try lib.assert.expectEqual(parser.parse(allocator, bytes[3..]), .{ .{ 0x67, 0x89, 0xab }, 3 });
-    try lib.assert.expectEqual(parser.parse(allocator, bytes[6..]), error.ParseError);
+    try lib.assert.expectEqual(parser.parse(allocator, bytes[6..]), error.ReachToEof);
 }
 
 /// 終了部分が読み込まれるまで繰り返し読み込む。
-pub fn ArraySentinel(element: anytype, sentinel: anytype) type {
-    const Value = []const ValueTypeOf(element);
+pub fn ArraySentinel(Element: type, Sentinel: type) type {
+    const Value = []const ValueTypeOf(Element);
+    const Err = ErrorOf(Element) || blk: {
+        const info = @typeInfo(ErrorOf(Sentinel));
+        const error_set = info.ErrorSet orelse break :blk error{};
+        var new_error_set: [error_set.len - 1]lib.builtin.Type.Error = undefined;
+        var i = 0;
+        for (error_set) |err| {
+            if (lib.types.Slice.equal(u8, err.name, "UnmatchValue")) {
+                continue;
+            }
+            new_error_set[i] = err;
+            i += 1;
+        }
+
+        break :blk @Type(.{ .ErrorSet = &new_error_set });
+    };
 
     return struct {
         element: Element,
         sentinel: Sentinel,
 
-        pub fn parse(allocator: lib.allocator.Allocator, bytes: []const u8) ParseResult(Value, error{}) {
-            var value = DynamicArray(ValueTypeOf(element)).init();
+        pub fn parse(self: @This(), allocator: Allocator, bytes: []const u8) Result(Value, Err) {
+            var value = DynamicArray(ValueTypeOf(Element)).init();
             defer value.deinit(allocator);
             var read_count: usize = 0;
 
             while (true) {
-                if (sentinel.parse(allocator, bytes[read_count..])) |sentinel_read| {
+                if (self.sentinel.parse(allocator, bytes[read_count..])) |sentinel_read| {
                     _, const sentinel_size = sentinel_read;
 
                     const slice = try value.copyToSlice(allocator);
@@ -204,13 +252,13 @@ pub fn ArraySentinel(element: anytype, sentinel: anytype) type {
                     return .{ slice, read_count + sentinel_size };
                 } else |err| {
                     switch (err) {
-                        error.ParseError => {
-                            const item_value, const read_size = try element.parse(allocator, bytes[read_count..]);
+                        error.UnmatchValue => {
+                            const item_value, const read_size = try self.element.parse(allocator, bytes[read_count..]);
                             try value.push(allocator, item_value);
                             read_count += read_size;
                             continue;
                         },
-                        else => return err,
+                        else => |e| return e,
                     }
                 }
             }
@@ -218,48 +266,51 @@ pub fn ArraySentinel(element: anytype, sentinel: anytype) type {
     };
 }
 
-pub fn arraySemtinel(element: anytype, sentinel: anytype) ArraySemtinel(@TypeOf(element), @TypeOf(sentinel)) {
+pub fn arraySemtinel(element: anytype, sentinel: anytype) ArraySentinel(@TypeOf(element), @TypeOf(sentinel)) {
     return .{ .element = element, .sentinel = sentinel };
 }
 
 test arraySemtinel {
-    const Parser = ArraySentinel(byte, constant(byte, 0x89));
+    const parser = arraySemtinel(byte, constant(byte, 0x89));
     const bytes = [_]u8{ 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
     const allocator = std.testing.allocator;
 
-    try lib.assert.expectEqual(Parser.Value, []const u8);
     {
-        const value, const size = try Parser.parse(allocator, bytes[0..]);
+        const value, const size = try parser.parse(allocator, bytes[0..]);
         try lib.assert.expectEqual(value, &.{ 0x01, 0x23, 0x45, 0x67 });
         try lib.assert.expectEqual(size, 5);
 
         allocator.free(value);
     }
     {
-        const value, const size = try Parser.parse(allocator, bytes[3..]);
+        const value, const size = try parser.parse(allocator, bytes[3..]);
         try lib.assert.expectEqual(value, &.{0x67});
         try lib.assert.expectEqual(size, 2);
 
         allocator.free(value);
     }
-    try lib.assert.expectEqual(Parser.parse(allocator, bytes[6..]), error.ParseError);
+    try lib.assert.expectEqual(parser.parse(allocator, bytes[6..]), error.ReachToEof);
 }
 
-pub fn ArrayCount(Count: type, Item: type) type {
+pub fn ArrayCounted(Count: type, Item: type) type {
     const DynamicItemArray = lib.collection.dynamic_array.DynamicArray(Item.Value);
+    const Value = []const Item.Value;
+
     return struct {
-        pub const Value = []const Item.Value;
-        pub fn parse(allocator: lib.allocator.Allocator, bytes: []const u8) ParseResult(@This()) {
+        count: Count,
+        item: Item,
+
+        pub fn parse(self: @This(), allocator: Allocator, bytes: []const u8) Result(Value, error{}) {
             var value = DynamicItemArray.init();
             defer value.deinit(allocator);
             var read_count: usize = 0;
             var item_count = 0;
 
-            const count, const count_size = try Count.parse(allocator, bytes[read_count..]);
+            const count, const count_size = try self.count.parse(allocator, bytes[read_count..]);
             read_count += count_size;
 
             while (item_count < count) : (item_count += 1) {
-                const item_value, const read_size = try Item.parse(allocator, bytes[read_count..]);
+                const item_value, const read_size = try self.item.parse(allocator, bytes[read_count..]);
                 try value.push(allocator, item_value);
                 read_count += read_size;
             }
@@ -270,7 +321,7 @@ pub fn ArrayCount(Count: type, Item: type) type {
     };
 }
 
-pub fn arrayCounted(count: element, element: anytype) ArrayCounted(@TypeOf(count), @TypeOf(element)) {
+pub fn arrayCounted(count: anytype, element: anytype) ArrayCounted(@TypeOf(count), @TypeOf(element)) {
     return .{ .count = count, .element = element };
 }
 
@@ -278,36 +329,36 @@ test arrayCounted {}
 
 /// 特定の値のみを読み込む。
 /// `==`で比較できる型が利用できる。
-pub fn Constant(parser: anytype) type {
-    const Value = ValueTypeOf(@TypeOf(parser));
+pub fn Constant(Parser: type) type {
+    const Value = ValueTypeOf(Parser);
+    const Err = ErrorOf(Parser) || error{UnmatchValue};
 
     return struct {
         parser: Parser,
         value: Value,
 
-        pub fn parse(self: @This(), allocator: lib.allocator.Allocator, bytes: []const u8) ParseResult(Value) {
-            const read_value, const read_size = try parser.parse(allocator, bytes[0..]);
+        pub fn parse(self: @This(), allocator: Allocator, bytes: []const u8) Result(Value, Err) {
+            const read_value, const read_size = try self.parser.parse(allocator, bytes[0..]);
 
             if (read_value == self.value) {
                 return .{ read_value, read_size };
             } else {
-                return error.ParseError;
+                return error.UnmatchValue;
             }
         }
     };
 }
 
-pub fn constant(parser: anytype, value: ValueTypeOf(@TypeOf(parser))) Constant(parser, value) {
+pub fn constant(parser: anytype, value: ValueTypeOf(@TypeOf(parser))) Constant(@TypeOf(parser)) {
     return .{ .parser = parser, .value = value };
 }
 
 test constant {
-    const Parser = constant(byte, 0x01);
+    const parser = constant(byte, 0x01);
     const bytes = [_]u8{ 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
     const allocator = std.testing.allocator;
 
-    try lib.assert.expectEqual(Parser.Value, u8);
-    try lib.assert.expectEqual(Parser.parse(allocator, bytes[0..]), .{ 0x01, 1 });
-    try lib.assert.expectEqual(Parser.parse(allocator, bytes[1..]), error.ParseError);
-    try lib.assert.expectEqual(Parser.parse(allocator, bytes[8..]), error.ParseError);
+    try lib.assert.expectEqual(parser.parse(allocator, bytes[0..]), .{ 0x01, 1 });
+    try lib.assert.expectEqual(parser.parse(allocator, bytes[1..]), error.UnmatchValue);
+    try lib.assert.expectEqual(parser.parse(allocator, bytes[8..]), error.ReachToEof);
 }

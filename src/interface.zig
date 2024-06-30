@@ -19,29 +19,65 @@ pub const InterfaceOptions = struct {
 
 pub fn Interface(options: InterfaceOptions) type {
     return struct {
-        fn ReplaceThis(T: type, DeclType: type) type {
-            switch (@typeInfo(DeclType)) {
-                .Fn => |info| {
-                    var new_params: [info.params.len]std.builtin.Type.Fn.Param = undefined;
+        fn implements(T: type, Decl: ?type, If: ?type) bool {
+            if (Decl == null and If == null) {
+                return true;
+            } else if (Decl == null) {
+                return false;
+            } else if (If == null) {
+                return false;
+            }
 
-                    for (info.params, &new_params) |p, *np| {
-                        np.* = .{
-                            .is_generic = p.is_generic,
-                            .is_noalias = p.is_noalias,
-                            .type = if (p.type == This) T else p.type,
-                        };
+            const UDecl = Decl.?;
+            const UIf = If.?;
+
+            if (UIf == AnyType) {
+                return true;
+            }
+            if (UIf == This) {
+                return UDecl == T;
+            }
+            if (UDecl == UIf) {
+                return true;
+            }
+
+            switch (@typeInfo(UDecl)) {
+                .Fn => |info| {
+                    const interface_fn = @typeInfo(UIf).Fn;
+
+                    inline for (info.params, interface_fn.params) |p, ip| {
+                        if (!implements(T, p.type, ip.type)) {
+                            return false;
+                        }
                     }
 
-                    return @Type(.{ .Fn = .{
-                        .is_generic = info.is_generic,
-                        .is_var_args = info.is_var_args,
-                        .params = &new_params,
-                        .return_type = if (info.return_type == This) T else info.return_type,
-                        .calling_convention = info.calling_convention,
-                    } });
+                    if (!implements(T, info.return_type, interface_fn.return_type)) {
+                        return false;
+                    }
+
+                    return true;
                 },
-                else => return DeclType,
+                .Struct => {
+                    const interface_struct = @typeInfo(UIf).Struct;
+
+                    const dummy: UDecl = undefined;
+                    inline for (interface_struct.fields) |f| {
+                        const field_type = @TypeOf(@field(dummy, f.name));
+                        if (!implements(T, field_type, f.type)) {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                },
+                .Pointer => |info| {
+                    const interface_pointer = @typeInfo(UIf).Pointer;
+                    return implements(T, info.child, interface_pointer.child);
+                },
+                else => {},
             }
+
+            @panic("unknown type " ++ @typeName(UDecl));
         }
 
         pub fn isImplements(T: type) bool {
@@ -55,7 +91,7 @@ pub fn Interface(options: InterfaceOptions) type {
                 if (field_type == AnyType) {
                     continue;
                 }
-                if (!lib.common.equal(field_type, ReplaceThis(T, f.type))) {
+                if (!implements(T, field_type, f.type)) {
                     return false;
                 }
             }
@@ -66,10 +102,7 @@ pub fn Interface(options: InterfaceOptions) type {
                 }
 
                 const field_type = @TypeOf(@field(T, d.name));
-                if (field_type == AnyType) {
-                    continue;
-                }
-                if (!lib.common.equal(field_type, ReplaceThis(T, d.type))) {
+                if (!implements(T, field_type, d.type)) {
                     return false;
                 }
             }

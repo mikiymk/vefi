@@ -12,16 +12,18 @@ const number = lib.data_format.number;
 const string = lib.data_format.string;
 const utils = lib.data_format.utils;
 
+const parser = lib.parser.combinator;
+const Result = parser.Result;
+const Allocator = lib.allocator.Allocator;
+
 pub const Gif = struct {
     header: Header,
 };
 
-pub fn parseGif(input: []const u8) ParseResult(Gif, error{}) {
-    const gif: Gif = undefined;
-
-    gif.header = try eater.eat(parseHeader);
-
-    return gif;
+pub fn parseGif(allocator: Allocator, input: []const u8) Result(Gif, error{}) {
+    return parser.block(Gif, &.{
+        .{ "header", parseHeader },
+    }).parse(allocator, input);
 }
 
 pub const Header = struct {
@@ -29,11 +31,11 @@ pub const Header = struct {
     version: [3]u8,
 };
 
-pub fn parseHeader(input: []const u8) ParseResult(Header, error{}) {
-    return block(Header, &.{
-        .{ "signature", arrayFixed(3, byte) },
-        .{ "version", arrayFixed(3, byte) },
-    }).parse(input);
+pub fn parseHeader(allocator: Allocator, input: []const u8) Result(Header, error{}) {
+    return parser.block(Header, &.{
+        .{ "signature", parser.arrayFixed(3, parser.byte) },
+        .{ "version", parser.arrayFixed(3, parser.byte) },
+    }).parse(allocator, input);
 }
 
 pub const LogicalScreenDescriptor = utils.Block(.{

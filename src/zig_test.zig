@@ -3,7 +3,6 @@
 //! Zig言語の基本の書き方を確認する。
 
 const std = @import("std");
-const lib = @import("root.zig");
 
 test {
     _ = @import("zig_test/literals.zig");
@@ -15,7 +14,7 @@ test {
     _ = @import("zig_test/undefined_behaviors.zig");
 }
 
-pub const assert = lib.assert;
+pub const assert = @import("assert.zig");
 
 /// 使用しない変数を使用するための関数
 pub fn consume(_: anytype) void {}
