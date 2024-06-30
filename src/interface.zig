@@ -13,7 +13,7 @@ pub const InterfaceOptions = struct {
 
     pub const Declaration = struct {
         name: []const u8,
-        type: type,
+        type: type = AnyType,
     };
 };
 
