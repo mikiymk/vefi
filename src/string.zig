@@ -22,3 +22,7 @@ pub const Encoding = enum {
 
 pub const ascii_string = struct {};
 pub const utf8_string = struct {};
+
+pub fn equal(left: []const u8, right: []const u8) bool {
+    return lib.types.Slice.equal(u8, left, right);
+}

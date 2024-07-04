@@ -44,13 +44,13 @@ pub const LogicalScreenDescriptor = struct {
     logical_screen_width: u16,
     logical_screen_height: u16,
 
-    global_color_table_flag = bool,
-    color_resolution = u3,
-    sort_flag = bool,
-    size_of_global_color_table = u3,
+    global_color_table_flag: bool,
+    color_resolution: u3,
+    sort_flag: bool,
+    size_of_global_color_table: u3,
 
-    background_color_index = u8,
-    aspect_ratio = u8,
+    background_color_index: u8,
+    aspect_ratio: u8,
 };
 pub fn logicalScreenDescriptor(allocator: Allocator, input: []const u8) Result(LogicalScreenDescriptor, error{}) {
     return p.block(Header, &.{

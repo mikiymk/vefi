@@ -9,6 +9,15 @@ pub fn equal(left: anytype, right: @TypeOf(left)) bool {
     const info = @typeInfo(@TypeOf(left));
 
     switch (info) {
+        .Optional => {
+            if (left == null and right == null) {
+                return true;
+            } else if (left == null or right == null) {
+                return false;
+            } else {
+                return equal(left.?, right.?);
+            }
+        },
         .ErrorUnion => {
             if (left) |l| {
                 if (right) |r| {
