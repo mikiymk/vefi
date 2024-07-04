@@ -5,6 +5,83 @@ test {
     std.testing.refAllDecls(@This());
 }
 
+const Allocator = lib.allocator.Allocator;
+const DynamicArray = lib.collection.dynamic_array.DynamicArray(usize);
+const Slice = lib.types.Slice;
+
+pub const NondeterministicTransitions = struct {
+    current_state: usize,
+    input: u8,
+
+    next_state: []const usize,
+};
+
+pub const NondeterministicFiniteAutomaton = struct {
+    pub const initial_state: usize = 0;
+
+    transitions: []const NondeterministicTransitions,
+    accept_states: []const usize,
+
+    fn getTransition(self: @This(), state: usize, input: u8) ?[]const usize {
+        for (self.transitions) |transition| {
+            if (transition.current_state == state and transition.input == input) {
+                return transition.next_state;
+            }
+        }
+
+        return null;
+    }
+
+    pub fn accepts(self: @This(), a: Allocator, string: []const u8) Allocator.Error!bool {
+        var states = DynamicArray.init();
+        defer states.deinit(a);
+
+        try states.push(a, initial_state);
+
+        for (string) |c| {
+            var next_states = DynamicArray.init();
+            for (states.asSlice()) |state| {
+                const state_next_states = self.getTransition(state, c) orelse continue;
+                for (state_next_states) |state_next_state| {
+                    try next_states.push(a, state_next_state);
+                }
+            }
+
+            if (next_states.size == 0) {
+                return false;
+            }
+
+            states.deinit(a);
+            states = next_states;
+        }
+
+        for (states.asSlice()) |state| {
+            if (Slice.includes(usize, self.accept_states, state)) {
+                return true;
+            }
+        } else return false;
+    }
+};
+
+test NondeterministicFiniteAutomaton {
+    const allocator = std.testing.allocator;
+    const nfa = NondeterministicFiniteAutomaton{
+        .transitions = &.{
+            .{ .current_state = 0, .input = '0', .next_state = &.{0} },
+            .{ .current_state = 0, .input = '1', .next_state = &.{1} },
+            .{ .current_state = 1, .input = '0', .next_state = &.{0} },
+            .{ .current_state = 1, .input = '1', .next_state = &.{1} },
+        },
+        .accept_states = &.{1},
+    };
+
+    try lib.assert.expect(!(try nfa.accepts(allocator, "0")));
+    try lib.assert.expect(try nfa.accepts(allocator, "1"));
+    try lib.assert.expect(try nfa.accepts(allocator, "01"));
+    try lib.assert.expect(!(try nfa.accepts(allocator, "10")));
+    try lib.assert.expect(try nfa.accepts(allocator, "01100101"));
+}
+
 pub const RegularExpression = union(enum) {
     string: []const u8,
     sequential: []RegularExpression,

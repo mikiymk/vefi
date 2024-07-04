@@ -50,3 +50,23 @@ test equal {
     try lib.assert.expect(!equal(u8, var_05, var_08));
     try lib.assert.expect(!equal(u8, var_05, var_09));
 }
+
+pub fn includes(T: type, slice: []const T, item: T) bool {
+    for (slice) |i| {
+        if (lib.common.equal(i, item)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+test includes {
+    var var_01 = [_]u8{ 1, 2, 3 };
+    const var_02: []u8 = &var_01;
+
+    try lib.assert.expect(includes(u8, var_02, 1));
+    try lib.assert.expect(includes(u8, var_02, 2));
+    try lib.assert.expect(includes(u8, var_02, 3));
+    try lib.assert.expect(!includes(u8, var_02, 4));
+}
