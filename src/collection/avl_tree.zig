@@ -1,3 +1,7 @@
+//! AVL木
+//! Adelson-Velskii and Landis' tree
+//! Georgy Adelson-VelskyとEvgenii Landisによって考えられた、平衡二分探索木
+
 const std = @import("std");
 const lib = @import("../root.zig");
 
@@ -7,6 +11,8 @@ test {
 
 const Allocator = lib.allocator.Allocator;
 const Order = lib.math.Order;
+const DynamicArray = lib.collection.dynamic_array.DynamicArray;
+const Stack = lib.collection.stack.Stack;
 
 pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
     return struct {
@@ -17,6 +23,17 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
 
             left: ?*Node = null,
             right: ?*Node = null,
+
+            pub fn format(value: @This(), comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
+                _ = fmt;
+                _ = options;
+
+                try writer.print("{} -> left: {?}, right: {?}\n", .{
+                    value.item,
+                    if (value.left) |left| left.item else null,
+                    if (value.right) |right| right.item else null,
+                });
+            }
         };
 
         root: ?*Node = null,
@@ -70,59 +87,161 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
             }
         }
 
-        pub fn find(self: @This(), allocator: Allocator, item: T) *T {
+        /// 木の高さを数える。
+        /// ルートノードがない場合、0を返す。
+        pub fn height(self: @This()) usize {
+            if (self.root) |r| {
+                return heightNode(r) + 1;
+            } else {
+                return 0;
+            }
+        }
+
+        fn heightNode(node: ?*Node) usize {
+            const nnode = node orelse return 0;
+
+            const left = heightNode(nnode.left) + 1;
+            const right = heightNode(nnode.right) + 1;
+            return @max(left, right);
+        }
+
+        fn rotateLeftNode(node: *Node) void {
+            var pivot = node.left orelse return; // なければ終了
+            node.left = pivot.right;
+            pivot.right = node;
+            node.* = pivot.*;
+        }
+
+        fn rotateRightNode(node: *Node) void {
+            var pivot = node.left orelse return; // なければ終了
+            node.left = pivot.right;
+            pivot.right = node;
+            node.* = pivot.*;
+        }
+
+        pub fn find(self: @This(), allocator: Allocator, item: Value) *Value {
             compare_fn;
             _ = self;
             _ = allocator;
             _ = item;
         }
 
-        pub fn insert(self: *@This(), allocator: Allocator, item: T) Allocator.Error!void {
-            const new_item = try allocator.create(Node);
-            new_item.* = .{
+        pub fn insert(self: *@This(), allocator: Allocator, item: Value) Allocator.Error!void {
+            const new_node = try allocator.create(Node);
+            new_node.* = .{
                 .item = item,
             };
-            var node: ?*Node = undefined;
 
-            if (self.root == null) {
-                self.root = new_item;
-                return;
-            }
-            node = self.root;
-
-            while (node) |n| {
-                const order = compare_fn(item, n.item);
-
-                switch (order) {
-                    .less_than => {
-                        if (n.left == null) {
-                            n.left = new_item;
-                            return;
-                        } else {
-                            node = n.left;
-                        }
-                    },
-                    .equal, .greater_than => {
-                        if (n.right == null) {
-                            n.right = new_item;
-                            return;
-                        } else {
-                            node = n.right;
-                        }
-                    },
-                }
+            if (self.root) |root| {
+                _ = insertNode(root, new_node);
+            } else {
+                self.root = new_node;
             }
         }
 
-        pub fn delete(self: *@This(), item: T) void {
+        fn insertNode(node: *Node, new_node: *Node) bool {
+            const order = compare_fn(new_node.item, node.item);
+
+            switch (order) {
+                .less_than => {
+                    if (node.left) |left| {
+                        if (insertNode(left, new_node)) {
+                            return true;
+                        }
+                    } else {
+                        node.left = new_node;
+                    }
+                },
+                .equal, .greater_than => {
+                    if (node.right) |right| {
+                        if (insertNode(right, new_node)) {
+                            return true;
+                        }
+                    } else {
+                        node.right = new_node;
+                    }
+                },
+            }
+
+            const left_height = heightNode(node.left);
+            const right_height = heightNode(node.right);
+            const diff = lib.math.absDiff(left_height, right_height);
+            if (diff > 1) {
+                if (left_height > right_height) {
+                    const left = node.left orelse unreachable;
+                    const left_left_height = heightNode(left.left);
+                    const left_right_height = heightNode(left.right);
+                    if (left_left_height < left_right_height) {
+                        rotateLeftNode(left);
+                    }
+
+                    rotateRightNode(node);
+                } else {
+                    const right = node.right orelse unreachable;
+                    const right_left_height = heightNode(right.left);
+                    const right_right_height = heightNode(right.right);
+                    if (right_left_height > right_right_height) {
+                        rotateRightNode(right);
+                    }
+
+                    rotateLeftNode(node);
+                }
+
+                return true;
+            }
+
+            return false;
+        }
+
+        pub fn delete(self: *@This(), item: Value) void {
             _ = self;
             _ = item;
         }
 
-        pub const Iterator = struct {};
+        pub fn copyToSlice(self: @This(), allocator: Allocator) Allocator.Error![]const *Node {
+            var array = lib.collection.dynamic_array.DynamicArray(*Node).init();
+            defer array.deinit(allocator);
 
-        pub fn iterator(self: @This()) Iterator {
-            _ = self;
+            var stack = Stack(*Node).init();
+            defer stack.deinit(allocator);
+            if (self.root) |root| {
+                try stack.push(allocator, root);
+            }
+
+            while (stack.pop()) |node| {
+                try array.push(allocator, node);
+
+                if (node.left) |left| {
+                    try stack.push(allocator, left);
+                }
+                if (node.right) |right| {
+                    try stack.push(allocator, right);
+                }
+            }
+
+            return array.copyToSlice(allocator);
+        }
+
+        const OuterThis = @This();
+        pub const Iterator = struct {
+            allocator: Allocator,
+            stack: Stack(Value),
+
+            pub fn next(self: *@This()) *const Value {
+                _ = self;
+            }
+        };
+
+        pub fn iterator(self: @This(), allocator: Allocator) Iterator {
+            var stack = Stack(Value).init();
+            if (self.root) |root| {
+                stack.push(root);
+            }
+
+            return .{
+                .allocator = allocator,
+                .stack = stack,
+            };
         }
     };
 }
@@ -145,4 +264,13 @@ test AvlTree {
     try t.insert(a, 5);
 
     try lib.assert.expectEqual(t.count(a), 3);
+    try lib.assert.expectEqual(t.countRecursive(), 3);
+
+    // try lib.assert.expectEqual(t.height(), 2);
+
+    const slice = try t.copyToSlice(a);
+    for (slice) |item| {
+        std.debug.print("{}", .{item});
+    }
+    a.free(slice);
 }

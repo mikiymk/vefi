@@ -5,7 +5,7 @@ test {
     std.testing.refAllDecls(@This());
 }
 
-pub const integer = struct {};
+pub const integer = @import("math/integer.zig");
 pub const big_integer = struct {};
 pub const ratio = struct {};
 pub const fixed_point = struct {};
@@ -21,3 +21,11 @@ pub const Order = enum {
     /// left < right
     less_than,
 };
+
+pub fn absDiff(left: anytype, right: @TypeOf(left)) lib.types.Integer.Unsigned(@TypeOf(left)) {
+    if (left > right) {
+        return left - right;
+    } else {
+        return right - left;
+    }
+}

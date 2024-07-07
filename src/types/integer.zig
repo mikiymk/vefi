@@ -9,18 +9,6 @@ pub const Options = struct {
     sign: Sign,
     bits: u16,
 
-    pub const Sign = enum(u1) {
-        signed,
-        unsigned,
-
-        pub fn toBuiltin(self: @This()) std.builtin.Signedness {
-            return switch (self) {
-                .signed => .signed,
-                .unsigned => .unsigned,
-            };
-        }
-    };
-
     pub fn toBuiltin(self: @This()) std.builtin.Type {
         return .{ .Int = .{
             .signedness = self.sign.toBuiltin(),
@@ -29,17 +17,49 @@ pub const Options = struct {
     }
 };
 
+pub const Sign = enum(u1) {
+    signed,
+    unsigned,
+
+    pub fn toBuiltin(self: @This()) std.builtin.Signedness {
+        return switch (self) {
+            .signed => .signed,
+            .unsigned => .unsigned,
+        };
+    }
+};
+
 /// 符号とビット数から整数型を返します。
-pub fn Integer(sign: Options.Sign, bits: u16) type {
+pub fn Integer(sign: Sign, bits: u16) type {
     return @Type(.{ .Int = .{
         .signedness = sign.toBuiltin(),
         .bits = bits,
     } });
 }
 
-test "符号とビットサイズから整数型を作成する" {
+test Integer {
     const IntType: type = Integer(.signed, 16);
     try lib.assert.expectEqual(IntType, i16);
+}
+
+/// 整数型を受け取り、同じビット数の符号あり整数を返します。
+pub fn Signed(Number: type) type {
+    return Integer(.signed, @bitSizeOf(Number));
+}
+
+test Signed {
+    try lib.assert.expectEqual(Signed(usize), isize);
+    try lib.assert.expectEqual(Signed(isize), isize);
+}
+
+/// 整数型を受け取り、同じビット数の符号なし整数を返します。
+pub fn Unsigned(Number: type) type {
+    return Integer(.unsigned, @bitSizeOf(Number));
+}
+
+test Unsigned {
+    try lib.assert.expectEqual(Unsigned(usize), usize);
+    try lib.assert.expectEqual(Unsigned(isize), usize);
 }
 
 /// 型が整数かどうかを判定します。
