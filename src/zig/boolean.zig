@@ -182,7 +182,7 @@ test equal {
 /// true == true;
 /// true > false;
 /// ```
-pub fn compare(x: bool, y: bool) lib.common.Order {
+pub fn compare(x: bool, y: bool) lib.math.Order {
     if (x == y) {
         return .equal;
     } else if (x) {

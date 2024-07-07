@@ -99,22 +99,7 @@ pub fn DynamicArray(T: type) type {
 
         /// メモリを再確保して配列の長さを拡張する。
         fn extendSize(self: *@This(), allocator: Allocator) AllocatorError!void {
-            const initial_size = 8;
-            const extend_factor = 2;
-
-            const old_length = self.value.len;
-            const new_length = if (old_length == 0)
-                initial_size
-            else
-                old_length * extend_factor;
-
-            var old_values = self.value;
-            var new_values = try allocator.alloc(T, new_length);
-
-            @memcpy(new_values[0..self.size], old_values[0..self.size]);
-
-            allocator.free(old_values);
-            self.value = new_values;
+            self.value = try lib.collection.extendSize(allocator, self.value);
         }
     };
 }

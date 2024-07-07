@@ -12,3 +12,9 @@ pub const fixed_point = struct {};
 pub const float_point = @import("math/float_point.zig");
 pub const big_float_point = struct {};
 pub const complex = struct {};
+
+pub const Order = enum {
+    equal,
+    greater_than,
+    less_than,
+};

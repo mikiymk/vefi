@@ -5,7 +5,7 @@ test {
     std.testing.refAllDecls(@This());
 }
 
-pub fn Map(K: type, V: type) type {
+pub fn HashTable(K: type, V: type) type {
     return struct {
         pub const Key = K;
         pub const Value = V;

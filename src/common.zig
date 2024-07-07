@@ -133,9 +133,3 @@ pub fn equal(left: anytype, right: @TypeOf(left)) bool {
         else => return left == right,
     }
 }
-
-pub const Order = enum {
-    equal,
-    greater_than,
-    less_than,
-};

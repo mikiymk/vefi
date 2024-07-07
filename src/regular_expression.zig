@@ -6,12 +6,11 @@ test {
 }
 
 const Allocator = lib.allocator.Allocator;
-const DynamicArray = lib.collection.dynamic_array.DynamicArray(usize);
 const Slice = lib.types.Slice;
 
 pub const NondeterministicTransitions = struct {
     current_state: usize,
-    input: u8,
+    input: ?u8,
 
     next_state: []const usize,
 };
@@ -32,7 +31,11 @@ pub const NondeterministicFiniteAutomaton = struct {
         return null;
     }
 
+    // breadth first
+    // depth first
     pub fn accepts(self: @This(), a: Allocator, string: []const u8) Allocator.Error!bool {
+        const DynamicArray = lib.collection.dynamic_array.DynamicArray(usize);
+
         var states = DynamicArray.init();
         defer states.deinit(a);
 
@@ -40,6 +43,7 @@ pub const NondeterministicFiniteAutomaton = struct {
 
         for (string) |c| {
             var next_states = DynamicArray.init();
+
             for (states.asSlice()) |state| {
                 const state_next_states = self.getTransition(state, c) orelse continue;
                 for (state_next_states) |state_next_state| {
@@ -65,21 +69,41 @@ pub const NondeterministicFiniteAutomaton = struct {
 
 test NondeterministicFiniteAutomaton {
     const allocator = std.testing.allocator;
-    const nfa = NondeterministicFiniteAutomaton{
-        .transitions = &.{
-            .{ .current_state = 0, .input = '0', .next_state = &.{0} },
-            .{ .current_state = 0, .input = '1', .next_state = &.{1} },
-            .{ .current_state = 1, .input = '0', .next_state = &.{0} },
-            .{ .current_state = 1, .input = '1', .next_state = &.{1} },
-        },
-        .accept_states = &.{1},
-    };
+    {
+        const nfa = NondeterministicFiniteAutomaton{
+            .transitions = &.{
+                .{ .current_state = 0, .input = '0', .next_state = &.{0} },
+                .{ .current_state = 0, .input = '1', .next_state = &.{1} },
+                .{ .current_state = 1, .input = '0', .next_state = &.{0} },
+                .{ .current_state = 1, .input = '1', .next_state = &.{1} },
+            },
+            .accept_states = &.{1},
+        };
 
-    try lib.assert.expect(!(try nfa.accepts(allocator, "0")));
-    try lib.assert.expect(try nfa.accepts(allocator, "1"));
-    try lib.assert.expect(try nfa.accepts(allocator, "01"));
-    try lib.assert.expect(!(try nfa.accepts(allocator, "10")));
-    try lib.assert.expect(try nfa.accepts(allocator, "01100101"));
+        try lib.assert.expect(!(try nfa.accepts(allocator, "0")));
+        try lib.assert.expect(try nfa.accepts(allocator, "1"));
+        try lib.assert.expect(try nfa.accepts(allocator, "01"));
+        try lib.assert.expect(!(try nfa.accepts(allocator, "10")));
+        try lib.assert.expect(try nfa.accepts(allocator, "01100101"));
+    }
+
+    // {
+    //     const nfa = NondeterministicFiniteAutomaton{
+    //         .transitions = &.{
+    //             .{ .current_state = 0, .input = 'a', .next_state = &.{ 1, 2 } },
+    //             .{ .current_state = 1, .input = 'b', .next_state = &.{2} },
+    //             .{ .current_state = 2, .input = null, .next_state = &.{0} },
+    //         },
+    //         .accept_states = &.{2},
+    //     };
+
+    //     try lib.assert.expect(!(try nfa.accepts(allocator, "a")));
+    //     try lib.assert.expect(try nfa.accepts(allocator, "ab"));
+    //     try lib.assert.expect(try nfa.accepts(allocator, "aba"));
+    //     try lib.assert.expect(!(try nfa.accepts(allocator, "b")));
+    //     try lib.assert.expect(!(try nfa.accepts(allocator, "abb")));
+    //     try lib.assert.expect(try nfa.accepts(allocator, "abaaa"));
+    // }
 }
 
 pub const RegularExpression = union(enum) {

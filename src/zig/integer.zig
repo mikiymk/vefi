@@ -1519,7 +1519,7 @@ test equal {
 
 /// 2つの整数を比較します。
 /// 左辺値が右辺値より大きいかどうかを判定します。
-pub fn compare(T: type, left: T, right: T) lib.common.Order {
+pub fn compare(T: type, left: T, right: T) lib.math.Order {
     if (left == right) {
         return .equal;
     } else if (left > right) {
