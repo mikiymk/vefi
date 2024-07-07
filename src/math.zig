@@ -14,7 +14,10 @@ pub const big_float_point = struct {};
 pub const complex = struct {};
 
 pub const Order = enum {
+    /// left == right
     equal,
+    /// left > right
     greater_than,
+    /// left < right
     less_than,
 };
