@@ -18,8 +18,7 @@ pub const queue = @import("collection/queue.zig");
 pub const priority_queue = struct {};
 pub const double_ended_queue = struct {};
 
-pub const tree = struct {};
-pub const avl_tree = @import("collection/avl_tree.zig");
+pub const tree = @import("collection/tree.zig");
 pub const heap = struct {};
 
 pub const hash_table = @import("collection/hash_table.zig");

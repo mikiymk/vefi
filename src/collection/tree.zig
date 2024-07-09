@@ -90,11 +90,7 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
         /// 木の高さを数える。
         /// ルートノードがない場合、0を返す。
         pub fn height(self: @This()) usize {
-            if (self.root) |r| {
-                return heightNode(r) + 1;
-            } else {
-                return 0;
-            }
+            return heightNode(self.root);
         }
 
         fn heightNode(node: ?*Node) usize {
@@ -113,10 +109,60 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
         }
 
         fn rotateRightNode(node: *Node) void {
-            var pivot = node.left orelse return; // なければ終了
-            node.left = pivot.right;
-            pivot.right = node;
+            var pivot = node.right orelse return; // なければ終了
+
+            node.right = pivot.left;
+
+            pivot.left = node;
+
             node.* = pivot.*;
+        }
+
+        test rotateRightNode {
+            var n: Node = .{ .item = 1 };
+            var ln: Node = .{ .item = 2 };
+            var rn: Node = .{ .item = 3 };
+            var lln: Node = .{ .item = 4 };
+            var lrn: Node = .{ .item = 5 };
+            var rln: Node = .{ .item = 6 };
+            var rrn: Node = .{ .item = 7 };
+
+            n.left = &ln;
+            n.right = &rn;
+            ln.left = &lln;
+            ln.right = &lrn;
+            rn.left = &rln;
+            rn.right = &rrn;
+
+            const n_ref = &n;
+
+            try lib.assert.expectEqual(n_ref.item, 1);
+            try lib.assert.expectEqual(n_ref.left.?.item, 2);
+            try lib.assert.expectEqual(n_ref.right.?.item, 3);
+            try lib.assert.expectEqual(n_ref.left.?.left.?.item, 4);
+            try lib.assert.expectEqual(n_ref.left.?.right.?.item, 5);
+            try lib.assert.expectEqual(n_ref.right.?.left.?.item, 6);
+            try lib.assert.expectEqual(n_ref.right.?.right.?.item, 7);
+
+            rotateRightNode(&n);
+
+            try lib.assert.expectEqual(n_ref.item, 2);
+            try lib.assert.expectEqual(n_ref.left.?.item, 4);
+            try lib.assert.expectEqual(n_ref.right.?.item, 1);
+            try lib.assert.expectEqual(n_ref.right.?.left.?.item, 5);
+            try lib.assert.expectEqual(n_ref.right.?.right.?.item, 3);
+            try lib.assert.expectEqual(n_ref.right.?.right.?.left.?.item, 6);
+            try lib.assert.expectEqual(n_ref.right.?.right.?.right.?.item, 7);
+
+            rotateLeftNode(&n);
+
+            try lib.assert.expectEqual(n_ref.item, 1);
+            try lib.assert.expectEqual(n_ref.left.?.item, 2);
+            try lib.assert.expectEqual(n_ref.right.?.item, 3);
+            try lib.assert.expectEqual(n_ref.left.?.left.?.item, 4);
+            try lib.assert.expectEqual(n_ref.left.?.right.?.item, 5);
+            try lib.assert.expectEqual(n_ref.right.?.left.?.item, 6);
+            try lib.assert.expectEqual(n_ref.right.?.right.?.item, 7);
         }
 
         pub fn find(self: @This(), allocator: Allocator, item: Value) *Value {
@@ -139,24 +185,20 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
             }
         }
 
-        fn insertNode(node: *Node, new_node: *Node) bool {
+        fn insertNode(node: *Node, new_node: *Node) void {
             const order = compare_fn(new_node.item, node.item);
 
             switch (order) {
                 .less_than => {
                     if (node.left) |left| {
-                        if (insertNode(left, new_node)) {
-                            return true;
-                        }
+                        insertNode(left, new_node);
                     } else {
                         node.left = new_node;
                     }
                 },
                 .equal, .greater_than => {
                     if (node.right) |right| {
-                        if (insertNode(right, new_node)) {
-                            return true;
-                        }
+                        insertNode(right, new_node);
                     } else {
                         node.right = new_node;
                     }
@@ -186,11 +228,7 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
 
                     rotateLeftNode(node);
                 }
-
-                return true;
             }
-
-            return false;
         }
 
         pub fn delete(self: *@This(), item: Value) void {
@@ -243,6 +281,14 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
                 .stack = stack,
             };
         }
+
+        pub fn dump(self: @This(), allocator: Allocator) Allocator.Error!void {
+            const slice = try self.copyToSlice(allocator);
+            for (slice) |item| {
+                std.debug.print("{}", .{item});
+            }
+            allocator.free(slice);
+        }
     };
 }
 
@@ -268,9 +314,4 @@ test AvlTree {
 
     // try lib.assert.expectEqual(t.height(), 2);
 
-    const slice = try t.copyToSlice(a);
-    for (slice) |item| {
-        std.debug.print("{}", .{item});
-    }
-    a.free(slice);
 }
