@@ -1,6 +1,5 @@
-//! AVL木
-//! Adelson-Velskii and Landis' tree
-//! Georgy Adelson-VelskyとEvgenii Landisによって考えられた、平衡二分探索木
+//! 木構造
+//! 
 
 const std = @import("std");
 const lib = @import("../root.zig");
@@ -14,6 +13,9 @@ const Order = lib.math.Order;
 const DynamicArray = lib.collection.dynamic_array.DynamicArray;
 const Stack = lib.collection.stack.Stack;
 
+/// AVL木
+/// Adelson-Velskii and Landis' tree
+/// Georgy Adelson-VelskyとEvgenii Landisによって考えられた、平衡二分探索木
 pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
     return struct {
         pub const Value = T;
