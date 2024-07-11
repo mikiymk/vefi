@@ -103,38 +103,38 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
             return @max(left, right);
         }
 
-        fn rotateLeftNode(node_ref: **Node) void {
-            //   node       node
-            //    \          \
+        fn rotateLeftNode(node: *Node) void {
             //     a          b
             //    / \        / \
             //   b   C ->   A   a
             //  / \            / \
             // A   B          B   C
-            var node = node_ref.*;
+            var a = node.*;
+            const b_ref = a.left orelse return;
+            var b = b_ref.*;
 
-            var pivot = node.left orelse return;
-            node.left = pivot.right;
-            pivot.right = node;
+            a.left = b.right;
+            b.right = b_ref;
 
-            node_ref.* = pivot;
+            node.* = b;
+            b_ref.* = a;
         }
 
-        fn rotateRightNode(node_ref: **Node) void {
-            // node         node
-            //  \            \
+        fn rotateRightNode(node: *Node) void {
             //   a            b
             //  / \          / \
             // A   b   ->   a   C
             //    / \      / \
             //   B   C    A   B
-            var node = node_ref.*;
+            var a = node.*;
+            const b_ref = a.right orelse return;
+            var b = b_ref.*;
 
-            var pivot = node.right orelse return;
-            node.right = pivot.left;
-            pivot.left = node;
+            a.right = b.left;
+            b.left = b_ref;
 
-            node_ref.* = pivot;
+            node.* = b;
+            b_ref.* = a;
         }
 
         test rotateRightNode {
@@ -159,7 +159,7 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
             rn.left = &rln;
             rn.right = &rrn;
 
-            var n_ref = &n;
+            const n_ref = &n;
 
             try lib.assert.expectEqual(n_ref.item, 1);
             try lib.assert.expectEqual(n_ref.left.?.item, 2);
@@ -176,7 +176,7 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
             // 4   5 6   7      2   6
             //                 / \
             //                4   5
-            rotateRightNode(&n_ref);
+            rotateRightNode(n_ref);
 
             try lib.assert.expectEqual(n_ref.item, 3);
             try lib.assert.expectEqual(n_ref.left.?.item, 1);
@@ -193,7 +193,7 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
             //   2   6      4   5 6   7
             //  / \
             // 4   5
-            rotateLeftNode(&n_ref);
+            rotateLeftNode(n_ref);
 
             try lib.assert.expectEqual(n_ref.item, 1);
             try lib.assert.expectEqual(n_ref.left.?.item, 2);
@@ -341,10 +341,6 @@ test AvlTree {
     }.f);
     const a = std.testing.allocator;
 
-    if (true) {
-        return;
-    }
-
     var t = T.init();
     defer t.deinit(a);
 
@@ -352,9 +348,8 @@ test AvlTree {
     try t.insert(a, 4);
     try t.insert(a, 5);
 
-    try lib.assert.expectEqual(t.countRecursive(), 3);
     try lib.assert.expectEqual(t.count(a), 3);
+    try lib.assert.expectEqual(t.countRecursive(), 3);
 
     // try lib.assert.expectEqual(t.height(), 2);
-
 }
