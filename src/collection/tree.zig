@@ -1,5 +1,5 @@
 //! 木構造
-//! 
+//!
 
 const std = @import("std");
 const lib = @import("../root.zig");
@@ -103,52 +103,38 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
             return @max(left, right);
         }
 
-        fn rotateLeftNode(node: **Node) void {
+        fn rotateLeftNode(node_ref: **Node) void {
+            //   node       node
+            //    \          \
             //     a          b
             //    / \        / \
             //   b   C ->   A   a
             //  / \            / \
             // A   B          B   C
-            var a: *Node = node.*;
-            var b: *Node = node.*.left orelse return;
-            const A: ?*Node = b.left;
-            const B: ?*Node = b.right;
-            const C: ?*Node = a.right;
+            var node = node_ref.*;
 
-            // pivot = node.left;
-            // node.left = pivot.right;
-            // pivot.right = node;
+            var pivot = node.left orelse return;
+            node.left = pivot.right;
+            pivot.right = node;
 
-            a.left = B;
-            a.right = C;
-            b.left = A;
-            b.right = a;
-
-            node.* = b;
+            node_ref.* = pivot;
         }
 
-        fn rotateRightNode(node: **Node) void {
+        fn rotateRightNode(node_ref: **Node) void {
+            // node         node
+            //  \            \
             //   a            b
             //  / \          / \
             // A   b   ->   a   C
             //    / \      / \
             //   B   C    A   B
-            var a: *Node = node.*;
-            var b: *Node = node.*.right orelse return;
-            const A: ?*Node = a.left;
-            const B: ?*Node = b.left;
-            const C: ?*Node = b.right;
+            var node = node_ref.*;
 
-            // pivot = node.left;
-            // node.left = pivot.right;
-            // pivot.right = node;
+            var pivot = node.right orelse return;
+            node.right = pivot.left;
+            pivot.left = node;
 
-            a.left = A;
-            a.right = B;
-            b.left = a;
-            b.right = C;
-
-            node.* = b;
+            node_ref.* = pivot;
         }
 
         test rotateRightNode {
