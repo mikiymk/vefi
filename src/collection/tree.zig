@@ -103,12 +103,20 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
             return @max(left, right);
         }
 
-        fn rotateLeftNode(node: *Node) void {
-            //     a          b
-            //    / \        / \
-            //   b   C ->   A   a
-            //  / \            / \
-            // A   B          B   C
+        /// 平衡係数 = 左の部分木の高さ - 右の部分木の高さ。
+        /// 左が高いと正の数、右が高いと負の数になる。
+        fn balanceFactorNode(node: *Node) isize {
+            const left = heightNode(node.left);
+            const right = heightNode(node.right);
+            return @bitCast(left -% right);
+        }
+
+        ///         a          b
+        ///        / \        / \
+        ///       b   C ->   A   a
+        ///      / \            / \
+        ///     A   B          B   C
+        fn rotateRightNode(node: *Node) void {
             var a = node.*;
             const b_ref = a.left orelse return;
             var b = b_ref.*;
@@ -120,12 +128,12 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
             b_ref.* = a;
         }
 
-        fn rotateRightNode(node: *Node) void {
-            //   a            b
-            //  / \          / \
-            // A   b   ->   a   C
-            //    / \      / \
-            //   B   C    A   B
+        ///       a            b
+        ///      / \          / \
+        ///     A   b   ->   a   C
+        ///        / \      / \
+        ///       B   C    A   B
+        fn rotateLeftNode(node: *Node) void {
             var a = node.*;
             const b_ref = a.right orelse return;
             var b = b_ref.*;
@@ -137,7 +145,7 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
             b_ref.* = a;
         }
 
-        test rotateRightNode {
+        test rotateLeftNode {
             //      1
             //     / \
             //   2     3
@@ -176,7 +184,7 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
             // 4   5 6   7      2   6
             //                 / \
             //                4   5
-            rotateRightNode(n_ref);
+            rotateLeftNode(n_ref);
 
             try lib.assert.expectEqual(n_ref.item, 3);
             try lib.assert.expectEqual(n_ref.left.?.item, 1);
@@ -193,7 +201,7 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
             //   2   6      4   5 6   7
             //  / \
             // 4   5
-            rotateLeftNode(n_ref);
+            rotateRightNode(n_ref);
 
             try lib.assert.expectEqual(n_ref.item, 1);
             try lib.assert.expectEqual(n_ref.left.?.item, 2);
@@ -225,6 +233,7 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
         }
 
         fn insertNode(node: *Node, new_node: *Node) void {
+            // bst insertion
             const order = compare_fn(new_node.item, node.item);
 
             switch (order) {
@@ -244,29 +253,33 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
                 },
             }
 
-            const left_height = heightNode(node.left);
-            const right_height = heightNode(node.right);
-            const diff = lib.math.absDiff(left_height, right_height);
-            if (diff > 1) {
-                if (left_height > right_height) {
-                    const left = node.left orelse unreachable;
-                    const left_left_height = heightNode(left.left);
-                    const left_right_height = heightNode(left.right);
-                    if (left_left_height < left_right_height) {
-                        rotateLeftNode(left);
-                    }
+            // rebalance
+            const bf = balanceFactorNode(node);
 
-                    rotateRightNode(node);
-                } else {
-                    const right = node.right orelse unreachable;
-                    const right_left_height = heightNode(right.left);
-                    const right_right_height = heightNode(right.right);
-                    if (right_left_height > right_right_height) {
-                        rotateRightNode(right);
-                    }
+            if (1 < bf) { // 左が2以上高い
+                //     n      l
+                //    /      / \
+                //   l   -> c   n
+                //  /
+                // c
+                const left = node.left orelse unreachable;
 
-                    rotateLeftNode(node);
+                if (balanceFactorNode(left) < 0) {
+                    rotateLeftNode(left);
                 }
+                rotateRightNode(node);
+            } else if (bf < -1) { // 右が2以上高い
+                //     n      l
+                //    /      / \
+                //   l   -> c   n
+                //  /
+                // c
+                const right = node.right orelse unreachable;
+
+                if (balanceFactorNode(right) > 0) {
+                    rotateRightNode(right);
+                }
+                rotateLeftNode(node);
             }
         }
 
@@ -350,6 +363,12 @@ test AvlTree {
 
     try lib.assert.expectEqual(t.count(a), 3);
     try lib.assert.expectEqual(t.countRecursive(), 3);
+    try lib.assert.expectEqual(t.height(), 2);
 
-    // try lib.assert.expectEqual(t.height(), 2);
+    try t.insert(a, 2);
+    try t.insert(a, 1);
+
+    try lib.assert.expectEqual(t.count(a), 5);
+    try lib.assert.expectEqual(t.countRecursive(), 5);
+    try lib.assert.expectEqual(t.height(), 3);
 }
