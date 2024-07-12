@@ -9,6 +9,7 @@ test {
 }
 
 const Allocator = lib.allocator.Allocator;
+const Optional = lib.types.Optional;
 const Order = lib.math.Order;
 const DynamicArray = lib.collection.dynamic_array.DynamicArray;
 const Stack = lib.collection.stack.Stack;
@@ -23,9 +24,216 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
         pub const Node = struct {
             item: T,
 
-            left: ?*Node = null,
-            right: ?*Node = null,
+            left: ?*@This() = null,
+            right: ?*@This() = null,
 
+            /// 再帰的に部分木の破棄を行います。
+            fn deinit(self: *@This(), allocator: Allocator) void {
+                if (self.left) |left| {
+                    left.deinit(allocator);
+                    allocator.destroy(left);
+                }
+
+                if (self.right) |right| {
+                    right.deinit(allocator);
+                    allocator.destroy(right);
+                }
+            }
+
+            /// 自身とその部分木のノード数を数えます。
+            fn count(node: *Node) usize {
+                var c: usize = 1;
+
+                if (node.left) |left| c += left.count();
+                if (node.right) |right| c += right.count();
+
+                return c;
+            }
+
+            /// 自身から葉までの最長の距離を数えます。
+            fn height(node: *Node) usize {
+                const left = if (node.left) |left| left.height() else 0;
+                const right = if (node.right) |right| right.height() else 0;
+
+                return @max(left, right) + 1;
+            }
+
+            /// 平衡係数 = 左の部分木の高さ - 右の部分木の高さ。
+            /// 左が高いと正の数、右が高いと負の数になる。
+            fn balanceFactor(node: *Node) isize {
+                const left = if (node.left) |left| left.height() else 0;
+                const right = if (node.right) |right| right.height() else 0;
+
+                return @bitCast(left -% right);
+            }
+
+            ///         a          b
+            ///        / \        / \
+            ///       b   C ->   A   a
+            ///      / \            / \
+            ///     A   B          B   C
+            fn rotateRight(node: *Node) void {
+                var a = node.*;
+                const b_ref = a.left orelse return;
+                var b = b_ref.*;
+
+                a.left = b.right;
+                b.right = b_ref;
+
+                node.* = b;
+                b_ref.* = a;
+            }
+
+            ///       a            b
+            ///      / \          / \
+            ///     A   b   ->   a   C
+            ///        / \      / \
+            ///       B   C    A   B
+            fn rotateLeft(node: *Node) void {
+                var a = node.*;
+                const b_ref = a.right orelse return;
+                var b = b_ref.*;
+
+                a.right = b.left;
+                b.left = b_ref;
+
+                node.* = b;
+                b_ref.* = a;
+            }
+
+            test rotateLeft {
+                //      1
+                //     / \
+                //   2     3
+                //  / \   / \
+                // 4   5 6   7
+
+                var n: Node = .{ .item = 1 };
+                var ln: Node = .{ .item = 2 };
+                var rn: Node = .{ .item = 3 };
+                var lln: Node = .{ .item = 4 };
+                var lrn: Node = .{ .item = 5 };
+                var rln: Node = .{ .item = 6 };
+                var rrn: Node = .{ .item = 7 };
+
+                n.left = &ln;
+                n.right = &rn;
+                ln.left = &lln;
+                ln.right = &lrn;
+                rn.left = &rln;
+                rn.right = &rrn;
+
+                const n_ref = &n;
+
+                try lib.assert.expectEqual(n_ref.item, 1);
+                try lib.assert.expectEqual(n_ref.left.?.item, 2);
+                try lib.assert.expectEqual(n_ref.right.?.item, 3);
+                try lib.assert.expectEqual(n_ref.left.?.left.?.item, 4);
+                try lib.assert.expectEqual(n_ref.left.?.right.?.item, 5);
+                try lib.assert.expectEqual(n_ref.right.?.left.?.item, 6);
+                try lib.assert.expectEqual(n_ref.right.?.right.?.item, 7);
+
+                //      1               3
+                //     / \             / \
+                //   2     3   ->     1   7
+                //  / \   / \        / \
+                // 4   5 6   7      2   6
+                //                 / \
+                //                4   5
+                rotateLeft(n_ref);
+
+                try lib.assert.expectEqual(n_ref.item, 3);
+                try lib.assert.expectEqual(n_ref.left.?.item, 1);
+                try lib.assert.expectEqual(n_ref.right.?.item, 7);
+                try lib.assert.expectEqual(n_ref.left.?.left.?.item, 2);
+                try lib.assert.expectEqual(n_ref.left.?.right.?.item, 6);
+                try lib.assert.expectEqual(n_ref.left.?.left.?.left.?.item, 4);
+                try lib.assert.expectEqual(n_ref.left.?.left.?.right.?.item, 5);
+
+                //       3           1
+                //      / \         / \
+                //     1   7 ->   2     3
+                //    / \        / \   / \
+                //   2   6      4   5 6   7
+                //  / \
+                // 4   5
+                rotateRight(n_ref);
+
+                try lib.assert.expectEqual(n_ref.item, 1);
+                try lib.assert.expectEqual(n_ref.left.?.item, 2);
+                try lib.assert.expectEqual(n_ref.right.?.item, 3);
+                try lib.assert.expectEqual(n_ref.left.?.left.?.item, 4);
+                try lib.assert.expectEqual(n_ref.left.?.right.?.item, 5);
+                try lib.assert.expectEqual(n_ref.right.?.left.?.item, 6);
+                try lib.assert.expectEqual(n_ref.right.?.right.?.item, 7);
+            }
+
+            /// ノードを挿入し、再バランスをとる。
+            /// 再バランス操作が済んでいる場合、trueを返す。
+            fn insertNode(node: *Node, new_node: *Node) bool {
+                // 二分平衡木の挿入
+                const order = compare_fn(new_node.item, node.item);
+
+                switch (order) {
+                    .less_than => {
+                        if (node.left) |left| {
+                            if (left.insertNode(new_node)) {
+                                return true;
+                            }
+                        } else {
+                            node.left = new_node;
+                        }
+                    },
+                    .equal, .greater_than => {
+                        if (node.right) |right| {
+                            if (right.insertNode(new_node)) {
+                                return true;
+                            }
+                        } else {
+                            node.right = new_node;
+                        }
+                    },
+                }
+
+                // 再バランス
+                const bf = node.balanceFactor();
+
+                if (1 < bf) { // 左が2以上高い
+                    const left = node.left orelse unreachable;
+
+                    if (left.balanceFactor() < 0) {
+                        left.rotateLeft();
+                    }
+                    node.rotateRight();
+
+                    return true;
+                } else if (bf < -1) { // 右が2以上高い
+                    const right = node.right orelse unreachable;
+
+                    if (right.balanceFactor() > 0) {
+                        right.rotateRight();
+                    }
+                    node.rotateLeft();
+
+                    return true;
+                }
+
+                return false;
+            }
+
+            fn copyToSliceNode(node: *Node, allocator: Allocator, array: *DynamicArray(Value)) Allocator.Error!void {
+                if (node.left) |left| {
+                    try left.copyToSliceNode(allocator, array);
+                }
+
+                try array.push(allocator, node.item);
+
+                if (node.right) |right| {
+                    try right.copyToSliceNode(allocator, array);
+                }
+            }
+
+            /// 読みやすい文字列にフォーマットします。
             pub fn format(value: @This(), comptime fmt: []const u8, options: std.fmt.FormatOptions, writer: anytype) !void {
                 _ = fmt;
                 _ = options;
@@ -39,19 +247,15 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
         };
 
         root: ?*Node = null,
+
         pub fn init() @This() {
             return .{};
         }
 
         pub fn deinit(self: *@This(), allocator: Allocator) void {
-            deinitNode(allocator, self.root);
-        }
-
-        fn deinitNode(allocator: Allocator, node: ?*Node) void {
-            if (node) |n| {
-                deinitNode(allocator, n.left);
-                deinitNode(allocator, n.right);
-                allocator.destroy(n);
+            if (self.root) |root| {
+                root.deinit(allocator);
+                allocator.destroy(root);
             }
         }
 
@@ -78,142 +282,16 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
         }
 
         pub fn countRecursive(self: @This()) usize {
-            return countNode(self.root);
-        }
-
-        fn countNode(node: ?*Node) usize {
-            if (node) |n| {
-                return 1 + countNode(n.left) + countNode(n.right);
-            } else {
-                return 0;
-            }
+            return if (self.root) |root| root.count() else 0;
         }
 
         /// 木の高さを数える。
         /// ルートノードがない場合、0を返す。
         pub fn height(self: @This()) usize {
-            return heightNode(self.root);
-        }
-
-        fn heightNode(node: ?*Node) usize {
-            const nnode = node orelse return 0;
-
-            const left = heightNode(nnode.left) + 1;
-            const right = heightNode(nnode.right) + 1;
-            return @max(left, right);
-        }
-
-        /// 平衡係数 = 左の部分木の高さ - 右の部分木の高さ。
-        /// 左が高いと正の数、右が高いと負の数になる。
-        fn balanceFactorNode(node: *Node) isize {
-            const left = heightNode(node.left);
-            const right = heightNode(node.right);
-            return @bitCast(left -% right);
-        }
-
-        ///         a          b
-        ///        / \        / \
-        ///       b   C ->   A   a
-        ///      / \            / \
-        ///     A   B          B   C
-        fn rotateRightNode(node: *Node) void {
-            var a = node.*;
-            const b_ref = a.left orelse return;
-            var b = b_ref.*;
-
-            a.left = b.right;
-            b.right = b_ref;
-
-            node.* = b;
-            b_ref.* = a;
-        }
-
-        ///       a            b
-        ///      / \          / \
-        ///     A   b   ->   a   C
-        ///        / \      / \
-        ///       B   C    A   B
-        fn rotateLeftNode(node: *Node) void {
-            var a = node.*;
-            const b_ref = a.right orelse return;
-            var b = b_ref.*;
-
-            a.right = b.left;
-            b.left = b_ref;
-
-            node.* = b;
-            b_ref.* = a;
-        }
-
-        test rotateLeftNode {
-            //      1
-            //     / \
-            //   2     3
-            //  / \   / \
-            // 4   5 6   7
-
-            var n: Node = .{ .item = 1 };
-            var ln: Node = .{ .item = 2 };
-            var rn: Node = .{ .item = 3 };
-            var lln: Node = .{ .item = 4 };
-            var lrn: Node = .{ .item = 5 };
-            var rln: Node = .{ .item = 6 };
-            var rrn: Node = .{ .item = 7 };
-
-            n.left = &ln;
-            n.right = &rn;
-            ln.left = &lln;
-            ln.right = &lrn;
-            rn.left = &rln;
-            rn.right = &rrn;
-
-            const n_ref = &n;
-
-            try lib.assert.expectEqual(n_ref.item, 1);
-            try lib.assert.expectEqual(n_ref.left.?.item, 2);
-            try lib.assert.expectEqual(n_ref.right.?.item, 3);
-            try lib.assert.expectEqual(n_ref.left.?.left.?.item, 4);
-            try lib.assert.expectEqual(n_ref.left.?.right.?.item, 5);
-            try lib.assert.expectEqual(n_ref.right.?.left.?.item, 6);
-            try lib.assert.expectEqual(n_ref.right.?.right.?.item, 7);
-
-            //      1               3
-            //     / \             / \
-            //   2     3   ->     1   7
-            //  / \   / \        / \
-            // 4   5 6   7      2   6
-            //                 / \
-            //                4   5
-            rotateLeftNode(n_ref);
-
-            try lib.assert.expectEqual(n_ref.item, 3);
-            try lib.assert.expectEqual(n_ref.left.?.item, 1);
-            try lib.assert.expectEqual(n_ref.right.?.item, 7);
-            try lib.assert.expectEqual(n_ref.left.?.left.?.item, 2);
-            try lib.assert.expectEqual(n_ref.left.?.right.?.item, 6);
-            try lib.assert.expectEqual(n_ref.left.?.left.?.left.?.item, 4);
-            try lib.assert.expectEqual(n_ref.left.?.left.?.right.?.item, 5);
-
-            //       3           1
-            //      / \         / \
-            //     1   7 ->   2     3
-            //    / \        / \   / \
-            //   2   6      4   5 6   7
-            //  / \
-            // 4   5
-            rotateRightNode(n_ref);
-
-            try lib.assert.expectEqual(n_ref.item, 1);
-            try lib.assert.expectEqual(n_ref.left.?.item, 2);
-            try lib.assert.expectEqual(n_ref.right.?.item, 3);
-            try lib.assert.expectEqual(n_ref.left.?.left.?.item, 4);
-            try lib.assert.expectEqual(n_ref.left.?.right.?.item, 5);
-            try lib.assert.expectEqual(n_ref.right.?.left.?.item, 6);
-            try lib.assert.expectEqual(n_ref.right.?.right.?.item, 7);
+            return if (self.root) |root| root.height() else 0;
         }
 
         pub fn find(self: @This(), allocator: Allocator, item: Value) *Value {
-            compare_fn;
             _ = self;
             _ = allocator;
             _ = item;
@@ -226,63 +304,10 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
             };
 
             if (self.root) |root| {
-                _ = insertNode(root, new_node);
+                _ = root.insertNode(new_node);
             } else {
                 self.root = new_node;
             }
-        }
-
-        /// ノードを挿入し、再バランスをとる。
-        /// 再バランス操作が済んでいる場合、trueを返す。
-        fn insertNode(node: *Node, new_node: *Node) bool {
-            // 二分平衡木の挿入
-            const order = compare_fn(new_node.item, node.item);
-
-            switch (order) {
-                .less_than => {
-                    if (node.left) |left| {
-                        if (insertNode(left, new_node)) {
-                            return true;
-                        }
-                    } else {
-                        node.left = new_node;
-                    }
-                },
-                .equal, .greater_than => {
-                    if (node.right) |right| {
-                        if (insertNode(right, new_node)) {
-                            return true;
-                        }
-                    } else {
-                        node.right = new_node;
-                    }
-                },
-            }
-
-            // 再バランス
-            const bf = balanceFactorNode(node);
-
-            if (1 < bf) { // 左が2以上高い
-                const left = node.left orelse unreachable;
-
-                if (balanceFactorNode(left) < 0) {
-                    rotateLeftNode(left);
-                }
-                rotateRightNode(node);
-
-                return true;
-            } else if (bf < -1) { // 右が2以上高い
-                const right = node.right orelse unreachable;
-
-                if (balanceFactorNode(right) > 0) {
-                    rotateRightNode(right);
-                }
-                rotateLeftNode(node);
-
-                return true;
-            }
-
-            return false;
         }
 
         pub fn delete(self: *@This(), item: Value) void {
@@ -290,25 +315,12 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
             _ = item;
         }
 
-        pub fn copyToSlice(self: @This(), allocator: Allocator) Allocator.Error![]const *Node {
-            var array = lib.collection.dynamic_array.DynamicArray(*Node).init();
+        pub fn copyToSlice(self: @This(), allocator: Allocator) Allocator.Error![]const Value {
+            var array = DynamicArray(Value).init();
             defer array.deinit(allocator);
 
-            var stack = Stack(*Node).init();
-            defer stack.deinit(allocator);
             if (self.root) |root| {
-                try stack.push(allocator, root);
-            }
-
-            while (stack.pop()) |node| {
-                try array.push(allocator, node);
-
-                if (node.left) |left| {
-                    try stack.push(allocator, left);
-                }
-                if (node.right) |right| {
-                    try stack.push(allocator, right);
-                }
+                try root.copyToSliceNode(allocator, &array);
             }
 
             return array.copyToSlice(allocator);
@@ -347,13 +359,7 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
 }
 
 test AvlTree {
-    const T = AvlTree(usize, struct {
-        pub fn f(l: usize, r: usize) Order {
-            if (l > r) return .greater_than;
-            if (l > r) return .less_than;
-            return .equal;
-        }
-    }.f);
+    const T = AvlTree(usize, lib.common.compare(usize));
     const a = std.testing.allocator;
 
     var t = T.init();
@@ -373,4 +379,8 @@ test AvlTree {
     try lib.assert.expectEqual(t.count(a), 5);
     try lib.assert.expectEqual(t.countRecursive(), 5);
     try lib.assert.expectEqual(t.height(), 3);
+
+    const slice = try t.copyToSlice(a);
+    defer a.free(slice);
+    try lib.assert.expectEqual(slice, &.{ 1, 2, 3, 4, 5 });
 }

@@ -133,3 +133,17 @@ pub fn equal(left: anytype, right: @TypeOf(left)) bool {
         else => return left == right,
     }
 }
+
+pub fn compare(T: type) fn (left: T, right: T) lib.math.Order {
+    return struct {
+        pub fn f(left: T, right: T) lib.math.Order {
+            const info = @typeInfo(T);
+
+            switch (info) {
+                .Int, .Float, .ComptimeInt, .ComptimeFloat => return lib.math.compare(left, right),
+
+                else => return left.compare(right),
+            }
+        }
+    }.f;
+}

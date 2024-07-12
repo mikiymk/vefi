@@ -22,6 +22,12 @@ pub const Order = enum {
     less_than,
 };
 
+pub fn compare(left: anytype, right: @TypeOf(left)) Order {
+    if (left > right) return .greater_than;
+    if (left < right) return .less_than;
+    return .equal;
+}
+
 pub fn absDiff(left: anytype, right: @TypeOf(left)) lib.types.Integer.Unsigned(@TypeOf(left)) {
     if (left > right) {
         return left - right;
