@@ -232,55 +232,57 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
             }
         }
 
-        fn insertNode(node: *Node, new_node: *Node) void {
-            // bst insertion
+        /// ノードを挿入し、再バランスをとる。
+        /// 再バランス操作が済んでいる場合、trueを返す。
+        fn insertNode(node: *Node, new_node: *Node) bool {
+            // 二分平衡木の挿入
             const order = compare_fn(new_node.item, node.item);
 
             switch (order) {
                 .less_than => {
                     if (node.left) |left| {
-                        insertNode(left, new_node);
+                        if (insertNode(left, new_node)) {
+                            return true;
+                        }
                     } else {
                         node.left = new_node;
                     }
                 },
                 .equal, .greater_than => {
                     if (node.right) |right| {
-                        insertNode(right, new_node);
+                        if (insertNode(right, new_node)) {
+                            return true;
+                        }
                     } else {
                         node.right = new_node;
                     }
                 },
             }
 
-            // rebalance
+            // 再バランス
             const bf = balanceFactorNode(node);
 
             if (1 < bf) { // 左が2以上高い
-                //     n      l
-                //    /      / \
-                //   l   -> c   n
-                //  /
-                // c
                 const left = node.left orelse unreachable;
 
                 if (balanceFactorNode(left) < 0) {
                     rotateLeftNode(left);
                 }
                 rotateRightNode(node);
+
+                return true;
             } else if (bf < -1) { // 右が2以上高い
-                //     n      l
-                //    /      / \
-                //   l   -> c   n
-                //  /
-                // c
                 const right = node.right orelse unreachable;
 
                 if (balanceFactorNode(right) > 0) {
                     rotateRightNode(right);
                 }
                 rotateLeftNode(node);
+
+                return true;
             }
+
+            return false;
         }
 
         pub fn delete(self: *@This(), item: Value) void {
