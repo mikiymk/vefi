@@ -18,10 +18,13 @@ test "parser interface" {
     try lib.assert.expect(ParserInterface.isImplements(Byte));
 }
 
+/// パース結果の型。
+/// 結果の値とパースしたバイト数をタプルで返す。
 pub fn Result(Value: type, Err: type) type {
     return (lib.allocator.AllocatorError || Err)!struct { Value, usize };
 }
 
+/// パーサーが出力する値の型を得る。
 fn ValueTypeOf(Parser: type) type {
     const info = @typeInfo(@TypeOf(Parser.parse));
     const return_error_union = @typeInfo(info.Fn.return_type.?);
@@ -29,6 +32,7 @@ fn ValueTypeOf(Parser: type) type {
     return return_type.Struct.fields[0].type;
 }
 
+/// パーサーの返すエラー集合型を得る。
 fn ErrorOf(Parser: type) type {
     const info = @typeInfo(@TypeOf(Parser.parse));
     const return_error_union = @typeInfo(info.Fn.return_type.?);
@@ -56,6 +60,40 @@ test byte {
     try lib.assert.expectEqual(parser.parse(allocator, bytes[0..]), .{ 0x01, 1 });
     try lib.assert.expectEqual(parser.parse(allocator, bytes[1..]), .{ 0x23, 1 });
     try lib.assert.expectEqual(parser.parse(allocator, bytes[8..]), error.ReachToEof);
+}
+
+pub const Integer(bytes: usize, sign: Sign) type {
+    return struct {
+        pub const Value = lib.types.Integer.Integer(bytes * 8, sign);
+        pub const Err = error{ReachToEof};
+
+        bytes: usize,
+        sign: Sign,
+        endian: Endian,
+
+        pub fn parse(self: @This(), _: Allocator, bytes: []const u8) Result(Value, Err) {
+            if (bytes.len < self.bytes) {
+                return error.ReachToEof;
+            }
+
+            var value: Value = 0;
+
+            for (bytes[0..self.bytes]) |byte| {
+                value = (value << 8) & byte;
+            }
+
+            if (os.endian != self.endian) {
+                mem.byteSwap(&value);
+            }
+
+            return .{ value, self.bytes };
+        }
+    };
+}
+
+/// 整数として読み込む。
+pub fn integer(bytes: usize, sign: Sign, endian: Endian) Integer(bytes, sign) {
+    return .{ .bytes = bytes, .sign = sign, .endian = endian };
 }
 
 fn Tuple(Value: type, Fields: type) type {
