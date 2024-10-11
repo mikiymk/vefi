@@ -60,6 +60,7 @@ pub fn DynamicArray(T: type) type {
             return @ptrCast(self.value.ptr + index);
         }
 
+        /// 配列の`N`番目に新しい要素を追加する。
         pub fn insert(self: *@This(), allocator: Allocator, index: usize, item: T) AllocatorError!void {
             if (self.value.len <= self.size) {
                 try self.extendSize(allocator);
@@ -75,6 +76,7 @@ pub fn DynamicArray(T: type) type {
             }
         }
 
+        /// 配列の`N`番目の要素を削除する。
         pub fn delete(self: *@This(), index: usize) ?T {
             const value = self.get(index) orelse return null;
 
@@ -86,10 +88,12 @@ pub fn DynamicArray(T: type) type {
             return value;
         }
 
+        /// 配列をスライスとして取得する。
         pub fn asSlice(self: @This()) []const T {
             return self.value[0..self.size];
         }
 
+        /// 配列を新しいスライスにコピーする。
         pub fn copyToSlice(self: @This(), allocator: Allocator) AllocatorError![]const T {
             var slice = try allocator.alloc(T, self.size);
             @memcpy(slice[0..self.size], self.value[0..self.size]);
