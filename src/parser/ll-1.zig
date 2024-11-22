@@ -13,3 +13,31 @@ pub fn init(grammer: Grammer) @This() {
         .director_sets = director_sets,
     };
 }
+
+pub fn parse(self: @This(), reader: Reader) AST {
+    var stack = Vec.init();
+    stack.push(END);
+    stack.push(START);
+
+    var output = Vec.init();
+
+    while (true) {
+        const top = stack.pop() orelse {
+            return error.StackPoppedOut;
+        };
+
+        switch (top) {
+            .non_term => {
+                
+            },
+            .term => {
+                const result = try reader.read(top);
+                output.push(result);
+            },
+            .end => {
+                 if (reader.end()) { break; }
+                 else { return error.Remain; }
+            },
+        }
+    }
+}
