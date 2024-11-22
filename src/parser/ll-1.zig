@@ -28,16 +28,38 @@ pub fn parse(self: @This(), reader: Reader) AST {
 
         switch (top) {
             .non_term => {
-                
+                const rule = grammer.getRule(top, reader.peek());
+                stack.appendList(rule.symbols.reversed());
+
+                output.push(rule);
             },
+
             .term => {
                 const result = try reader.read(top);
                 output.push(result);
             },
+
             .end => {
                  if (reader.end()) { break; }
                  else { return error.Remain; }
             },
         }
     }
+
+    var tree = Tree.init();
+    for (output.reversed()) |ident| {
+         switch (ident) {
+             .rule => {
+                 const branch = .{};
+                for 0..rule.length {
+                    child = tree.pop();
+                    branch.push(child);
+                }
+                tree.push(branch);
+             },
+             .ident => { tree.push(ident); },
+         }
+    }
+
+    return tree;
 }
