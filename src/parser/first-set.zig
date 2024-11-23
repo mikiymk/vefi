@@ -4,7 +4,9 @@ pub fn init() @This() {
     while (true) {
         var updated = false;
         for (grammer) |rule| {
-            updated = update(first_sets, rule, index) or updated;
+            prev_len = set.len;
+            update(first_sets, rule, index);
+            updated = updated or prev_len != set.len;
         }
 
         if (!updated) break;
@@ -13,13 +15,23 @@ pub fn init() @This() {
     return first_sets;
 }
 
-fn update() bool {
+fn update() void {
     set = first_sets.get(index);
+    if (rule.symbols.len == 0) {
+        set.append(empty);
+        return;
+    }
     for (rule.symbols, 0..) |symbol, i| {
         switch (symbol) {
-            .term => {},
-            .non_term => {},
-            .empty => {},
+            .term => {
+                set.append(symbol);
+                break;
+            },
+            .non_term => {
+                set.setUnion(getFirstSets(first_sets, symbol));
+                if (!set.has(empty)) break;
+                set.remove(empty);
+            },
         }
     }
 }
