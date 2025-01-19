@@ -8,6 +8,12 @@ test {
 const Allocator = lib.allocator.Allocator;
 const AllocatorError = lib.allocator.AllocatorError;
 
+const ArrayOptions = struct {
+    dynamic: bool,
+    circular: bool,
+    max_length: ?usize,
+};
+
 /// 動的配列
 pub fn DynamicArray(T: type) type {
     return struct {
