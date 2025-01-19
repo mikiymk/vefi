@@ -10,12 +10,18 @@ const AllocatorError = lib.allocator.AllocatorError;
 
 const ArrayOptions = struct {
     dynamic: bool,
-    circular: bool,
     max_length: ?usize,
 };
 
-/// 動的配列
-pub fn DynamicArray(T: type) type {
+/// 静的配列 (Static Array)
+pub fn SArray(T: type, size: usize, comptime options: SArrayOptions) type {
+    return struct {
+        value: [size]T,
+    };
+}
+
+/// 動的配列 (Dynamic Array)
+pub fn DArray(T: type, comptime options: DArrayOptions) type {
     return struct {
         value: []T,
         size: usize,
@@ -52,21 +58,21 @@ pub fn DynamicArray(T: type) type {
             return self.value[self.size];
         }
 
-        /// 配列の`N`番目の要素を返す。
+        /// 配列の`index`番目の要素を返す。
         /// `N`が配列の長さより大きい場合、nullを返す。
         pub fn get(self: @This(), index: usize) ?T {
             if (index >= self.size) return null;
             return self.value[index];
         }
 
-        /// 配列の`N`番目の要素を返す。
+        /// 配列の`index`番目の要素への参照を返す。
         /// `N`が配列の長さより大きい場合、nullを返す。
         pub fn getRef(self: @This(), index: usize) ?*T {
             if (index >= self.size) return null;
             return @ptrCast(self.value.ptr + index);
         }
 
-        /// 配列の`N`番目に新しい要素を追加する。
+        /// 配列の`index`番目に新しい要素を追加する。
         pub fn insert(self: *@This(), allocator: Allocator, index: usize, item: T) AllocatorError!void {
             if (self.value.len <= self.size) {
                 try self.extendSize(allocator);
@@ -82,7 +88,7 @@ pub fn DynamicArray(T: type) type {
             }
         }
 
-        /// 配列の`N`番目の要素を削除する。
+        /// 配列の`index`番目の要素を削除する。
         pub fn delete(self: *@This(), index: usize) ?T {
             const value = self.get(index) orelse return null;
 
