@@ -7,7 +7,7 @@ test {
 
 const Allocator = lib.allocator.Allocator;
 
-pub const dynamic_array = @import("collection/dynamic_array.zig");
+pub const array = @import("collection/array.zig");
 
 pub const list = @import("collection/list.zig");
 pub const doubly_list = struct {};
