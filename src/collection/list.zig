@@ -10,13 +10,21 @@ test {
 const Allocator = lib.allocator.Allocator;
 const AllocatorError = lib.allocator.AllocatorError;
 
-// ↓listの関数
+// リストの関数
 // addBegin addEnd addAfter
 // deleteBegin deleteEnd delete
 // size getAt clear
 // sort reverse
 // clone toSlice
 // toIterator
+
+// リストの種類
+// 単方向・双方向
+// 線形・循環
+
+// アンロールドリスト
+// スキップリスト
+// XORリスト
 
 /// 連結リスト
 ///
