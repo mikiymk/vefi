@@ -19,14 +19,21 @@ const ArrayOptions = struct {
 };
 
 /// 静的配列 (Static Array)
-pub fn SArray(T: type, size: usize, comptime options: SArrayOptions) type {
+pub fn StaticArray(T: type, size: usize, comptime options: StaticArrayOptions) type {
+    return struct {
+        value: [size]T,
+    };
+}
+
+/// 静的多次元配列 (Static Multi-Dimensional Array)
+pub fn StaticMultiDimensionalArray(T: type, dimension: usize, sizes: [dimension]usize, comptime options: StaticMultiDimensionalArrayOptions) type {
     return struct {
         value: [size]T,
     };
 }
 
 /// 動的配列 (Dynamic Array)
-pub fn DArray(T: type, comptime options: DArrayOptions) type {
+pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
     return struct {
         value: []T,
         size: usize,
