@@ -9,9 +9,13 @@ const Allocator = lib.allocator.Allocator;
 const AllocatorError = lib.allocator.AllocatorError;
 
 // arrayの関数
+// get set
+// size clear
+// indexOf
+// sort reverse
+// ↓ 動的配列
 // pushFront pushBack popFront popBack
 // concat slice
-// sort reverse
 
 const ArrayOptions = struct {
     dynamic: bool,
