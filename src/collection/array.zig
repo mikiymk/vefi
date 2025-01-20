@@ -8,6 +8,11 @@ test {
 const Allocator = lib.allocator.Allocator;
 const AllocatorError = lib.allocator.AllocatorError;
 
+// arrayの関数
+// pushFront pushBack popFront popBack
+// concat slice
+// sort reverse
+
 const ArrayOptions = struct {
     dynamic: bool,
     max_length: ?usize,
