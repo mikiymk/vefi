@@ -5,8 +5,9 @@ const Allocator = lib.allocator.Allocator;
 
 // スタックの関数
 // pop push
-// isEmpty size
-// clear
+// peek size
+// isEmpty clear
+// iterator toSlice
 
 // スタックの種類
 // 動的配列・線形リスト
