@@ -33,8 +33,23 @@ pub fn fill(self: *@This(), begin: usize, end: usize, value: T) void {
     @memset(self.values[begin..end], value);
 }
 
+pub fn swap(self: *@This(), left: usize, right: usize) void {
+    self.assertBound(left);
+    self.assertBound(right);
+
+    const tmp = self.get(left);
+    self.set(left, self.get(right));
+    self.set(right, tmp);
+}
+
 pub fn size(self: @This()) usize {
     return self.value.len;
+}
+
+pub fn reverse(self: @This()) usize {
+    for (0..(self.size() / 2)) |i| {
+        self.swap(i, self.size() - 1);
+    }
 }
     };
 }
