@@ -13,28 +13,28 @@ pub fn init() @This() {}
 
 pub fn deinit(self: @This()) void {}
 
-fn checkBound(self: @This(), index: usize) bool {
-    return index < self.values.len;
+fn assertBound(self: @This(), index: usize) bool {
+    assert(index < self.size());
 }
 
-pub fn getUnsafe(self: @This(), index: usize) T {
-    assert(self.checkBound(index));
+pub fn get(self: @This(), index: usize) T {
+    self.assertBound(index);
     return self.values[index];
 }
 
-pub fn get(self: @This(), index: usize) Error!T {
-    if (self.checkBound(index)) return error.OutOfIndex;
-    return self.getUnsafe(index);
-}
-
-pub fn setUnsafe(self: *@This(), index: usize, value: T) void {
-    assert(self.checkBound(index));
+pub fn set(self: *@This(), index: usize, value: T) void {
+    self.assertBound(index);
     self.values[index] = value;
 }
 
-pub fn set(self: *@This(), index: usize, value: T) Error!T {
-    if (self.checkBound(index)) return error.OutOfIndex;
-    return self.setUnsafe(index, value);
+pub fn fill(self: *@This(), begin: usize, end: usize, value: T) void {
+    self.assertBound(begin);
+    self.assertBound(end);
+    @memset(self.values[begin..end], value);
+}
+
+pub fn size(self: @This()) usize {
+    return self.value.len;
 }
     };
 }
