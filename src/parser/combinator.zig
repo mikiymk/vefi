@@ -39,7 +39,7 @@ fn ErrorOf(Parser: type) type {
     return return_error_union.ErrorUnion.error_set;
 }
 
-const Byte = struct {
+pub const Byte = struct {
     pub fn parse(_: @This(), _: Allocator, input: []const u8) Result(u8, error{ReachToEof}) {
         if (input.len < 1) {
             return error.ReachToEof;
@@ -48,23 +48,25 @@ const Byte = struct {
     }
 };
 
-/// 1バイトを符号無し整数として読み込む
-pub const byte: Byte = .{};
-
-test byte {
+test Byte {
     const bytes = [_]u8{ 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef };
     const allocator = std.testing.allocator;
 
-    const parser = byte;
+    const parser = Byte{};
 
     try lib.assert.expectEqual(parser.parse(allocator, bytes[0..]), .{ 0x01, 1 });
     try lib.assert.expectEqual(parser.parse(allocator, bytes[1..]), .{ 0x23, 1 });
     try lib.assert.expectEqual(parser.parse(allocator, bytes[8..]), error.ReachToEof);
 }
 
-pub fn Integer(bytes: usize, sign: Sign) type {
+const Sign = lib.zig.integer.Sign;
+const Endian = enum {
+    big_endian,
+    little_endian,
+};
+pub fn Integer(byte_size: usize, sign: Sign) type {
     return struct {
-        pub const Value = lib.types.Integer.Integer(bytes * 8, sign);
+        pub const Value = lib.types.Integer.Integer(byte_size * 8, sign);
         pub const Err = error{ReachToEof};
 
         bytes: usize,
@@ -82,7 +84,7 @@ pub fn Integer(bytes: usize, sign: Sign) type {
                 value = (value << 8) & byte;
             }
 
-            if (os.endian != self.endian) {
+            if (lib.builtin.endian != self.endian) {
                 mem.byteSwap(&value);
             }
 

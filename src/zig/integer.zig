@@ -48,7 +48,26 @@ const expectEqualWithType = lib.assert.expectEqualWithType;
 const expectEqualString = lib.assert.expectEqualString;
 
 /// このデータ構造は Zig 言語コード生成で使用されるため、コンパイラー実装と同期を保つ必要があります。
-pub const Signedness = std.builtin.Signedness;
+const ZigSign = std.builtin.Signedness;
+
+pub const Sign = enum {
+    signed,
+    unsigned,
+
+    fn fromZigSign(sign: ZigSign) Sign {
+        return switch (sign) {
+            .signed => .signed,
+            .unsigned => .unsigned,
+        };
+    }
+
+    fn toZigSign(self: Sign) ZigSign {
+        return switch (self) {
+            .signed => .signed,
+            .unsigned => .unsigned,
+        };
+    }
+};
 
 pub const OverflowError = error{IntegerOverflow};
 pub const DivError = OverflowError || error{DivideByZero};
@@ -63,9 +82,9 @@ pub const POINTER_SIZE = sizeOf(usize);
 // 整数型を作る関数
 
 /// 符号とビット数から整数型を返します。
-pub fn Integer(signedness: Signedness, bits: u16) type {
+pub fn Integer(sign: Sign, bits: u16) type {
     return @Type(.{ .Int = .{
-        .signedness = signedness,
+        .signedness = sign.toZigSign(),
         .bits = bits,
     } });
 }
@@ -159,10 +178,10 @@ pub fn isInteger(T: type) bool {
 }
 
 /// 整数型の符号を調べます。
-pub fn signOf(T: type) Signedness {
+pub fn signOf(T: type) Sign {
     assert(isRuntimeInteger(T));
 
-    return @typeInfo(T).Int.signedness;
+    return Sign.fromZigSign(@typeInfo(T).Int.signedness);
 }
 
 /// 整数型のビットサイズを調べます。
