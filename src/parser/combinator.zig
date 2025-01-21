@@ -62,7 +62,7 @@ test byte {
     try lib.assert.expectEqual(parser.parse(allocator, bytes[8..]), error.ReachToEof);
 }
 
-pub const Integer(bytes: usize, sign: Sign) type {
+pub fn Integer(bytes: usize, sign: Sign) type {
     return struct {
         pub const Value = lib.types.Integer.Integer(bytes * 8, sign);
         pub const Err = error{ReachToEof};

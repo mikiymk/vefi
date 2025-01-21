@@ -40,25 +40,30 @@ pub fn parse(self: @This(), reader: Reader) AST {
             },
 
             .end => {
-                 if (reader.end()) { break; }
-                 else { return error.Remain; }
+                if (reader.end()) {
+                    break;
+                } else {
+                    return error.Remain;
+                }
             },
         }
     }
 
     var tree = Tree.init();
     for (output.reversed()) |ident| {
-         switch (ident) {
-             .rule => {
-                 const branch = .{};
-                for 0..rule.length {
+        switch (ident) {
+            .rule => {
+                const branch = .{};
+                for (0..rule.length) |_| {
                     child = tree.pop();
                     branch.push(child);
                 }
                 tree.push(branch);
-             },
-             .ident => { tree.push(ident); },
-         }
+            },
+            .ident => {
+                tree.push(ident);
+            },
+        }
     }
 
     return tree;
