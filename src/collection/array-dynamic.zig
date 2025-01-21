@@ -7,6 +7,7 @@ test {
 
 const Allocator = lib.allocator.Allocator;
 const AllocatorError = lib.allocator.AllocatorError;
+const assert = lib.assert.assert;
 
 pub const DynamicArrayOptions = struct {
     extend_factor: usize = 2,
@@ -18,7 +19,7 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
     _ = options;
 
     return struct {
-        value: []T,
+        values: []T,
         size: usize,
 
         /// 配列を空の状態で初期化する。
@@ -31,52 +32,92 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
 
         /// すべてのメモリを解放する。
         pub fn deinit(self: *@This(), allocator: Allocator) void {
-            allocator.free(self.value);
+            allocator.free(self.values);
+        }
+
+        pub fn assertBound(self: @This(), index: usize) bool {
+            assert(index < self.size);
+        }
+
+        /// 配列の`index`番目の要素を返す。
+        pub fn get(self: @This(), index: usize) T {
+            self.assertBound(index);
+            return self.values[index];
+        }
+
+        /// 配列の`index`番目の要素への参照を返す。
+        pub fn getRef(self: @This(), index: usize) *T {
+            self.assertBound(index);
+            return @ptrCast(self.values.ptr + index);
+        }
+
+        pub fn set(self: *@This(), index: usize, value: T) void {
+            self.assertBound(index);
+            self.values[index] = value;
+        }
+
+        pub fn fill(self: *@This(), begin: usize, end: usize, value: T) void {
+            self.assertBound(begin);
+            assert(end <= self.size);
+            @memset(self.values[begin..end], value);
+        }
+
+        pub fn swap(self: *@This(), left: usize, right: usize) void {
+            self.assertBound(left);
+            self.assertBound(right);
+
+            const tmp = self.get(left);
+            self.set(left, self.get(right));
+            self.set(right, tmp);
+        }
+
+        pub fn reverse(self: @This()) usize {
+            for (0..(self.size() / 2)) |i| {
+                self.swap(i, self.size - 1);
+            }
         }
 
         /// 値を配列の最も後ろに追加する。
         /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
-        pub fn push(self: *@This(), allocator: Allocator, item: T) AllocatorError!void {
-            if (self.value.len <= self.size) {
+        pub fn pushFront(self: *@This(), allocator: Allocator, item: T) AllocatorError!void {
+            try self.insert(allocator, 0, item);
+        }
+
+        /// 値を配列の最も後ろに追加する。
+        /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
+        pub fn pushBack(self: *@This(), allocator: Allocator, item: T) AllocatorError!void {
+            if (self.values.len <= self.size) {
                 try self.extendSize(allocator);
             }
 
-            self.value[self.size] = item;
+            self.values[self.size] = item;
             self.size += 1;
         }
 
         /// 配列の最も後ろの要素を削除し、その値を返す。
         /// 配列が要素を持たない場合、配列を変化させずにnullを返す。
-        pub fn pop(self: *@This()) ?T {
+        pub fn popFront(self: *@This()) ?T {
+            return self.delete(0);
+        }
+
+        /// 配列の最も後ろの要素を削除し、その値を返す。
+        /// 配列が要素を持たない場合、配列を変化させずにnullを返す。
+        pub fn popBack(self: *@This()) ?T {
             if (self.size == 0) return null;
             self.size -= 1;
-            return self.value[self.size];
-        }
-
-        /// 配列の`index`番目の要素を返す。
-        /// `N`が配列の長さより大きい場合、nullを返す。
-        pub fn get(self: @This(), index: usize) ?T {
-            if (index >= self.size) return null;
-            return self.value[index];
-        }
-
-        /// 配列の`index`番目の要素への参照を返す。
-        /// `N`が配列の長さより大きい場合、nullを返す。
-        pub fn getRef(self: @This(), index: usize) ?*T {
-            if (index >= self.size) return null;
-            return @ptrCast(self.value.ptr + index);
+            return self.values[self.size];
         }
 
         /// 配列の`index`番目に新しい要素を追加する。
         pub fn insert(self: *@This(), allocator: Allocator, index: usize, item: T) AllocatorError!void {
-            if (self.value.len <= self.size) {
+            if (self.values.len <= self.size) {
                 try self.extendSize(allocator);
             }
 
             self.size += 1;
 
             var value = item;
-            for (self.value[index..self.size]) |*e| {
+            for (self.values[index..self.size]) |*e| {
                 const tmp = value;
                 value = e.*;
                 e.* = tmp;
@@ -88,29 +129,37 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
             const value = self.get(index) orelse return null;
 
             self.size -= 1;
-            for (self.value[index..self.size], self.value[(index + 1)..(self.size + 1)]) |*e, f| {
+            for (self.values[index..self.size], self.values[(index + 1)..(self.size + 1)]) |*e, f| {
                 e.* = f;
             }
 
             return value;
         }
 
+        pub fn clone(self: @This(), allocator: Allocator) @This() {
+            const new_array = init();
+            new_array.size = self.size;
+            new_array.values = self.copyToSlice(allocator);
+
+            return new_array;
+        }
+
         /// 配列をスライスとして取得する。
         pub fn asSlice(self: @This()) []const T {
-            return self.value[0..self.size];
+            return self.values[0..self.size];
         }
 
         /// 配列を新しいスライスにコピーする。
         pub fn copyToSlice(self: @This(), allocator: Allocator) AllocatorError![]const T {
             var slice = try allocator.alloc(T, self.size);
-            @memcpy(slice[0..self.size], self.value[0..self.size]);
+            @memcpy(slice[0..self.size], self.values[0..self.size]);
 
             return slice;
         }
 
         /// メモリを再確保して配列の長さを拡張する。
         fn extendSize(self: *@This(), allocator: Allocator) AllocatorError!void {
-            self.value = try lib.collection.extendSize(allocator, self.value);
+            self.values = try lib.collection.extendSize(allocator, self.values);
         }
     };
 }
@@ -123,22 +172,22 @@ test DynamicArray {
     var array = DA.init();
     defer array.deinit(allocator);
 
-    try array.push(allocator, 5);
+    try array.pushBack(allocator, 5);
     try eq(array.asSlice(), &.{5});
 
-    try array.push(allocator, 6);
-    try array.push(allocator, 7);
+    try array.pushBack(allocator, 6);
+    try array.pushBack(allocator, 7);
     try eq(array.asSlice(), &.{ 5, 6, 7 });
 
-    try eq(array.pop(), 7);
-    try eq(array.pop(), 6);
-    try eq(array.pop(), 5);
-    try eq(array.pop(), null);
+    try eq(array.popBack(), 7);
+    try eq(array.popBack(), 6);
+    try eq(array.popBack(), 5);
+    try eq(array.popBack(), null);
     try eq(array.asSlice(), &.{});
 
-    try array.push(allocator, 5);
-    try array.push(allocator, 6);
-    try array.push(allocator, 7);
+    try array.pushBack(allocator, 5);
+    try array.pushBack(allocator, 6);
+    try array.pushBack(allocator, 7);
     try eq(array.asSlice(), &.{ 5, 6, 7 });
 
     try eq(array.get(1), 6);

@@ -23,13 +23,22 @@ pub fn StaticArray(T: type, array_size: usize, comptime options: StaticArrayOpti
             _ = self;
         }
 
-        fn assertBound(self: @This(), index: usize) bool {
+        pub fn assertBound(self: @This(), index: usize) bool {
             assert(index < self.size());
+        }
+
+        pub fn size(self: @This()) usize {
+            return self.value.len;
         }
 
         pub fn get(self: @This(), index: usize) T {
             self.assertBound(index);
             return self.values[index];
+        }
+
+        pub fn getRef(self: @This(), index: usize) *T {
+            self.assertBound(index);
+            return @ptrCast(self.value.ptr + index);
         }
 
         pub fn set(self: *@This(), index: usize, value: T) void {
@@ -52,10 +61,6 @@ pub fn StaticArray(T: type, array_size: usize, comptime options: StaticArrayOpti
             self.set(right, tmp);
         }
 
-        pub fn size(self: @This()) usize {
-            return self.value.len;
-        }
-
         pub fn reverse(self: @This()) usize {
             for (0..(self.size() / 2)) |i| {
                 self.swap(i, self.size() - 1);
@@ -75,12 +80,16 @@ test StaticArray {
     try eq(array.values, .{ 1, 0, 0, 0, 0 });
     try eq(array.get(0), 1);
 
+    const ptr = array.getRef(4);
+    ptr.* = 2;
+    try eq(array.values, .{ 1, 0, 0, 0, 2 });
+
     array.fill(1, 3, 4);
-    try eq(array.values, .{ 1, 4, 4, 4, 0 });
+    try eq(array.values, .{ 1, 4, 4, 0, 2 });
 
     array.swap(2, 4);
-    try eq(array.values, .{ 1, 4, 0, 4, 4 });
+    try eq(array.values, .{ 1, 4, 2, 0, 4 });
 
     array.reverse();
-    try eq(array.values, .{ 4, 4, 0, 4, 1 });
+    try eq(array.values, .{ 4, 0, 2, 4, 1 });
 }
