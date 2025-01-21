@@ -170,14 +170,14 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
 
             /// ノードを挿入し、再バランスをとる。
             /// 再バランス操作が済んでいる場合、trueを返す。
-            fn insertNode(node: *Node, new_node: *Node) bool {
+            fn insert(node: *Node, new_node: *Node) bool {
                 // 二分平衡木の挿入
                 const order = compare_fn(new_node.item, node.item);
 
                 switch (order) {
                     .less_than => {
                         if (node.left) |left| {
-                            if (left.insertNode(new_node)) {
+                            if (left.insert(new_node)) {
                                 return true;
                             }
                         } else {
@@ -186,7 +186,7 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
                     },
                     .equal, .greater_than => {
                         if (node.right) |right| {
-                            if (right.insertNode(new_node)) {
+                            if (right.insert(new_node)) {
                                 return true;
                             }
                         } else {
@@ -216,6 +216,18 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
                     node.rotateLeft();
 
                     return true;
+                }
+
+                return false;
+            }
+
+            fn delete(node: *Node, item: Value) bool {
+                const order = compare_fn(item, node.item);
+
+                switch (order) {
+                    .equal => {},
+                    .greater_than => {},
+                    .less_than => {},
                 }
 
                 return false;
@@ -304,15 +316,16 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
             };
 
             if (self.root) |root| {
-                _ = root.insertNode(new_node);
+                _ = root.insert(new_node);
             } else {
                 self.root = new_node;
             }
         }
 
         pub fn delete(self: *@This(), item: Value) void {
-            _ = self;
-            _ = item;
+            if (self.root) |root| {
+                _ = root.delete(item);
+            }
         }
 
         pub fn copyToSlice(self: @This(), allocator: Allocator) Allocator.Error![]const Value {
