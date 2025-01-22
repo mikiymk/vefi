@@ -21,10 +21,18 @@ const AllocatorError = lib.allocator.AllocatorError;
 // リストの種類
 // 単方向・双方向
 // 線形・循環
+// 番兵ノード
 
 // アンロールドリスト
 // スキップリスト
 // XORリスト
+
+pub const single_linear_list = struct {};
+pub const single_linear_sentinel_list = struct {};
+pub const single_circular_list = struct {};
+pub const double_linear_list = struct {};
+pub const double_linear_sentinel_list = struct {};
+pub const double_circular_list = struct {};
 
 /// 連結リスト
 ///
