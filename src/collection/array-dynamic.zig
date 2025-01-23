@@ -95,10 +95,28 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
             self.setUnsafe(index, value);
         }
 
-        pub fn fill(self: *@This(), begin: usize, end: usize, value: T) void {
+        /// 配列の`begin`〜`end - 1`番目の要素の値をまとめて設定する。
+        /// `begin >= end`や配列の範囲外の場合、未定義動作を起こす。
+        pub fn fillUnsafe(self: *@This(), begin: usize, end: usize, value: T) void {
             self.assertBound(begin);
             assert(end <= self.size);
+            assert(begin < end);
+
             @memset(self.values[begin..end], value);
+        }
+
+        /// 配列の`begin`〜`end - 1`番目の要素の値をまとめて設定する。
+        /// `begin >= end`や配列の範囲外の場合、エラーを返す。
+        pub fn fill(self: *@This(), begin: usize, end: usize, value: T) void {
+            if (
+                begin >= self.size
+                or end > self.size
+                or begin >= end
+            ) {
+                return error.OutOfBound;
+            }
+
+            self.fillUnsafe(begin, end, value);
         }
 
         pub fn swap(self: *@This(), left: usize, right: usize) void {
