@@ -33,27 +33,66 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
         /// すべてのメモリを解放する。
         pub fn deinit(self: *@This(), allocator: Allocator) void {
             allocator.free(self.values);
+            self.* = undefined;
         }
 
+        /// インデックスが配列の範囲内かどうか判定する。
+        pub fn isInBound(self: @This(), index: usize) bool {
+            return 0 <= index and index < self.size
+        }
+
+        /// インデックスがが配列の範囲内かどうかチェックをする。
+        /// 配列の範囲外の場合、未定義動作を起こす。
         pub fn assertBound(self: @This(), index: usize) bool {
-            assert(index < self.size);
+            assert(self.isInBound(index));
+        }
+
+        /// インデックスがが配列の範囲内かどうかチェックをする。
+        /// 配列の範囲外の場合、未定義動作を起こす。
+        pub fn checkIsInBound(self: @This(), index: usize) BoundError!void {
+            if (!self.isInBound(index)) return error.OutOfBound;
         }
 
         /// 配列の`index`番目の要素を返す。
-        pub fn get(self: @This(), index: usize) T {
+        /// 配列の範囲外の場合、未定義動作を起こす。
+        pub fn getUnsafe(self: @This(), index: usize) T {
             self.assertBound(index);
             return self.values[index];
         }
 
+        /// 配列の`index`番目の要素を返す。
+        /// 配列の範囲外の場合、エラーを返す。
+        pub fn get(self: @This(), index: usize) BoundError!T {
+            try self.checkIsInBound(index);
+            return self.getUnsafe(index);
+        }
+
         /// 配列の`index`番目の要素への参照を返す。
-        pub fn getRef(self: @This(), index: usize) *T {
+        /// 配列の範囲外の場合、未定義動作を起こす。
+        pub fn getRefUnsafe(self: @This(), index: usize) *T {
             self.assertBound(index);
             return @ptrCast(self.values.ptr + index);
         }
 
-        pub fn set(self: *@This(), index: usize, value: T) void {
+        /// 配列の`index`番目の要素への参照を返す。
+        /// 配列の範囲外の場合、エラーを返す。
+        pub fn getRef(self: @This(), index: usize) BoundError!*T {
+            try self.checkIsInBound(index);
+            return self.getRefUnsafe(index);
+        }
+
+        /// 配列の`index`番目の要素の値を設定する。
+        /// 配列の範囲外の場合、未定義動作を起こす。
+        pub fn setUnsafe(self: *@This(), index: usize, value: T) void {
             self.assertBound(index);
             self.values[index] = value;
+        }
+
+        /// 配列の`index`番目の要素の値を設定する。
+        /// 配列の範囲外の場合、エラーを返す。
+        pub fn set(self: *@This(), index: usize, value: T) BoundError!void {
+            try self.checkIsInBound(index);
+            self.setUnsafe(index, value);
         }
 
         pub fn fill(self: *@This(), begin: usize, end: usize, value: T) void {
