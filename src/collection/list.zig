@@ -30,9 +30,11 @@ const AllocatorError = lib.allocator.AllocatorError;
 pub const single_linear_list = struct {};
 pub const single_linear_sentinel_list = struct {};
 pub const single_circular_list = struct {};
+pub const single_circular_sentinel_list = struct {};
 pub const double_linear_list = struct {};
 pub const double_linear_sentinel_list = struct {};
 pub const double_circular_list = struct {};
+pub const double_circular_sentinel_list = struct {};
 
 /// 連結リスト
 ///
