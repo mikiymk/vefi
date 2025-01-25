@@ -27,6 +27,11 @@ const ArrayOptions = struct {
     max_length: ?usize,
 };
 
+pub const Range = {
+    begin: usize,
+    end: usize,
+};
+
 pub const static_array = @import("./array-static.zig");
 pub const dynamic_array = @import("./array-dynamic.zig");
 
