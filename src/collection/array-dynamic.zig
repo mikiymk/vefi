@@ -37,20 +37,27 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
         }
 
         /// インデックスが配列の範囲内かどうか判定する。
-        pub fn isInBound(self: @This(), index: usize) bool {
+        pub fn isInBoundIndex(self: @This(), index: usize) bool {
             return 0 <= index and index < self.size
+        }
+
+        /// インデックス範囲が配列の範囲内かどうか判定する。
+        pub fn isInBoundRange(self: @This(), range: Range) bool {
+            return 0 <= range.begin and range.begin < self.size
+                and 0 < range.end  and range.end <= self.size
+                and range.begin < range.end;
         }
 
         /// インデックスがが配列の範囲内かどうかチェックをする。
         /// 配列の範囲外の場合、未定義動作を起こす。
         pub fn assertBound(self: @This(), index: usize) bool {
-            assert(self.isInBound(index));
+            assert(self.isInBoundIndex(index));
         }
 
         /// インデックスがが配列の範囲内かどうかチェックをする。
         /// 配列の範囲外の場合、未定義動作を起こす。
         pub fn checkIsInBound(self: @This(), index: usize) BoundError!void {
-            if (!self.isInBound(index)) return error.OutOfBound;
+            if (!self.isInBoundIndex(index)) return error.OutOfBound;
         }
 
         /// 配列の`index`番目の要素を返す。
@@ -97,26 +104,20 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
 
         /// 配列の`begin`〜`end - 1`番目の要素の値をまとめて設定する。
         /// `begin >= end`や配列の範囲外の場合、未定義動作を起こす。
-        pub fn fillUnsafe(self: *@This(), begin: usize, end: usize, value: T) void {
-            self.assertBound(begin);
-            assert(end <= self.size);
-            assert(begin < end);
+        pub fn fillUnsafe(self: *@This(), range: Range, value: T) void {
+            assert(self.isInBoundRange(range))
 
-            @memset(self.values[begin..end], value);
+            @memset(self.values[range.begin..range.end], value);
         }
 
         /// 配列の`begin`〜`end - 1`番目の要素の値をまとめて設定する。
         /// `begin >= end`や配列の範囲外の場合、エラーを返す。
-        pub fn fill(self: *@This(), begin: usize, end: usize, value: T) void {
-            if (
-                begin >= self.size
-                or end > self.size
-                or begin >= end
-            ) {
+        pub fn fill(self: *@This(), range: Range, value: T) !void {
+            if (self.isInBoundRange(range)) {
                 return error.OutOfBound;
             }
 
-            self.fillUnsafe(begin, end, value);
+            self.fillUnsafe(range, value);
         }
 
         pub fn swap(self: *@This(), left: usize, right: usize) void {
