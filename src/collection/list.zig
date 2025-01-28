@@ -37,11 +37,9 @@ pub const double_circular_list = struct {};
 pub const double_circular_sentinel_list = struct {};
 
 pub fn isList() void {
-    if (
-        concepts.hasFunc("")
-    ) {
+    if (concepts.hasFunc("")) {
         @compileError(
-             \\ list has funcsions
+            \\ list has funcsions
         );
     }
 }

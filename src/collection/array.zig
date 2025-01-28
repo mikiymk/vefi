@@ -27,7 +27,7 @@ const ArrayOptions = struct {
     max_length: ?usize,
 };
 
-pub const Range = {
+pub const Range = struct {
     begin: usize,
     end: usize,
 };

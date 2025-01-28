@@ -24,10 +24,7 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
 
         /// 配列を空の状態で初期化する。
         pub fn init() @This() {
-            return .{
-                .value = &[_]T{},
-                .size = 0
-            };
+            return .{ .value = &[_]T{}, .size = 0 };
         }
 
         /// すべてのメモリを解放する。
@@ -38,14 +35,12 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
 
         /// インデックスが配列の範囲内かどうか判定する。
         pub fn isInBoundIndex(self: @This(), index: usize) bool {
-            return 0 <= index and index < self.size
+            return 0 <= index and index < self.size;
         }
 
         /// インデックス範囲が配列の範囲内かどうか判定する。
         pub fn isInBoundRange(self: @This(), range: Range) bool {
-            return 0 <= range.begin and range.begin < self.size
-                and 0 < range.end  and range.end <= self.size
-                and range.begin < range.end;
+            return 0 <= range.begin and range.begin < self.size and 0 < range.end and range.end <= self.size and range.begin < range.end;
         }
 
         /// インデックスがが配列の範囲内かどうかチェックをする。
@@ -75,15 +70,15 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
             self.values[index] = value;
         }
 
-/// 配列の`begin`〜`end - 1`番目の要素の値をまとめて設定する。
-/// `begin >= end`や配列の範囲外の場合、未定義動作を起こす。
-pub fn fill(self: *@This(), range: Range, value: T) void {
-    assert(self.isInBoundRange(range))
+        /// 配列の`begin`〜`end - 1`番目の要素の値をまとめて設定する。
+        /// `begin >= end`や配列の範囲外の場合、未定義動作を起こす。
+        pub fn fill(self: *@This(), range: Range, value: T) void {
+            assert(self.isInBoundRange(range));
 
-    @memset(self.values[range.begin..range.end], value);
-}
+            @memset(self.values[range.begin..range.end], value);
+        }
 
-/// 配列の`left`番目と`right`番目の要素の値を交換する。
+        /// 配列の`left`番目と`right`番目の要素の値を交換する。
         /// 配列の範囲外の場合、未定義動作を起こす。
         pub fn swap(self: *@This(), left: usize, right: usize) void {
             self.assertBound(left);
