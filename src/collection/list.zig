@@ -36,10 +36,20 @@ pub const double_linear_sentinel_list = struct {};
 pub const double_circular_list = struct {};
 pub const double_circular_sentinel_list = struct {};
 
+pub fn isList() void {
+    if (
+        concepts.hasFunc("")
+    ) {
+        @compileError(
+             \\ list has funcsions
+        );
+    }
+}
+
 /// 連結リスト
 ///
 /// - **`T`** リストが持つ値の型
-pub fn List(comptime T: type) type {
+pub fn List(comptime T: type, comptime options: ListOptions) type {
     return struct {
         const Self = @This();
 
@@ -47,9 +57,13 @@ pub fn List(comptime T: type) type {
         pub const Item = T;
         pub const Element = struct {
             next: ?*Element = null,
+            prev: if (options.double == .double)
+                ?*Element
+            else
+                void,
             value: T,
 
-            pub fn create(a: Allocator, value: T) *Element {
+            pub fn init(a: Allocator, value: T) *Element {
                 const next: *Element = try a.create(Element);
                 next.* = Element{
                     .value = value,
@@ -58,7 +72,7 @@ pub fn List(comptime T: type) type {
                 return next;
             }
 
-            pub fn insertNext(self: *Element, a: Allocator, value: T) void {
+            pub fn addAfter(self: *Element, a: Allocator, value: T) void {
                 const new_element = a.create(Element);
                 new_element.* = .{
                     .next = self.next,
@@ -95,10 +109,10 @@ pub fn List(comptime T: type) type {
 
         /// リストの要素数を数える
         pub fn size(self: Self) usize {
-            var e = self.value;
+            var element = self.value;
             var count: usize = 0;
-            while (e) |n| {
-                e = n.next;
+            while (element) |e| {
+                element = e.next;
                 count += 1;
             }
 
