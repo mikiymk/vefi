@@ -1,22 +1,7 @@
 const std = @import("std");
 const lib = @import("../root.zig");
 
-test {
-    std.testing.refAllDecls(@This());
-}
-
-pub const Options = struct {
-    sign: Sign,
-    bits: u16,
-
-    pub fn toBuiltin(self: @This()) std.builtin.Type {
-        return .{ .Int = .{
-            .signedness = self.sign.toBuiltin(),
-            .bits = self.bits,
-        } };
-    }
-};
-
+/// 符号付き・符号無し
 pub const Sign = enum(u1) {
     signed,
     unsigned,
@@ -37,7 +22,7 @@ pub fn Integer(sign: Sign, bits: u16) type {
     } });
 }
 
-test Integer {
+test "📖Integer" {
     const IntType: type = Integer(.signed, 16);
     try lib.assert.expectEqual(IntType, i16);
 }
@@ -47,7 +32,7 @@ pub fn Signed(Number: type) type {
     return Integer(.signed, @bitSizeOf(Number));
 }
 
-test Signed {
+test "📖Signed" {
     try lib.assert.expectEqual(Signed(usize), isize);
     try lib.assert.expectEqual(Signed(isize), isize);
 }
@@ -57,7 +42,7 @@ pub fn Unsigned(Number: type) type {
     return Integer(.unsigned, @bitSizeOf(Number));
 }
 
-test Unsigned {
+test "📖Unsigned" {
     try lib.assert.expectEqual(Unsigned(usize), usize);
     try lib.assert.expectEqual(Unsigned(isize), usize);
 }

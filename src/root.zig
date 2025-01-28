@@ -1,13 +1,14 @@
 //! 標準ライブラリっぽいものを作ってみる
+//!
 //! 参考
-//! zig https://ziglang.org/documentation/master/std/
-//! java https://docs.oracle.com/javase/jp/21/docs/api/index.html
-//! python https://docs.python.org/ja/3/library/index.html
-//! c++ https://cpprefjp.github.io/reference.html
-//! rust https://doc.rust-lang.org/std/
-//! go https://pkg.go.dev/std
-//! ruby https://docs.ruby-lang.org/ja/latest/doc/index.html
-//! php https://www.php.net/manual/ja/funcref.php
+//! - zig https://ziglang.org/documentation/master/std/
+//! - java https://docs.oracle.com/javase/jp/21/docs/api/index.html
+//! - python https://docs.python.org/ja/3/library/index.html
+//! - c++ https://cpprefjp.github.io/reference.html
+//! - rust https://doc.rust-lang.org/std/
+//! - go https://pkg.go.dev/std
+//! - ruby https://docs.ruby-lang.org/ja/latest/doc/index.html
+//! - php https://www.php.net/manual/ja/funcref.php
 
 const std = @import("std");
 const lib = @import("root.zig");
@@ -18,8 +19,6 @@ test {
 
 pub const builtin = @import("builtin.zig");
 
-/// depracated
-pub const zig = @import("zig.zig");
 pub const types = @import("types.zig");
 pub const collection = @import("collection.zig");
 pub const math = @import("math.zig");
