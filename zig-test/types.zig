@@ -1,5 +1,4 @@
 const utils = @import("./utils.zig");
-const assert = utils.assert;
 const consume = utils.consume;
 
 test {
@@ -16,8 +15,13 @@ test {
     _ = errors;
 }
 
+/// 基本型。
+/// 複合型ではない型。
 const primitive_types = struct {
     test "整数型" {
+        // ビットサイスは0から65535ビットまであり、符号付き(`i`)、符号なし(`u`)の2種類がある。
+        // ポインタサイズの`usize`と`isize`がある。
+
         // 8の倍数の整数型
         const var_01: u8 = 50;
         const var_02: u16 = 500;

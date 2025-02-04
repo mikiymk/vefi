@@ -1,6 +1,6 @@
-const zig_test = @import("../zig_test.zig");
-const assert = zig_test.assert;
-const consume = zig_test.consume;
+const utils = @import("./utils.zig");
+const assert = utils.assert;
+const consume = utils.consume;
 
 const Enum_01 = enum { first, second, third };
 const Union_01 = union(Enum_01) { first: i32, second: bool, third: void };

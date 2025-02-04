@@ -1,7 +1,6 @@
-const zig_test = @import("../zig_test.zig");
-const eq = zig_test.assert.expectEqual;
-const eqApprox = zig_test.assert.expectEqualApproximate;
-const consume = zig_test.consume;
+const utils = @import("./utils.zig");
+const assert = utils.assert;
+const consume = utils.consume;
 
 test {
     _ = operator_extension;

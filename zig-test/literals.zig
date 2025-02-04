@@ -2,7 +2,6 @@
 
 const utils = @import("./utils.zig");
 const assert = utils.assert;
-const consume = utils.consume;
 
 test "整数リテラル" {
     // 10進数、2進数(0b)、8進数(0o)、16進数(0x)を使用できる。

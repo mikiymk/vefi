@@ -1,3 +1,3 @@
-const zig_test = @import("../zig_test.zig");
-const assert = zig_test.assert;
-const consume = zig_test.consume;
+const utils = @import("./utils.zig");
+const assert = utils.assert;
+const consume = utils.consume;
