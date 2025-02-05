@@ -32,7 +32,7 @@ const v5 = 1234_5678;
 
 ```zig
 const v1 = 1.23e45;
-const v2 = 0x1.abPcd;
+const v2 = 0x1.abP12;
 const v3 = 1.234_567;
 ```
 
