@@ -1,3 +1,5 @@
+//! Zigの型を確認する。
+
 const utils = @import("./utils.zig");
 const consume = utils.consume;
 const assert = utils.assert;
