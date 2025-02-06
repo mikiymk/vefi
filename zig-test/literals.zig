@@ -3,31 +3,28 @@
 const utils = @import("./utils.zig");
 const assert = utils.assert;
 
-test "整数リテラル" {
-    // 10進数、2進数(0b)、8進数(0o)、16進数(0x)を使用できる。
-    // `_` で区切ることができる。
-    // 整数リテラルの型は`comptime_int`で、桁の上限はない。
-
-    _ = 42;
-
-    // _(アンダーバー)で区切ることができる
-    _ = 1_000_999;
-
-    // リテラルは桁数の上限がない
-    _ = 12345678_12345678_12345678_12345678_12345678_12345678_12345678_12345678;
-
-    // 2進数
-    _ = 0b0110;
-
-    // 8進数
-    _ = 0o704;
-
-    // 16進数
-    _ = 0x1f2e;
-    _ = 0x1F2e;
-
-    try assert(@TypeOf(42) == comptime_int);
+test {
+    _ = integer;
 }
+
+/// # 整数リテラル
+///
+/// - 10進数、2進数(0b)、8進数(0o)、16進数(0x)を使用できる。
+/// - `_`(アンダースコア)で区切ることができる。
+/// - 整数リテラルの型は`comptime_int`で、桁の上限はない。
+pub const integer = struct {
+    pub const value_1 = 42;
+    pub const value_2 = 1_000_999;
+    pub const value_3 = 12345678_12345678_12345678_12345678_12345678_12345678_12345678_12345678;
+    pub const value_4 = 0b0110;
+    pub const value_5 = 0o704;
+    pub const value_6 = 0x1f2e;
+    pub const value_7 = 0x1F2e;
+
+    test "整数リテラルの型" {
+        try assert(@TypeOf(42) == comptime_int);
+    }
+};
 
 test "小数リテラル" {
     // 10進数、16進数(0x)を使用できる。
