@@ -1,6 +1,7 @@
 const utils = @import("./utils.zig");
 const assert = utils.assert;
 const consume = utils.consume;
+const equalSlices = utils.equalSlices;
 
 test {
     _ = arithmetic;
@@ -16,7 +17,7 @@ const arithmetic = struct {
             const var_02: u8 = 6;
             const var_03: u8 = var_01 + var_02;
 
-            try assert.expectEqual(var_03, 11);
+            try assert(var_03 == 11);
         }
 
         {
@@ -24,7 +25,7 @@ const arithmetic = struct {
             const var_02: f32 = 6.75;
             const var_03: f32 = var_01 + var_02;
 
-            try assert.expectEqual(var_03, 12.25);
+            try assert(var_03 == 12.25);
         }
 
         {
@@ -33,7 +34,7 @@ const arithmetic = struct {
             const var_03: usize = 1;
             const var_04: [*]const u8 = var_02 + var_03;
 
-            try assert.expectEqual(var_04[0], 2);
+            try assert(var_04[0] == 2);
         }
     }
 
@@ -43,7 +44,7 @@ const arithmetic = struct {
             const var_02: u8 = 6;
             const var_03: u8 = var_01 +% var_02;
 
-            try assert.expectEqual(var_03, 11);
+            try assert(var_03 == 11);
         }
 
         {
@@ -51,7 +52,7 @@ const arithmetic = struct {
             const var_02: u8 = 255;
             const var_03: u8 = var_01 +% var_02;
 
-            try assert.expectEqual(var_03, 4);
+            try assert(var_03 == 4);
         }
     }
 
@@ -61,7 +62,7 @@ const arithmetic = struct {
             const var_02: u8 = 6;
             const var_03: u8 = var_01 +| var_02;
 
-            try assert.expectEqual(var_03, 11);
+            try assert(var_03 == 11);
         }
 
         {
@@ -69,7 +70,7 @@ const arithmetic = struct {
             const var_02: u8 = 255;
             const var_03: u8 = var_01 +| var_02;
 
-            try assert.expectEqual(var_03, 255);
+            try assert(var_03 == 255);
         }
     }
 
@@ -79,7 +80,7 @@ const arithmetic = struct {
             const var_02: u8 = 3;
             const var_03: u8 = var_01 - var_02;
 
-            try assert.expectEqual(var_03, 2);
+            try assert(var_03 == 2);
         }
 
         {
@@ -87,7 +88,7 @@ const arithmetic = struct {
             const var_02: f32 = 6.75;
             const var_03: f32 = var_01 - var_02;
 
-            try assert.expectEqual(var_03, -1.25);
+            try assert(var_03 == -1.25);
         }
     }
 
@@ -97,7 +98,7 @@ const arithmetic = struct {
             const var_02: u8 = 3;
             const var_03: u8 = var_01 -% var_02;
 
-            try assert.expectEqual(var_03, 2);
+            try assert(var_03 == 2);
         }
 
         {
@@ -105,7 +106,7 @@ const arithmetic = struct {
             const var_02: u8 = 8;
             const var_03: u8 = var_01 -% var_02;
 
-            try assert.expectEqual(var_03, 253);
+            try assert(var_03 == 253);
         }
     }
 
@@ -115,7 +116,7 @@ const arithmetic = struct {
             const var_02: u8 = 3;
             const var_03: u8 = var_01 -| var_02;
 
-            try assert.expectEqual(var_03, 2);
+            try assert(var_03 == 2);
         }
 
         {
@@ -123,7 +124,7 @@ const arithmetic = struct {
             const var_02: u8 = 8;
             const var_03: u8 = var_01 -| var_02;
 
-            try assert.expectEqual(var_03, 0);
+            try assert(var_03 == 0);
         }
     }
 
@@ -133,7 +134,7 @@ const arithmetic = struct {
             const var_02: u8 = 6;
             const var_03: u8 = var_01 * var_02;
 
-            try assert.expectEqual(var_03, 30);
+            try assert(var_03 == 30);
         }
 
         {
@@ -141,7 +142,7 @@ const arithmetic = struct {
             const var_02: f32 = 6.75;
             const var_03: f32 = var_01 * var_02;
 
-            try assert.expectEqual(var_03, 37.125);
+            try assert(var_03 == 37.125);
         }
     }
 
@@ -151,7 +152,7 @@ const arithmetic = struct {
             const var_02: u8 = 6;
             const var_03: u8 = var_01 *% var_02;
 
-            try assert.expectEqual(var_03, 30);
+            try assert(var_03 == 30);
         }
 
         {
@@ -159,7 +160,7 @@ const arithmetic = struct {
             const var_02: u8 = 55;
             const var_03: u8 = var_01 *% var_02;
 
-            try assert.expectEqual(var_03, 275 % 256);
+            try assert(var_03 == 275 % 256);
         }
     }
 
@@ -169,7 +170,7 @@ const arithmetic = struct {
             const var_02: u8 = 6;
             const var_03: u8 = var_01 *| var_02;
 
-            try assert.expectEqual(var_03, 30);
+            try assert(var_03 == 30);
         }
 
         {
@@ -177,7 +178,7 @@ const arithmetic = struct {
             const var_02: u8 = 55;
             const var_03: u8 = var_01 *| var_02;
 
-            try assert.expectEqual(var_03, 255);
+            try assert(var_03 == 255);
         }
     }
 
@@ -187,7 +188,7 @@ const arithmetic = struct {
             const var_02: u8 = 6;
             const var_03: u8 = var_01 / var_02;
 
-            try assert.expectEqual(var_03, 2);
+            try assert(var_03 == 2);
         }
 
         {
@@ -195,7 +196,7 @@ const arithmetic = struct {
             const var_02: f32 = 5.5;
             const var_03: f32 = var_01 / var_02;
 
-            try assert.expectEqual(var_03, 2.5);
+            try assert(var_03 == 2.5);
         }
     }
 
@@ -205,7 +206,7 @@ const arithmetic = struct {
             const var_02: u8 = 6;
             const var_03: u8 = var_01 % var_02;
 
-            try assert.expectEqual(var_03, 1);
+            try assert(var_03 == 1);
         }
 
         {
@@ -213,7 +214,7 @@ const arithmetic = struct {
             const var_02: f32 = 5.5;
             const var_03: f32 = var_01 % var_02;
 
-            try assert.expectEqual(var_03, 2.75);
+            try assert(var_03 == 2.75);
         }
     }
 
@@ -222,14 +223,14 @@ const arithmetic = struct {
             const var_01: i8 = 13;
             const var_02: i8 = -var_01;
 
-            try assert.expectEqual(var_02, -13);
+            try assert(var_02 == -13);
         }
 
         {
             const var_01: f32 = 13.75;
             const var_02: f32 = -var_01;
 
-            try assert.expectEqual(var_02, -13.75);
+            try assert(var_02 == -13.75);
         }
     }
 
@@ -238,14 +239,14 @@ const arithmetic = struct {
             const var_01: i8 = 13;
             const var_02: i8 = -%var_01;
 
-            try assert.expectEqual(var_02, -13);
+            try assert(var_02 == -13);
         }
 
         {
             const var_01: i8 = -128;
             const var_02: i8 = -%var_01;
 
-            try assert.expectEqual(var_02, -128);
+            try assert(var_02 == -128);
         }
     }
 };
@@ -257,7 +258,7 @@ const bitwise = struct {
             const var_02: u3 = 1;
             const var_03: i8 = var_01 << var_02;
 
-            try assert.expectEqual(var_03, 22);
+            try assert(var_03 == 22);
         }
 
         {
@@ -265,7 +266,7 @@ const bitwise = struct {
             const var_02: u3 = 6;
             const var_03: i8 = var_01 << var_02;
 
-            try assert.expectEqual(var_03, -64);
+            try assert(var_03 == -64);
         }
     }
 
@@ -275,7 +276,7 @@ const bitwise = struct {
             const var_02: u3 = 1;
             const var_03: i8 = var_01 <<| var_02;
 
-            try assert.expectEqual(var_03, 22);
+            try assert(var_03 == 22);
         }
 
         {
@@ -283,7 +284,7 @@ const bitwise = struct {
             const var_02: u3 = 6;
             const var_03: i8 = var_01 <<| var_02;
 
-            try assert.expectEqual(var_03, 127);
+            try assert(var_03 == 127);
         }
     }
 
@@ -293,7 +294,7 @@ const bitwise = struct {
             const var_02: u3 = 1;
             const var_03: i8 = var_01 >> var_02;
 
-            try assert.expectEqual(var_03, 5);
+            try assert(var_03 == 5);
         }
 
         {
@@ -301,7 +302,7 @@ const bitwise = struct {
             const var_02: u3 = 6;
             const var_03: i8 = var_01 >> var_02;
 
-            try assert.expectEqual(var_03, 0);
+            try assert(var_03 == 0);
         }
     }
 
@@ -310,7 +311,7 @@ const bitwise = struct {
         const var_02: i8 = 10; // 0b0000 1010
         const var_03: i8 = var_01 & var_02;
 
-        try assert.expectEqual(var_03, 2);
+        try assert(var_03 == 2);
     }
 
     test "中置 二項 |" {
@@ -318,7 +319,7 @@ const bitwise = struct {
         const var_02: i8 = 10; // 0b0000 1010
         const var_03: i8 = var_01 | var_02;
 
-        try assert.expectEqual(var_03, 11);
+        try assert(var_03 == 11);
     }
 
     test "中置 二項 ^" {
@@ -326,14 +327,14 @@ const bitwise = struct {
         const var_02: i8 = 10; // 0b0000 1010
         const var_03: i8 = var_01 ^ var_02;
 
-        try assert.expectEqual(var_03, 9);
+        try assert(var_03 == 9);
     }
 
     test "前置 単項 ~" {
         const var_01: i8 = 83; // 0b0101 0011
         const var_02: i8 = ~var_01;
 
-        try assert.expectEqual(var_02, -84);
+        try assert(var_02 == -84);
     }
 };
 
@@ -344,10 +345,10 @@ const logical = struct {
         const var_03: bool = true and false;
         const var_04: bool = false and true;
 
-        try assert.expectEqual(var_01, true);
-        try assert.expectEqual(var_02, false);
-        try assert.expectEqual(var_03, false);
-        try assert.expectEqual(var_04, false);
+        try assert(var_01 == true);
+        try assert(var_02 == false);
+        try assert(var_03 == false);
+        try assert(var_04 == false);
     }
 
     test "中置 二項 or" {
@@ -356,18 +357,18 @@ const logical = struct {
         const var_03: bool = true or false;
         const var_04: bool = false or true;
 
-        try assert.expectEqual(var_01, true);
-        try assert.expectEqual(var_02, false);
-        try assert.expectEqual(var_03, true);
-        try assert.expectEqual(var_04, true);
+        try assert(var_01 == true);
+        try assert(var_02 == false);
+        try assert(var_03 == true);
+        try assert(var_04 == true);
     }
 
     test "前置 単項 !" {
         const var_01: bool = !true;
         const var_02: bool = !false;
 
-        try assert.expectEqual(var_01, false);
-        try assert.expectEqual(var_02, true);
+        try assert(var_01 == false);
+        try assert(var_02 == true);
     }
 };
 
@@ -378,7 +379,7 @@ const compare = struct {
             const var_02: i8 = 4;
             const var_03: bool = var_01 == var_02;
 
-            try assert.expectEqual(var_03, false);
+            try assert(var_03 == false);
         }
 
         {
@@ -386,7 +387,7 @@ const compare = struct {
             const var_02: f32 = 3.0;
             const var_03: bool = var_01 == var_02;
 
-            try assert.expectEqual(var_03, true);
+            try assert(var_03 == true);
         }
 
         {
@@ -394,7 +395,7 @@ const compare = struct {
             const var_02: bool = true;
             const var_03: bool = var_01 == var_02;
 
-            try assert.expectEqual(var_03, true);
+            try assert(var_03 == true);
         }
 
         {
@@ -402,7 +403,7 @@ const compare = struct {
             const var_02: type = struct { u8, u8 };
             const var_03: bool = var_01 == var_02;
 
-            try assert.expectEqual(var_03, false);
+            try assert(var_03 == false);
         }
 
         {
@@ -411,8 +412,8 @@ const compare = struct {
             const var_03: bool = var_01 == null;
             const var_04: bool = var_02 == null;
 
-            try assert.expectEqual(var_03, false);
-            try assert.expectEqual(var_04, true);
+            try assert(var_03 == false);
+            try assert(var_04 == true);
         }
     }
 
@@ -422,7 +423,7 @@ const compare = struct {
             const var_02: i8 = 4;
             const var_03: bool = var_01 != var_02;
 
-            try assert.expectEqual(var_03, true);
+            try assert(var_03 == true);
         }
 
         {
@@ -430,7 +431,7 @@ const compare = struct {
             const var_02: f32 = 3.0;
             const var_03: bool = var_01 != var_02;
 
-            try assert.expectEqual(var_03, false);
+            try assert(var_03 == false);
         }
 
         {
@@ -438,7 +439,7 @@ const compare = struct {
             const var_02: bool = true;
             const var_03: bool = var_01 != var_02;
 
-            try assert.expectEqual(var_03, false);
+            try assert(var_03 == false);
         }
 
         {
@@ -446,7 +447,7 @@ const compare = struct {
             const var_02: type = struct { u8, u8 };
             const var_03: bool = var_01 != var_02;
 
-            try assert.expectEqual(var_03, true);
+            try assert(var_03 == true);
         }
 
         {
@@ -455,8 +456,8 @@ const compare = struct {
             const var_03: bool = var_01 != null;
             const var_04: bool = var_02 != null;
 
-            try assert.expectEqual(var_03, true);
-            try assert.expectEqual(var_04, false);
+            try assert(var_03 == true);
+            try assert(var_04 == false);
         }
     }
 
@@ -466,7 +467,7 @@ const compare = struct {
             const var_02: i8 = 4;
             const var_03: bool = var_01 > var_02;
 
-            try assert.expectEqual(var_03, false);
+            try assert(var_03 == false);
         }
 
         {
@@ -474,7 +475,7 @@ const compare = struct {
             const var_02: f32 = 2.5;
             const var_03: bool = var_01 > var_02;
 
-            try assert.expectEqual(var_03, true);
+            try assert(var_03 == true);
         }
     }
 
@@ -484,7 +485,7 @@ const compare = struct {
             const var_02: i8 = 4;
             const var_03: bool = var_01 >= var_02;
 
-            try assert.expectEqual(var_03, false);
+            try assert(var_03 == false);
         }
 
         {
@@ -492,7 +493,7 @@ const compare = struct {
             const var_02: f32 = 2.5;
             const var_03: bool = var_01 >= var_02;
 
-            try assert.expectEqual(var_03, true);
+            try assert(var_03 == true);
         }
     }
 
@@ -502,7 +503,7 @@ const compare = struct {
             const var_02: i8 = 4;
             const var_03: bool = var_01 < var_02;
 
-            try assert.expectEqual(var_03, true);
+            try assert(var_03 == true);
         }
 
         {
@@ -510,7 +511,7 @@ const compare = struct {
             const var_02: f32 = 2.5;
             const var_03: bool = var_01 < var_02;
 
-            try assert.expectEqual(var_03, false);
+            try assert(var_03 == false);
         }
     }
 
@@ -520,7 +521,7 @@ const compare = struct {
             const var_02: i8 = 4;
             const var_03: bool = var_01 <= var_02;
 
-            try assert.expectEqual(var_03, true);
+            try assert(var_03 == true);
         }
 
         {
@@ -528,7 +529,7 @@ const compare = struct {
             const var_02: f32 = 2.5;
             const var_03: bool = var_01 <= var_02;
 
-            try assert.expectEqual(var_03, false);
+            try assert(var_03 == false);
         }
     }
 };
@@ -545,7 +546,7 @@ test "前置 単項 &" {
     const var_01: u8 = 5;
     const var_02: *const u8 = &var_01;
 
-    try assert.expectEqual(var_02, &var_01);
+    try assert(var_02 == &var_01);
 }
 
 test "後置 単項 .*" {
@@ -553,7 +554,7 @@ test "後置 単項 .*" {
     const var_02: *const u8 = &var_01;
     const var_03: u8 = var_02.*;
 
-    try assert.expectEqual(var_03, 5);
+    try assert(var_03 == 5);
 }
 
 test "後置 []" {
@@ -563,9 +564,9 @@ test "後置 []" {
         const var_03: *const [2]u8 = var_01[1..];
         const var_04: *const [2]u8 = var_01[0..2];
 
-        try assert.expectEqual(var_02, 1);
-        try assert.expectEqual(var_03, &.{ 2, 3 });
-        try assert.expectEqual(var_04, &.{ 1, 2 });
+        try assert(var_02 == 1);
+        try assert(equalSlices(var_03, &.{ 2, 3 }));
+        try assert(equalSlices(var_04, &.{ 1, 2 }));
     }
 
     {
@@ -575,9 +576,9 @@ test "後置 []" {
         const var_04: *const [2]u8 = var_02[1..];
         const var_05: *const [2]u8 = var_02[0..2];
 
-        try assert.expectEqual(var_03, 1);
-        try assert.expectEqual(var_04, &.{ 2, 3 });
-        try assert.expectEqual(var_05, &.{ 1, 2 });
+        try assert(var_03 == 1);
+        try assert(equalSlices(var_04, &.{ 2, 3 }));
+        try assert(equalSlices(var_05, &.{ 1, 2 }));
     }
 
     {
@@ -587,11 +588,11 @@ test "後置 []" {
         const var_04: [*]const u8 = var_02[1..];
         const var_05: [*]const u8 = var_02[0..2];
 
-        try assert.expectEqual(var_03, 1);
-        try assert.expectEqual(var_04[0], 2);
-        try assert.expectEqual(var_04[1], 3);
-        try assert.expectEqual(var_05[0], 1);
-        try assert.expectEqual(var_05[1], 2);
+        try assert(var_03 == 1);
+        try assert(var_04[0] == 2);
+        try assert(var_04[1] == 3);
+        try assert(var_05[0] == 1);
+        try assert(var_05[1] == 2);
     }
 
     {
@@ -601,9 +602,9 @@ test "後置 []" {
         const var_04: []const u8 = var_02[1..];
         const var_05: []const u8 = var_02[0..2];
 
-        try assert.expectEqual(var_03, 1);
-        try assert.expectEqual(var_04, &.{ 2, 3 });
-        try assert.expectEqual(var_05, &.{ 1, 2 });
+        try assert(var_03 == 1);
+        try assert(equalSlices(var_04, &.{ 2, 3 }));
+        try assert(equalSlices(var_05, &.{ 1, 2 }));
     }
 }
 
@@ -613,7 +614,7 @@ test "中置 二項 ++" {
         const var_02: [4]u8 = .{ 4, 5, 6, 7 };
         const var_03: [7]u8 = var_01 ++ var_02;
 
-        try assert.expectEqual(var_03, .{ 1, 2, 3, 4, 5, 6, 7 });
+        try assert(equalSlices(var_03, .{ 1, 2, 3, 4, 5, 6, 7 }));
     }
 
     {
@@ -623,7 +624,7 @@ test "中置 二項 ++" {
         const var_04: *const [4]u8 = &var_02;
         const var_05: *const [7]u8 = var_03 ++ var_04;
 
-        try assert.expectEqual(var_05, &.{ 1, 2, 3, 4, 5, 6, 7 });
+        try assert(equalSlices(var_05, &.{ 1, 2, 3, 4, 5, 6, 7 }));
     }
 }
 
@@ -632,7 +633,7 @@ test "中置 二項 **" {
         const var_01: [3]u8 = .{ 1, 2, 3 };
         const var_02: [9]u8 = var_01 ** 3;
 
-        try assert.expectEqual(var_02, .{ 1, 2, 3, 1, 2, 3, 1, 2, 3 });
+        try assert(equalSlices(var_02, .{ 1, 2, 3, 1, 2, 3, 1, 2, 3 }));
     }
 
     {
@@ -640,7 +641,7 @@ test "中置 二項 **" {
         const var_02: *const [3]u8 = &var_01;
         const var_03: *const [9]u8 = var_02 ** 3;
 
-        try assert.expectEqual(var_03, &.{ 1, 2, 3, 1, 2, 3, 1, 2, 3 });
+        try assert(equalSlices(var_03, &.{ 1, 2, 3, 1, 2, 3, 1, 2, 3 }));
     }
 }
 
@@ -650,15 +651,15 @@ test "中置 二項 orelse" {
     const var_03: u8 = var_01 orelse 10;
     const var_04: u8 = var_02 orelse 11;
 
-    try assert.expectEqual(var_03, 5);
-    try assert.expectEqual(var_04, 11);
+    try assert(var_03 == 5);
+    try assert(var_04 == 11);
 }
 
 test "後置 単項 .?" {
     const var_01: ?u8 = 5;
     const var_02: u8 = var_01.?;
 
-    try assert.expectEqual(var_02, 5);
+    try assert(var_02 == 5);
 }
 
 test "中置 二項 catch" {
@@ -667,6 +668,6 @@ test "中置 二項 catch" {
     const var_03: u8 = var_01 catch 10;
     const var_04: u8 = var_02 catch 11;
 
-    try assert.expectEqual(var_03, 5);
-    try assert.expectEqual(var_04, 11);
+    try assert(var_03 == 5);
+    try assert(var_04 == 11);
 }

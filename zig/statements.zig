@@ -54,7 +54,7 @@ const block = struct {
 };
 
 const ifs = struct {
-    test "if" {
+    test "if文" {
         const value_01: u8 = 42;
         var sum: i32 = 5;
 
@@ -65,7 +65,7 @@ const ifs = struct {
         try assert(sum == 47);
     }
 
-    test "if-else" {
+    test "if文 else" {
         const value_01: u8 = 42;
         var sum: i32 = 5;
 
@@ -78,7 +78,7 @@ const ifs = struct {
         try assert(sum == 47);
     }
 
-    test "if-else-if-else" {
+    test "if文 else-if" {
         const value_01: u8 = 42;
         var sum: i32 = 5;
 
@@ -121,36 +121,14 @@ const ifs = struct {
 
     test "if文 値を返す" {
         const value_01: u8 = 30;
-
-        const value_02 = if (value_01 > 15)
-            1
-        else
-            2;
+        const value_02 = if (15 < value_01) 1 else 2;
 
         try assert(value_02 == 1);
     }
 };
 
 const switchs = struct {
-    test "switch文 整数型" {
-        const value_01: u8 = 42;
-        const value_02 = 21; // コンパイル時に既知
-
-        const result: i32 = switch (value_01) {
-            1 => 1,
-            2, 3, 4 => 2,
-            5...7 => 3,
-
-            value_02 => 4,
-            value_02 * 2 => 5,
-
-            else => 6,
-        };
-
-        try assert.expectEqual(result, 5);
-    }
-
-    test "switch文 整数型 網羅的" {
+    test "switch文 整数型 elseなし" {
         const value_01: u2 = 3;
 
         const result: i32 = switch (value_01) {
@@ -158,10 +136,29 @@ const switchs = struct {
             1, 2, 3 => 2,
         };
 
-        try assert.expectEqual(result, 2);
+        try assert(result == 2);
     }
 
-    test "switch文 列挙型" {
+    test "switch文 整数型 elseあり" {
+        const value_01: u8 = 42;
+        const value_02 = 21; // コンパイル時に既知
+
+        var result: i32 = 0;
+        switch (value_01) {
+            1 => result = 1,
+            2, 3, 4 => result = 2,
+            5...7 => result = 3,
+
+            value_02 => result = 4,
+            value_02 * 2 => result = 5,
+
+            else => result = 6,
+        }
+
+        try assert(result == 5);
+    }
+
+    test "switch文 列挙型 elseなし" {
         const value_01: Enum_01 = .second;
 
         const result: i32 = switch (value_01) {
@@ -169,10 +166,10 @@ const switchs = struct {
             .third => 2,
         };
 
-        try assert.expectEqual(result, 1);
+        try assert(result == 1);
     }
 
-    test "switch文 列挙型 非網羅的" {
+    test "switch文 列挙型 elseあり" {
         const value_01: Enum_01 = .second;
 
         const result: i32 = switch (value_01) {
@@ -180,7 +177,7 @@ const switchs = struct {
             else => 2,
         };
 
-        try assert.expectEqual(result, 2);
+        try assert(result == 2);
     }
 
     test "switch文 合同型" {
@@ -192,7 +189,7 @@ const switchs = struct {
             .third => 3,
         };
 
-        try assert.expectEqual(result, 2);
+        try assert(result == 2);
     }
 
     test "switch文 合同型 値のキャプチャ" {
@@ -204,7 +201,7 @@ const switchs = struct {
             .third => |_| 8,
         };
 
-        try assert.expectEqual(result, 10);
+        try assert(result == 10);
     }
 
     test "switch文 inline-else" {
@@ -214,7 +211,7 @@ const switchs = struct {
             inline else => |v| v.get(),
         };
 
-        try assert.expectEqual(result, 2);
+        try assert(result == 2);
     }
 };
 
@@ -227,7 +224,7 @@ const fors = struct {
             sum += v;
         }
 
-        try assert.expectEqual(sum, 16);
+        try assert(sum == 16);
     }
 
     test "for文 配列の変更" {
@@ -237,7 +234,7 @@ const fors = struct {
             v.* = 6;
         }
 
-        try assert.expectEqual(value_01[1], 6);
+        try assert(value_01[1] == 6);
     }
 
     test "for文 配列の単要素ポインタ" {
@@ -249,7 +246,7 @@ const fors = struct {
             sum += v;
         }
 
-        try assert.expectEqual(sum, 16);
+        try assert(sum == 16);
     }
 
     test "for文 配列の単要素ポインタの変更" {
@@ -260,7 +257,7 @@ const fors = struct {
             v.* = 6;
         }
 
-        try assert.expectEqual(value_02[1], 6);
+        try assert(value_02[1] == 6);
     }
 
     test "for文 配列の単要素定数ポインタ" {
@@ -272,7 +269,7 @@ const fors = struct {
             sum += v;
         }
 
-        try assert.expectEqual(sum, 16);
+        try assert(sum == 16);
     }
     // for文 複数要素ポインタ
     // for文 番兵つき複数要素ポインタ
@@ -285,7 +282,7 @@ const fors = struct {
             sum += v;
         }
 
-        try assert.expectEqual(sum, 16);
+        try assert(sum == 16);
     }
 
     test "for文 スライス型の変更" {
@@ -296,7 +293,7 @@ const fors = struct {
             v.* = 6;
         }
 
-        try assert.expectEqual(value_02[1], 6);
+        try assert(value_02[1] == 6);
     }
 
     test "for文 定数スライス型" {
@@ -308,7 +305,7 @@ const fors = struct {
             sum += v;
         }
 
-        try assert.expectEqual(sum, 16);
+        try assert(sum == 16);
     }
 
     test "for文 番兵つきスライス型" {
@@ -320,7 +317,7 @@ const fors = struct {
             sum += v;
         }
 
-        try assert.expectEqual(sum, 16);
+        try assert(sum == 16);
     }
 
     test "for文 番兵つきスライス型の変更" {
@@ -331,7 +328,7 @@ const fors = struct {
             v.* = 6;
         }
 
-        try assert.expectEqual(value_02[1], 6);
+        try assert(value_02[1] == 6);
     }
 
     test "for文 番兵つき定数スライス型" {
@@ -343,7 +340,7 @@ const fors = struct {
             sum += v;
         }
 
-        try assert.expectEqual(sum, 16);
+        try assert(sum == 16);
     }
 
     test "for文 インデックス付き" {
@@ -354,7 +351,7 @@ const fors = struct {
             sum += v * @as(i32, @intCast(i));
         }
 
-        try assert.expectEqual(sum, 41);
+        try assert(sum == 41);
     }
 
     test "for文 break" {
@@ -369,7 +366,7 @@ const fors = struct {
             sum += v;
         }
 
-        try assert.expectEqual(sum, 7);
+        try assert(sum == 7);
     }
 
     test "for文 continue" {
@@ -384,7 +381,7 @@ const fors = struct {
             sum += v;
         }
 
-        try assert.expectEqual(sum, 12);
+        try assert(sum == 12);
     }
 
     test "for文 else 抜け出さない場合" {
@@ -401,7 +398,7 @@ const fors = struct {
             sum = 99;
         }
 
-        try assert.expectEqual(sum, 99);
+        try assert(sum == 99);
     }
 
     test "for文 else 抜け出す場合" {
@@ -418,7 +415,7 @@ const fors = struct {
             sum = 99;
         }
 
-        try assert.expectEqual(sum, 7);
+        try assert(sum == 7);
     }
 };
 
@@ -432,7 +429,7 @@ const whiles = struct {
             sum += value_01;
         }
 
-        try assert.expectEqual(sum, 15);
+        try assert(sum == 15);
     }
 
     test "while文 break" {
@@ -449,7 +446,7 @@ const whiles = struct {
             sum += value_01;
         }
 
-        try assert.expectEqual(sum, 3);
+        try assert(sum == 3);
     }
 
     test "while文 continue" {
@@ -466,7 +463,7 @@ const whiles = struct {
             sum += value_01;
         }
 
-        try assert.expectEqual(sum, 12);
+        try assert(sum == 12);
     }
 
     test "while文 コンティニュー式" {
@@ -481,7 +478,7 @@ const whiles = struct {
             sum += value_01;
         }
 
-        try assert.expectEqual(sum, 8);
+        try assert(sum == 8);
     }
 
     test "while文 else 抜け出さない場合" {
@@ -498,7 +495,7 @@ const whiles = struct {
             sum = 99;
         }
 
-        try assert.expectEqual(sum, 99);
+        try assert(sum == 99);
     }
 
     test "while文 else 抜け出す場合" {
@@ -515,7 +512,7 @@ const whiles = struct {
             sum = 99;
         }
 
-        try assert.expectEqual(sum, 4);
+        try assert(sum == 4);
     }
 
     test "while文 else 値を返す" {
@@ -527,7 +524,7 @@ const whiles = struct {
             }
         } else 99;
 
-        try assert.expectEqual(value_02, 3);
+        try assert(value_02 == 3);
     }
 
     test "while文 任意型" {
@@ -538,7 +535,7 @@ const whiles = struct {
             sum += v;
         }
 
-        try assert.expectEqual(sum, 16);
+        try assert(sum == 16);
     }
 
     test "while文 エラー合併型" {
@@ -551,7 +548,7 @@ const whiles = struct {
             sum = 99;
         }
 
-        try assert.expectEqual(sum, 99);
+        try assert(sum == 99);
     }
 };
 
@@ -564,7 +561,7 @@ test "defer文" {
         value_01 = 7;
     }
 
-    try assert.expectEqual(value_01, 6);
+    try assert(value_01 == 6);
 }
 
 test "unreachable" {
@@ -576,5 +573,5 @@ test "unreachable" {
         unreachable;
     }
 
-    try assert.expectEqual(value_01, 5);
+    try assert(value_01 == 5);
 }
