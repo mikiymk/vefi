@@ -32,6 +32,38 @@
 //! - `bool`
 //! - 真偽値を表す。
 //! - `true`、`false`の2種類がある。
+//!
+//! ## void型
+//!
+//! - `void`
+//! - 値がないことを表す。
+//!
+//! ## noreturn型
+//!
+//! - `noreturn`
+//! - 戻り値を得ることがないことを表す。
+
+## anytype型
+
+- `anytype`
+- 任意の型。
+- コンパイル時に型が決定する。
+
+## anyopaque型
+
+- `anyopaque`
+- 任意の不透明型。
+- 型の消去されたポインターに使用される。
+
+## anyerror型
+
+- `anyerror`
+- 任意のエラー型。
+
+## C言語互換型
+
+- C言語のABIと互換性を持つための型。
+
 
 const utils = @import("./utils.zig");
 const consume = utils.consume;
