@@ -92,15 +92,22 @@ test "違う表記の同じ小数" {
 const unicode_01 = 'a';
 const unicode_02 = '😃'; // ascii外の文字
 
-// エスケープシーケンス
-const escape_sequence_01 = '\n'; // 改行
-const escape_sequence_02 = '\r'; // キャリッジリターン
-const escape_sequence_03 = '\t'; // タブ
-const escape_sequence_04 = '\\'; // バックスラッシュ
-const escape_sequence_05 = '\''; // 単引用符
-const escape_sequence_06 = '\"'; // 二重引用符
-const escape_sequence_07 = '\x64'; // 16進数1バイト文字
-const escape_sequence_08 = '\u{1F604}'; // 16進数Unicodeコードポイント
+/// 改行
+const escape_sequence_01 = '\n';
+/// キャリッジリターン
+const escape_sequence_02 = '\r';
+/// タブ文字
+const escape_sequence_03 = '\t';
+/// バックスラッシュ
+const escape_sequence_04 = '\\';
+/// シングルクオーテーション
+const escape_sequence_05 = '\'';
+/// ダブルクオーテーション
+const escape_sequence_06 = '\"';
+/// 16進数1バイト文字
+const escape_sequence_07 = '\x64';
+/// 16進数Unicodeコードポイント
+const escape_sequence_08 = '\u{1F604}';
 
 test "Unicodeコードポイントリテラルの型" {
     try assert(@TypeOf('a') == comptime_int);
@@ -128,12 +135,8 @@ test "複数行文字列リテラル" {
     try assert(equalSlices(string_04, string_05));
 }
 
-test "列挙型リテラル" {
-    _ = .enum_literal;
-}
+const enum_01 = .enum_literal;
 
-test "構造体型リテラル" {
-    _ = .{
-        .foo = 1,
-    };
-}
+const struct_01 = .{
+    .foo = 1,
+};
