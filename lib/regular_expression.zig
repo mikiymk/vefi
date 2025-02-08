@@ -34,12 +34,12 @@ pub const NondeterministicFiniteAutomaton = struct {
     // breadth first
     // depth first
     pub fn accepts(self: @This(), a: Allocator, string: []const u8) Allocator.Error!bool {
-        const DynamicArray = lib.collection.dynamic_array.DynamicArray(usize);
+        const DynamicArray = lib.collection.array.dynamic_array.DynamicArray(usize, .{});
 
         var states = DynamicArray.init();
         defer states.deinit(a);
 
-        try states.push(a, initial_state);
+        try states.pushBack(a, initial_state);
 
         for (string) |c| {
             var next_states = DynamicArray.init();
@@ -47,7 +47,7 @@ pub const NondeterministicFiniteAutomaton = struct {
             for (states.asSlice()) |state| {
                 const state_next_states = self.getTransition(state, c) orelse continue;
                 for (state_next_states) |state_next_state| {
-                    try next_states.push(a, state_next_state);
+                    try next_states.pushBack(a, state_next_state);
                 }
             }
 

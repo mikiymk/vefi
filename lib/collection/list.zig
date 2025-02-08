@@ -37,17 +37,17 @@ pub const double_circular_list = struct {};
 pub const double_circular_sentinel_list = struct {};
 
 pub fn isList() void {
-    if (concepts.hasFunc("")) {
-        @compileError(
-            \\ list has funcsions
-        );
-    }
+    @panic("not implemented");
 }
+
+pub const ListOptions = struct {};
 
 /// 連結リスト
 ///
 /// - **`T`** リストが持つ値の型
 pub fn List(comptime T: type, comptime options: ListOptions) type {
+    _ = options;
+
     return struct {
         const Self = @This();
 
@@ -55,10 +55,10 @@ pub fn List(comptime T: type, comptime options: ListOptions) type {
         pub const Item = T;
         pub const Element = struct {
             next: ?*Element = null,
-            prev: if (options.double == .double)
-                ?*Element
-            else
-                void,
+            // prev: if (options.double == .double)
+            //     ?*Element
+            // else
+            //     void,
             value: T,
 
             pub fn init(a: Allocator, value: T) *Element {
@@ -236,14 +236,14 @@ fn assert(ok: bool) error{AssertionFailed}!void {
 }
 
 test "list" {
-    const L = List(u8);
+    const L = List(u8, .{});
     const allocator = std.testing.allocator;
 
     var list = L.init();
     defer list.deinit(allocator);
 
     // list == []
-    try assert(@TypeOf(list) == List(u8));
+    try assert(@TypeOf(list) == List(u8, .{}));
     try assert(list.size() == 0);
     try assert(list.getFirstElement() == null);
     try assert(list.getLastElement() == null);

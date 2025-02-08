@@ -8,6 +8,7 @@ test {
 const Allocator = lib.allocator.Allocator;
 const AllocatorError = lib.allocator.AllocatorError;
 const assert = lib.assert.assert;
+const Range = lib.collection.array.Range;
 
 pub const DynamicArrayOptions = struct {
     extend_factor: usize = 2,
@@ -24,7 +25,7 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
 
         /// 配列を空の状態で初期化する。
         pub fn init() @This() {
-            return .{ .value = &[_]T{}, .size = 0 };
+            return .{ .values = &[_]T{}, .size = 0 };
         }
 
         /// すべてのメモリを解放する。
@@ -45,7 +46,7 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
 
         /// インデックスがが配列の範囲内かどうかチェックをする。
         /// 配列の範囲外の場合、未定義動作を起こす。
-        pub fn assertBound(self: @This(), index: usize) bool {
+        pub fn assertBound(self: @This(), index: usize) void {
             assert(self.isInBoundIndex(index));
         }
 
@@ -145,7 +146,7 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
 
         /// 配列の`index`番目の要素を削除する。
         pub fn delete(self: *@This(), index: usize) ?T {
-            const value = self.get(index) orelse return null;
+            const value = self.get(index);
 
             self.size -= 1;
             for (self.values[index..self.size], self.values[(index + 1)..(self.size + 1)]) |*e, f| {
@@ -185,7 +186,7 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
 
 test DynamicArray {
     const allocator = std.testing.allocator;
-    const DA = DynamicArray(u8);
+    const DA = DynamicArray(u8, .{});
     const eq = lib.assert.expectEqual;
 
     var array = DA.init();
@@ -210,10 +211,10 @@ test DynamicArray {
     try eq(array.asSlice(), &.{ 5, 6, 7 });
 
     try eq(array.get(1), 6);
-    try eq(array.get(3), null);
+    // try eq(array.get(3), null);
 
-    try eq(array.getRef(1).?.*, 6);
-    try eq(array.getRef(3), null);
+    try eq(array.getRef(1).*, 6);
+    // try eq(array.getRef(3), null);
 
     try array.insert(allocator, 1, 10);
     try eq(array.asSlice(), &.{ 5, 10, 6, 7 });
