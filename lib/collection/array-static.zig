@@ -2,6 +2,7 @@ const std = @import("std");
 const lib = @import("../root.zig");
 
 const assert = lib.assert.assert;
+const Range = lib.collection.array.Range;
 
 pub const StaticArrayOptions = struct {};
 
@@ -23,8 +24,16 @@ pub fn StaticArray(T: type, array_size: usize, comptime options: StaticArrayOpti
             _ = self;
         }
 
-        pub fn assertBound(self: @This(), index: usize) void {
-            assert(index < self.size());
+        pub fn isInBoundIndex(self: @This(), index: usize) bool {
+            return 0 <= index and index < self.size();
+        }
+
+        pub fn isInBoundRange(self: @This(), range: Range) bool {
+            return 0 <= range.begin and
+                range.begin < self.size() and
+                0 < range.end and
+                range.end <= self.size() and
+                range.begin < range.end;
         }
 
         pub fn size(self: @This()) usize {
@@ -32,29 +41,32 @@ pub fn StaticArray(T: type, array_size: usize, comptime options: StaticArrayOpti
         }
 
         pub fn get(self: @This(), index: usize) T {
-            self.assertBound(index);
+            assert(self.isInBoundIndex(index));
+
             return self._values[index];
         }
 
         pub fn getRef(self: *@This(), index: usize) *T {
-            self.assertBound(index);
+            assert(self.isInBoundIndex(index));
+
             return &self._values[index];
         }
 
         pub fn set(self: *@This(), index: usize, value: T) void {
-            self.assertBound(index);
+            assert(self.isInBoundIndex(index));
+
             self._values[index] = value;
         }
 
         pub fn fill(self: *@This(), begin: usize, end: usize, value: T) void {
-            self.assertBound(begin);
-            assert(end <= self.size());
+            assert(self.isInBoundRange(.{ .begin = begin, .end = end }));
+
             @memset(self._values[begin..end], value);
         }
 
         pub fn swap(self: *@This(), left: usize, right: usize) void {
-            self.assertBound(left);
-            self.assertBound(right);
+            assert(self.isInBoundIndex(left));
+            assert(self.isInBoundIndex(right));
 
             const tmp = self.get(left);
             self.set(left, self.get(right));
@@ -70,10 +82,10 @@ pub fn StaticArray(T: type, array_size: usize, comptime options: StaticArrayOpti
 }
 
 test StaticArray {
-    const SA = StaticArray(usize, 5, .{});
+    const Array = StaticArray(usize, 5, .{});
     const equals = lib.assert.expectEqual;
 
-    var array = SA.init(0);
+    var array = Array.init(0);
     try equals(array._values, .{ 0, 0, 0, 0, 0 });
 
     array.set(0, 1);

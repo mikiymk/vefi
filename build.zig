@@ -10,9 +10,16 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const is_enabled = b.option(bool, "is_enabled", "Enable some capability") orelse false;
+
+    const options = b.addOptions();
+    options.addOption(bool, "is_enabled", is_enabled);
+
     const exe = addExecutable(b, target, optimize);
     const lib_module = addModule(b, target, optimize);
     exe.root_module.addImport("ziglib", lib_module);
+
+    exe.root_module.addOptions("config", options);
 
     addRunExe(b, exe);
     addRunUnitTest(b, target, optimize);

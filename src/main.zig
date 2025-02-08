@@ -1,5 +1,6 @@
 const std = @import("std");
 const lib = @import("ziglib");
+const config = @import("config");
 
 const BigInteger = @import("bigint.zig").BigInteger;
 const fizz_buzz = @import("./fizzbuzz.zig");
@@ -16,6 +17,12 @@ pub fn main() !void {
 
     const array = Array.init(0);
     print("{any}", .{array});
+
+    if (config.is_enabled) {
+        print("enabled\n", .{});
+    } else {
+        @panic("disabled! add -Dis_enabled=true flag on compile!");
+    }
 
     try fizz_buzz.fizz(100, std.io.getStdOut().writer(), .{});
 

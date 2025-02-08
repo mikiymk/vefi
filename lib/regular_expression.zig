@@ -51,7 +51,7 @@ pub const NondeterministicFiniteAutomaton = struct {
                 }
             }
 
-            if (next_states.size == 0) {
+            if (next_states._size == 0) {
                 return false;
             }
 

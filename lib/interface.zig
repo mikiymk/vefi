@@ -186,3 +186,27 @@ test Interface {
     try lib.assert.expect(!IteratorInterface.isImplements(Iterator_04));
     try lib.assert.expect(!IteratorInterface.isImplements(Iterator_05));
 }
+
+pub const InterfaceMatch = struct {
+    type: type,
+
+    pub fn hasFunc(self: InterfaceMatch, comptime name: []const u8) bool {
+        return @hasDecl(self.type, name) and
+            @typeInfo(@TypeOf(@field(self.type, name))) == .Fn;
+    }
+
+    pub fn hasDecl(self: InterfaceMatch, comptime name: []const u8) bool {
+        return @hasDecl(self.type, name) and
+            @typeInfo(@TypeOf(@field(self.type, name))) != .Fn;
+    }
+
+    pub fn hasField(self: InterfaceMatch, comptime name: []const u8) bool {
+        return @hasField(self.type, name);
+    }
+};
+
+pub fn match(T: type) InterfaceMatch {
+    return .{
+        .type = T,
+    };
+}

@@ -22,26 +22,37 @@ const AllocatorError = lib.allocator.AllocatorError;
 // 静的・動的
 // 線形・環状
 
-const ArrayOptions = struct {
-    dynamic: bool,
-    max_length: ?usize,
-};
+pub const static_array = @import("./array-static.zig");
+pub const dynamic_array = @import("./array-dynamic.zig");
+pub const static_multi_dimensional_array = @import("./array-static-multi-dimensional.zig");
 
 pub const Range = struct {
     begin: usize,
     end: usize,
 };
 
-pub const static_array = @import("./array-static.zig");
-pub const dynamic_array = @import("./array-dynamic.zig");
+pub fn isArray(T: type) bool {
+    const interface = lib.interface.match(T);
 
-const StaticMultiDimensionalArrayOptions = struct {};
-/// 静的多次元配列 (Static Multi-Dimensional Array)
-pub fn StaticMultiDimensionalArray(T: type, comptime dimension: usize, sizes: [dimension]usize, comptime options: StaticMultiDimensionalArrayOptions) type {
-    _ = options;
-    _ = sizes;
-    _ = T;
-    return struct {
-        // value: [size]T,
-    };
+    if (!interface.hasFunc("get")) return false;
+    if (!interface.hasFunc("set")) return false;
+    if (!interface.hasFunc("size")) return false;
+    return true;
+}
+
+pub fn isDynamicArray(T: type) bool {
+    const interface = lib.interface.match(T);
+
+    if (!isArray(T)) return false;
+
+    if (!interface.hasFunc("get")) return false;
+    if (!interface.hasFunc("set")) return false;
+    if (!interface.hasFunc("size")) return false;
+    return true;
+}
+
+test "array is array" {
+    try lib.assert.expect(isArray(static_array.StaticArray(u8, 5, .{})));
+    try lib.assert.expect(isArray(dynamic_array.DynamicArray(u8, .{})));
+    try lib.assert.expect(isDynamicArray(dynamic_array.DynamicArray(u8, .{})));
 }
