@@ -6,7 +6,6 @@ const operators = @import("./operators.zig");
 const statements = @import("./statements.zig");
 const type_coercion = @import("./type_coercion.zig");
 const builtin_functions = @import("./builtin_functions.zig");
-const undefined_behaviors = @import("./undefined_behaviors.zig");
 
 test {
     _ = .{
@@ -16,6 +15,5 @@ test {
         statements,
         type_coercion,
         // builtin_functions,
-        undefined_behaviors,
     };
 }

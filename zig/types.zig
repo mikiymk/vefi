@@ -248,3 +248,6 @@ const n = 0;
 test function_01 {
     consume(.{ function_01, function_02, &opaque_01 });
 }
+
+const type_01: type = u8;
+const type_02: type = type;
