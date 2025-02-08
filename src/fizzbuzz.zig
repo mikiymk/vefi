@@ -1,5 +1,5 @@
 const std = @import("std");
-const lib = @import("root.zig");
+const lib = @import("ziglib");
 
 test {
     std.testing.refAllDecls(@This());

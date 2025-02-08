@@ -1,17 +1,21 @@
 const std = @import("std");
-const lib = @import("root.zig");
+const lib = @import("ziglib");
 
 const BigInteger = @import("bigint.zig").BigInteger;
 const fizz_buzz = @import("./fizzbuzz.zig");
 
 test {
     _ = @import("bigint.zig");
-    _ = @import("root.zig");
 }
+
+const Array = lib.collection.array.static_array.StaticArray(u8, 5, .{});
 
 pub fn main() !void {
     const print = std.debug.print;
     const allocator = std.heap.page_allocator;
+
+    const array = Array.init(0);
+    print("{any}", .{array});
 
     try fizz_buzz.fizz(100, std.io.getStdOut().writer(), .{});
 
