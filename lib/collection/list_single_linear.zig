@@ -1,10 +1,6 @@
 pub fn SingleLinearList(T: type) type {
     const Element = struct {
             next: ?*Element = null,
-            // prev: if (options.double == .double)
-            //     ?*Element
-            // else
-            //     void,
             value: T,
 
             pub fn init(a: Allocator, value: T) *Element {
