@@ -4,14 +4,18 @@ const lib = @import("../root.zig");
 const assert = lib.assert.assert;
 const Range = lib.collection.array.Range;
 
-pub const StaticArrayOptions = struct {
-    sentinel: ?T,
-};
+pub fn StaticArrayOptions(T: type) type {
+    return struct {
+        comptime sentinel: ?T = null,
+    };
+}
 
 /// 静的配列 (Static Array)
-pub fn StaticArray(T: type, array_size: usize, comptime options: StaticArrayOptions) type {
+pub fn StaticArray(T: type, array_size: usize, comptime options: StaticArrayOptions(T)) type {
     const Array = if (options.sentinel) |sentinel|
-        [array_size:sentinel]T else [array_size]T;
+        [array_size:sentinel]T
+    else
+        [array_size]T;
 
     return struct {
         _values: Array,

@@ -16,7 +16,7 @@ pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
     const array = Array.init(0);
-    print("{any}", .{array});
+    print("{}", .{array});
 
     if (config.is_enabled) {
         print("enabled\n", .{});
