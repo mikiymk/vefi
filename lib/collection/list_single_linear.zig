@@ -1,4 +1,4 @@
-pub fn SingleLinearList(T: type) type {
+pub fn SingleLinearListNode(T: type) type {
     const Element = struct {
             next: ?*Element = null,
             value: T,
@@ -24,21 +24,29 @@ pub fn SingleLinearList(T: type) type {
     };
 
     return struct {
-        const Self = @This();
+        const Node = @This();
 
         /// リストが持つ値の型
         pub const Item = T;
-        pub const Element = Element;
 
-        value: ?*Element = null,
+        value: ?*Node = null,
 
-        /// 空のリストとして初期化する
-        pub fn init() Self {
-            return .{};
+        /// 値を持つノードのメモリを作成する。
+        pub fn init(a: Allocator, value: T, next: ?*Node) *Node {
+            const node: *Node = try a.create(Node);
+            node.* = .{ .value = value, .next = next };
+            return node;
         }
 
-        /// すべてのメモリを解放する。
+        /// このノードを削除してメモリを解放する。
         pub fn deinit(self: *Self, a: Allocator) void {
+            const next = self.next;
+            self.* = next.*;
+            if (next) |n| a.destroy(n);
+        }
+
+        /// このノードから後ろを全て削除する。
+        pub fn deleteAll(self: *Self, a: Allocator) void {
             var elem = self.value;
             self.value = null;
 
