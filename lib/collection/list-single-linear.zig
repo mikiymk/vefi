@@ -108,16 +108,12 @@ pub fn SingleLinearList(T: type) type {
 
         /// リストの指定した位置に要素を追加する。
         pub fn add(self: *List, a: Allocator, index: usize, value: T) Allocator.Error!void {
-            const new_node = try Node.init(a, value, null);
-
             if (index == 0) {
                 const next = self.head;
-                self.head = new_node;
-                new_node.next = next;
+                self.head = try Node.init(a, value, next);
             } else if (self.getNode(index - 1)) |n| {
                 const next = n.next;
-                n.next = new_node;
-                new_node.next = next;
+                n.next = try Node.init(a, value, next);
             } else {
                 // indexが範囲外の場合
                 unreachable;

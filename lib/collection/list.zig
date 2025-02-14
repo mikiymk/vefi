@@ -27,8 +27,8 @@ const AllocatorError = lib.allocator.AllocatorError;
 // スキップリスト
 // XORリスト
 
-pub const single_linear_list = @import("./list_single_linear.zig");
-pub const single_linear_sentinel_list = struct {};
+pub const single_linear_list = @import("./list-single-linear.zig");
+pub const single_linear_sentinel_list = @import("./list-single-linear-sentinel.zig");
 pub const single_circular_list = struct {};
 pub const single_circular_sentinel_list = struct {};
 pub const double_linear_list = struct {};
@@ -53,4 +53,5 @@ pub fn expectList(T: type) !void {
 
 test "list is list" {
     try expectList(single_linear_list.SingleLinearList(u8));
+    try expectList(single_linear_sentinel_list.SingleLinearSentinelList(u8));
 }
