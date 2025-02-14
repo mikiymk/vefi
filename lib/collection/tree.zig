@@ -8,7 +8,7 @@ test {
     std.testing.refAllDecls(@This());
 }
 
-const Allocator = lib.allocator.Allocator;
+const Allocator = std.mem.Allocator;
 const Optional = lib.types.Optional;
 const Order = lib.math.Order;
 const DynamicArray = lib.collection.array.dynamic_array.DynamicArray;

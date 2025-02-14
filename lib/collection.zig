@@ -5,7 +5,7 @@ test {
     std.testing.refAllDecls(@This());
 }
 
-const Allocator = lib.allocator.Allocator;
+const Allocator = std.mem.Allocator;
 
 pub const array = @import("collection/array.zig");
 pub const list = @import("collection/list.zig");

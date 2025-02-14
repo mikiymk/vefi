@@ -5,7 +5,7 @@ test {
     std.testing.refAllDecls(@This());
 }
 
-const Allocator = lib.allocator.Allocator;
+const Allocator = std.mem.Allocator;
 const Slice = lib.types.Slice;
 
 pub const NondeterministicTransitions = struct {

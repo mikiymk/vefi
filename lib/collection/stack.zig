@@ -1,7 +1,7 @@
 const std = @import("std");
 const lib = @import("../root.zig");
 
-const Allocator = lib.allocator.Allocator;
+const Allocator = std.mem.Allocator;
 
 // スタックの関数
 // pop push

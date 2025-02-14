@@ -5,8 +5,7 @@ test {
     std.testing.refAllDecls(@This());
 }
 
-const Allocator = lib.allocator.Allocator;
-const AllocatorError = lib.allocator.AllocatorError;
+const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
 const Range = lib.collection.array.Range;
 
@@ -104,13 +103,13 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
 
         /// 値を配列の最も後ろに追加する。
         /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
-        pub fn pushFront(self: *@This(), allocator: Allocator, item: T) AllocatorError!void {
+        pub fn pushFront(self: *@This(), allocator: Allocator, item: T) Allocator.Error!void {
             try self.insert(allocator, 0, item);
         }
 
         /// 値を配列の最も後ろに追加する。
         /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
-        pub fn pushBack(self: *@This(), allocator: Allocator, item: T) AllocatorError!void {
+        pub fn pushBack(self: *@This(), allocator: Allocator, item: T) Allocator.Error!void {
             if (self._values.len <= self._size) {
                 try self.extendSize(allocator);
             }
@@ -134,7 +133,7 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
         }
 
         /// 配列の`index`番目に新しい要素を追加する。
-        pub fn insert(self: *@This(), allocator: Allocator, index: usize, item: T) AllocatorError!void {
+        pub fn insert(self: *@This(), allocator: Allocator, index: usize, item: T) Allocator.Error!void {
             if (self._values.len <= self._size) {
                 try self.extendSize(allocator);
             }
@@ -175,7 +174,7 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
         }
 
         /// 配列を新しいスライスにコピーする。
-        pub fn copyToSlice(self: @This(), allocator: Allocator) AllocatorError![]const T {
+        pub fn copyToSlice(self: @This(), allocator: Allocator) Allocator.Error![]const T {
             var slice = try allocator.alloc(T, self._size);
             @memcpy(slice[0..self._size], self._values[0..self._size]);
 
@@ -183,7 +182,7 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
         }
 
         /// メモリを再確保して配列の長さを拡張する。
-        fn extendSize(self: *@This(), allocator: Allocator) AllocatorError!void {
+        fn extendSize(self: *@This(), allocator: Allocator) Allocator.Error!void {
             self._values = try lib.collection.extendSize(allocator, self._values);
         }
     };
