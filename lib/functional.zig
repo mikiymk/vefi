@@ -5,6 +5,8 @@ test {
     std.testing.refAllDecls(@This());
 }
 
+pub const operators = @import("./functional/operators.zig");
+
 pub fn Callable(Args: type, Return: type) type {
     return struct {
         context: *const anyopaque,
