@@ -94,9 +94,8 @@ pub fn SingleLinearList(T: type) type {
             var node = self.head;
 
             while (node) |n| {
-                const next = n.next;
                 prev = n;
-                node = next;
+                node = n.next;
             }
 
             return prev;
@@ -175,10 +174,9 @@ pub fn SingleLinearList(T: type) type {
             var node = self.head;
 
             while (node) |n| {
-                const next = n.next;
                 pprev = prev;
                 prev = n;
-                node = next;
+                node = n.next;
             }
 
             if (pprev) |n| {

@@ -36,6 +36,21 @@ pub const double_linear_sentinel_list = struct {};
 pub const double_circular_list = struct {};
 pub const double_circular_sentinel_list = struct {};
 
-pub fn isList() void {
-    @panic("not implemented");
+pub fn expectList(T: type) !void {
+    const interface = lib.interface.match(T);
+
+    if (!interface.hasFunc("size")) return error.NotImplemented;
+    if (!interface.hasFunc("get")) return error.NotImplemented;
+    if (!interface.hasFunc("getFirst")) return error.NotImplemented;
+    if (!interface.hasFunc("getLast")) return error.NotImplemented;
+    if (!interface.hasFunc("add")) return error.NotImplemented;
+    if (!interface.hasFunc("addFirst")) return error.NotImplemented;
+    if (!interface.hasFunc("addLast")) return error.NotImplemented;
+    if (!interface.hasFunc("remove")) return error.NotImplemented;
+    if (!interface.hasFunc("removeFirst")) return error.NotImplemented;
+    if (!interface.hasFunc("removeLast")) return error.NotImplemented;
+}
+
+test "list is list" {
+    try expectList(single_linear_list.SingleLinearList(u8));
 }

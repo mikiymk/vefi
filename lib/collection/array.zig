@@ -31,28 +31,25 @@ pub const Range = struct {
     end: usize,
 };
 
-pub fn isArray(T: type) bool {
+pub fn expectArray(T: type) !void {
     const interface = lib.interface.match(T);
 
-    if (!interface.hasFunc("get")) return false;
-    if (!interface.hasFunc("set")) return false;
-    if (!interface.hasFunc("size")) return false;
-    return true;
+    if (!interface.hasFunc("get")) return error.NotImplemented;
+    if (!interface.hasFunc("set")) return error.NotImplemented;
+    if (!interface.hasFunc("size")) return error.NotImplemented;
 }
 
-pub fn isDynamicArray(T: type) bool {
+pub fn expectDynamicArray(T: type) !void {
     const interface = lib.interface.match(T);
 
-    if (!isArray(T)) return false;
-
-    if (!interface.hasFunc("get")) return false;
-    if (!interface.hasFunc("set")) return false;
-    if (!interface.hasFunc("size")) return false;
-    return true;
+    try expectArray(T);
+    if (!interface.hasFunc("get")) return error.NotImplemented;
+    if (!interface.hasFunc("set")) return error.NotImplemented;
+    if (!interface.hasFunc("size")) return error.NotImplemented;
 }
 
 test "array is array" {
-    try lib.assert.expect(isArray(static_array.StaticArray(u8, 5, .{})));
-    try lib.assert.expect(isArray(dynamic_array.DynamicArray(u8, .{})));
-    try lib.assert.expect(isDynamicArray(dynamic_array.DynamicArray(u8, .{})));
+    try expectArray(static_array.StaticArray(u8, 5, .{}));
+    try expectArray(dynamic_array.DynamicArray(u8, .{}));
+    try expectDynamicArray(dynamic_array.DynamicArray(u8, .{}));
 }
