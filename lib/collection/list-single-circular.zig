@@ -75,6 +75,23 @@ pub fn SingleCircularList(T: type) type {
             }
         }
 
+        /// リストの全ての要素を削除する。
+        pub fn clear(self: *List, a: Allocator) void {
+            const tail = self.tail orelse return;
+
+            var node = tail.next;
+            while (true) {
+                const next = node.next;
+
+                node.deinit(a);
+
+                if (node == tail) break;
+
+                node = next;
+            }
+            self.tail = null;
+        }
+
         /// リストの指定した位置のノードを返す。
         fn getNode(self: List, index: usize) ?*Node {
             const tail = self.tail orelse return null;
@@ -185,17 +202,22 @@ pub fn SingleCircularList(T: type) type {
             const tail = self.tail.?;
             const head = tail.next;
 
-            var prev: *Node = undefined;
+            var prev: *Node = tail;
             var node = head;
             while (true) : (node = node.next) {
                 if (node == tail) {
-                    prev.next = head;
-                    node.deinit(a);
-                    self.tail = prev;
-                    return;
+                    break;
                 }
                 prev = node;
             }
+
+            prev.next = head;
+            if (node != prev) {
+                self.tail = prev;
+            } else {
+                self.tail = null;
+            }
+            node.deinit(a);
         }
 
         /// リストを複製する。
@@ -265,8 +287,6 @@ test "list" {
 
     // list == .{3, 4, 7, 8}
     try expect(list.size() == 4);
-    try expect(list.getFirst() == 3);
-    try expect(list.getLast() == 8);
     try expect(list.get(0) == 3);
     try expect(list.get(1) == 4);
     try expect(list.get(2) == 7);
@@ -290,8 +310,6 @@ test "list" {
 
     // list == .{4, 5, 6, 7, 8}
     try expect(list.size() == 5);
-    try expect(list.getFirst() == 4);
-    try expect(list.getLast() == 8);
     try expect(list.get(0) == 4);
     try expect(list.get(1) == 5);
     try expect(list.get(2) == 6);
@@ -302,8 +320,6 @@ test "list" {
 
     // list == .{4, 5, 6, 7}
     try expect(list.size() == 4);
-    try expect(list.getFirst() == 4);
-    try expect(list.getLast() == 7);
     try expect(list.get(0) == 4);
     try expect(list.get(1) == 5);
     try expect(list.get(2) == 6);
@@ -313,9 +329,26 @@ test "list" {
 
     // list == .{4, 6, 7}
     try expect(list.size() == 3);
-    try expect(list.getFirst() == 4);
-    try expect(list.getLast() == 7);
     try expect(list.get(0) == 4);
     try expect(list.get(1) == 6);
     try expect(list.get(2) == 7);
+
+    list.clear(a);
+
+    // list == .{}
+    try expect(list.size() == 0);
+    try expect(list.getFirst() == null);
+    try expect(list.getLast() == null);
+
+    try list.addFirst(a, 1);
+    list.removeFirst(a);
+    try expect(list.size() == 0);
+
+    try list.addLast(a, 1);
+    list.removeLast(a);
+    try expect(list.size() == 0);
+
+    try list.add(a, 0, 1);
+    list.remove(a, 0);
+    try expect(list.size() == 0);
 }

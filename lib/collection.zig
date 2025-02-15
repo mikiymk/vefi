@@ -83,6 +83,7 @@ pub fn expectList(T: type) !void {
     const interface = lib.interface.match(T);
 
     if (!interface.hasFunc("size")) return error.NotImplemented;
+    if (!interface.hasFunc("clear")) return error.NotImplemented;
     if (!interface.hasFunc("get")) return error.NotImplemented;
     if (!interface.hasFunc("getFirst")) return error.NotImplemented;
     if (!interface.hasFunc("getLast")) return error.NotImplemented;

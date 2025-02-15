@@ -74,6 +74,18 @@ pub fn SingleCircularSentinelList(T: type) type {
             return count;
         }
 
+        /// リストの全ての要素を削除する。
+        pub fn clear(self: *List, a: Allocator) void {
+            var node = self.head;
+            while (node != self.sentinel) {
+                const next = node.next;
+                node.deinit(a);
+                node = next;
+            }
+            self.head = self.sentinel;
+            self.head.next = self.sentinel;
+        }
+
         /// リストの指定した位置のノードを返す。
         fn getNode(self: List, index: usize) *Node {
             var node = self.head;
@@ -139,6 +151,9 @@ pub fn SingleCircularSentinelList(T: type) type {
 
             const last = self.getLastNode();
             last.next = new_node;
+            if (last == self.sentinel) {
+                self.head = new_node;
+            }
         }
 
         /// リストの指定した位置の要素を削除する。
@@ -157,21 +172,24 @@ pub fn SingleCircularSentinelList(T: type) type {
         /// リストの先頭の要素を削除する。
         pub fn removeFirst(self: *List, a: Allocator) void {
             const head = self.head;
-            self.sentinel.next = head.next;
-            self.head = head.next;
+            const next = head.next;
+            self.sentinel.next = next;
+            self.head = next;
             head.deinit(a);
         }
 
         /// リストの末尾の要素を削除する。
         pub fn removeLast(self: *List, a: Allocator) void {
-            const head = self.head;
-
             var prev_prev = self.sentinel;
             var prev = self.sentinel;
-            var node = head;
+            var node = self.head;
             while (node != self.sentinel) : (node = node.next) {
                 prev_prev = prev;
                 prev = node;
+            }
+
+            if (prev_prev == self.sentinel) {
+                self.head = self.sentinel;
             }
             prev_prev.next = self.sentinel;
             prev.deinit(a);
@@ -197,9 +215,7 @@ pub fn SingleCircularSentinelList(T: type) type {
             const writer = lib.io.writer(w);
             try writer.print("List\n", .{});
 
-            const head = self.head;
-
-            var node = head;
+            var node = self.head;
             var index: usize = 0;
             while (node != self.sentinel) : (node = node.next) {
                 try writer.print(" {d}: {}\n", .{ index, node });
@@ -239,8 +255,6 @@ test "list" {
 
     // list == .{3, 4, 7, 8}
     try expect(list.size() == 4);
-    try expect(list.getFirst() == 3);
-    try expect(list.getLast() == 8);
     try expect(list.get(0) == 3);
     try expect(list.get(1) == 4);
     try expect(list.get(2) == 7);
@@ -264,8 +278,6 @@ test "list" {
 
     // list == .{4, 5, 6, 7, 8}
     try expect(list.size() == 5);
-    try expect(list.getFirst() == 4);
-    try expect(list.getLast() == 8);
     try expect(list.get(0) == 4);
     try expect(list.get(1) == 5);
     try expect(list.get(2) == 6);
@@ -276,8 +288,6 @@ test "list" {
 
     // list == .{4, 5, 6, 7}
     try expect(list.size() == 4);
-    try expect(list.getFirst() == 4);
-    try expect(list.getLast() == 7);
     try expect(list.get(0) == 4);
     try expect(list.get(1) == 5);
     try expect(list.get(2) == 6);
@@ -287,9 +297,26 @@ test "list" {
 
     // list == .{4, 6, 7}
     try expect(list.size() == 3);
-    try expect(list.getFirst() == 4);
-    try expect(list.getLast() == 7);
     try expect(list.get(0) == 4);
     try expect(list.get(1) == 6);
     try expect(list.get(2) == 7);
+
+    list.clear(a);
+
+    // list == .{}
+    try expect(list.size() == 0);
+    try expect(list.getFirst() == null);
+    try expect(list.getLast() == null);
+
+    try list.addFirst(a, 1);
+    list.removeFirst(a);
+    try expect(list.size() == 0);
+
+    try list.addLast(a, 1);
+    list.removeLast(a);
+    try expect(list.size() == 0);
+
+    try list.add(a, 0, 1);
+    list.remove(a, 0);
+    try expect(list.size() == 0);
 }

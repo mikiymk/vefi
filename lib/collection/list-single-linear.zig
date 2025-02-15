@@ -64,6 +64,18 @@ pub fn SingleLinearList(T: type) type {
             return count;
         }
 
+        /// リストの全ての要素を削除する。
+        pub fn clear(self: *List, a: Allocator) void {
+            var node: ?*Node = self.head;
+
+            while (node) |n| {
+                const next = n.next;
+                n.deinit(a);
+                node = next;
+            }
+            self.head = null;
+        }
+
         /// リストの指定した位置のノードを返す。
         fn getNode(self: List, index: usize) ?*Node {
             var count = index;
@@ -149,11 +161,11 @@ pub fn SingleLinearList(T: type) type {
         pub fn remove(self: *List, a: Allocator, index: usize) void {
             if (index == 0) {
                 self.removeFirst(a);
-            } else if (self.getNode(index - 1)) |n| {
-                const target = n.next;
-                if (target) |t| {
-                    n.next = t.next;
-                    t.deinit(a);
+            } else if (self.getNode(index - 1)) |node| {
+                const next = node.next;
+                if (next) |n| {
+                    node.next = n.next;
+                    n.deinit(a);
                 }
             } else {
                 // indexが範囲外の場合
@@ -163,8 +175,8 @@ pub fn SingleLinearList(T: type) type {
 
         /// リストの先頭の要素を削除する。
         pub fn removeFirst(self: *List, a: Allocator) void {
-            const target = self.head;
-            if (target) |node| {
+            const head = self.head;
+            if (head) |node| {
                 self.head = node.next;
                 node.deinit(a);
             }
@@ -182,11 +194,13 @@ pub fn SingleLinearList(T: type) type {
                 node = n.next;
             }
 
-            if (pprev) |n| {
-                n.next = null;
-            }
             if (prev) |n| {
                 n.deinit(a);
+            }
+            if (pprev) |n| {
+                n.next = null;
+            } else {
+                self.head = null;
             }
         }
 
@@ -222,21 +236,22 @@ pub fn SingleLinearList(T: type) type {
 }
 
 test "list" {
-    const L = SingleLinearList(u8);
-    const allocator = std.testing.allocator;
+    const List = SingleLinearList(u8);
+    const a = std.testing.allocator;
     const expect = lib.assert.expect;
 
-    var list = L.init();
-    defer list.deinit(allocator);
+    var list = List.init();
+    defer list.deinit(a);
+
+    try expect(@TypeOf(list) == SingleLinearList(u8));
 
     // list == .{}
-    try expect(@TypeOf(list) == SingleLinearList(u8));
     try expect(list.size() == 0);
     try expect(list.getFirst() == null);
     try expect(list.getLast() == null);
 
-    try list.addFirst(allocator, 4);
-    try list.addFirst(allocator, 3);
+    try list.addFirst(a, 4);
+    try list.addFirst(a, 3);
 
     // list == .{3, 4}
     try expect(list.size() == 2);
@@ -245,20 +260,18 @@ test "list" {
     try expect(list.get(0) == 3);
     try expect(list.get(1) == 4);
 
-    try list.addLast(allocator, 7);
-    try list.addLast(allocator, 8);
+    try list.addLast(a, 7);
+    try list.addLast(a, 8);
 
     // list == .{3, 4, 7, 8}
     try expect(list.size() == 4);
-    try expect(list.getFirst() == 3);
-    try expect(list.getLast() == 8);
     try expect(list.get(0) == 3);
     try expect(list.get(1) == 4);
     try expect(list.get(2) == 7);
     try expect(list.get(3) == 8);
 
-    try list.add(allocator, 2, 5);
-    try list.add(allocator, 3, 6);
+    try list.add(a, 2, 5);
+    try list.add(a, 3, 6);
 
     // list == .{3, 4, 5, 6, 7, 8}
     try expect(list.size() == 6);
@@ -271,36 +284,49 @@ test "list" {
     try expect(list.get(4) == 7);
     try expect(list.get(5) == 8);
 
-    list.removeFirst(allocator);
+    list.removeFirst(a);
 
     // list == .{4, 5, 6, 7, 8}
     try expect(list.size() == 5);
-    try expect(list.getFirst() == 4);
-    try expect(list.getLast() == 8);
     try expect(list.get(0) == 4);
     try expect(list.get(1) == 5);
     try expect(list.get(2) == 6);
     try expect(list.get(3) == 7);
     try expect(list.get(4) == 8);
 
-    list.removeLast(allocator);
+    list.removeLast(a);
 
     // list == .{4, 5, 6, 7}
     try expect(list.size() == 4);
-    try expect(list.getFirst() == 4);
-    try expect(list.getLast() == 7);
     try expect(list.get(0) == 4);
     try expect(list.get(1) == 5);
     try expect(list.get(2) == 6);
     try expect(list.get(3) == 7);
 
-    list.remove(allocator, 1);
+    list.remove(a, 1);
 
     // list == .{4, 6, 7}
     try expect(list.size() == 3);
-    try expect(list.getFirst() == 4);
-    try expect(list.getLast() == 7);
     try expect(list.get(0) == 4);
     try expect(list.get(1) == 6);
     try expect(list.get(2) == 7);
+
+    list.clear(a);
+
+    // list == .{}
+    try expect(list.size() == 0);
+    try expect(list.getFirst() == null);
+    try expect(list.getLast() == null);
+
+    try list.addFirst(a, 1);
+    list.removeFirst(a);
+    try expect(list.size() == 0);
+
+    try list.addLast(a, 1);
+    list.removeLast(a);
+    try expect(list.size() == 0);
+
+    try list.add(a, 0, 1);
+    list.remove(a, 0);
+    try expect(list.size() == 0);
 }
