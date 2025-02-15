@@ -2,8 +2,9 @@ const std = @import("std");
 const lib = @import("../root.zig");
 
 const Allocator = std.mem.Allocator;
+const assert = lib.assert.assert;
 
-pub fn SingleLinearList(T: type) type {
+pub fn SingleCircularList(T: type) type {
     return struct {
         const List = @This();
 
@@ -11,29 +12,33 @@ pub fn SingleLinearList(T: type) type {
         pub const Item = T;
         pub const Node = struct {
             value: Item,
-            next: ?*Node = null,
+            next: *Node,
 
             /// 値を持つノードのメモリを作成する。
-            pub fn init(a: Allocator, value: T, next: ?*Node) Allocator.Error!*Node {
+            fn init(a: Allocator, value: T, next: *Node) Allocator.Error!*Node {
                 const node: *Node = try a.create(Node);
                 node.* = .{ .value = value, .next = next };
                 return node;
             }
 
-            /// このノードを削除してメモリを解放する。
-            pub fn deinit(node: *Node, a: Allocator) void {
+            /// 値を持つノードのメモリを作成する。
+            /// 自分自身をnextに指定する。
+            fn initNextSelf(a: Allocator, value: T) Allocator.Error!*Node {
+                const node: *Node = try a.create(Node);
+                node.* = .{ .value = value, .next = node };
+                return node;
+            }
+
+            fn deinit(node: *Node, a: Allocator) void {
                 a.destroy(node);
             }
 
             pub fn format(node: Node, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
-                const next_str = "next";
-                const null_str = "null";
-
-                try writer.print("{{{}}} -> {s}", .{ node.value, if (node.next) |_| next_str else null_str });
+                try writer.print("{{{}}} -> next", .{node.value});
             }
         };
 
-        head: ?*Node = null,
+        tail: ?*Node = null,
 
         /// 空のリストを作成する。
         pub fn init() List {
@@ -42,58 +47,59 @@ pub fn SingleLinearList(T: type) type {
 
         /// リストに含まれる全てのノードを削除する。
         pub fn deinit(self: *List, a: Allocator) void {
-            var node: ?*Node = self.head;
+            const tail = self.tail orelse return;
 
-            while (node) |n| {
-                const next = n.next;
-                n.deinit(a);
+            var node = tail.next;
+            while (true) {
+                const next = node.next;
+
+                node.deinit(a);
+
+                if (node == tail) break;
+
                 node = next;
             }
         }
 
         /// リストの要素数を数える
         pub fn size(self: List) usize {
-            var node: ?*Node = self.head;
+            const tail = self.tail orelse return 0;
+
+            var node = tail.next;
             var count: usize = 0;
-            while (node) |n| {
-                node = n.next;
+            while (true) : (node = node.next) {
                 count += 1;
+
+                if (node == tail) return count;
             }
-            return count;
         }
 
         /// リストの指定した位置のノードを返す。
         fn getNode(self: List, index: usize) ?*Node {
+            const tail = self.tail orelse return null;
+            const head = tail.next;
+
+            var node = head;
             var count = index;
-            var node = self.head;
-            while (node) |n| {
+            while (true) : (node = node.next) {
                 if (count == 0) {
-                    return n;
+                    return node;
                 }
-
-                node = n.next;
                 count -= 1;
-            }
 
-            return null;
+                if (node == tail) return null;
+            }
         }
 
         /// リストの先頭のノードを返す。
         fn getFirstNode(self: List) ?*Node {
-            return self.head;
+            const tail = self.tail orelse return null;
+            return tail.next;
         }
 
         /// リストの末尾のノードを返す。
         fn getLastNode(self: List) ?*Node {
-            var prev: ?*Node = null;
-            var node = self.head;
-
-            while (node) |n| {
-                prev = n;
-                node = n.next;
-            }
-
-            return prev;
+            return self.tail;
         }
 
         /// リストの指定した位置の要素を返す。
@@ -114,8 +120,7 @@ pub fn SingleLinearList(T: type) type {
         /// リストの指定した位置に要素を追加する。
         pub fn add(self: *List, a: Allocator, index: usize, value: T) Allocator.Error!void {
             if (index == 0) {
-                const next = self.head;
-                self.head = try Node.init(a, value, next);
+                try self.addFirst(a, value);
             } else if (self.getNode(index - 1)) |n| {
                 const next = n.next;
                 n.next = try Node.init(a, value, next);
@@ -127,19 +132,22 @@ pub fn SingleLinearList(T: type) type {
 
         /// リストの先頭に要素を追加する。
         pub fn addFirst(self: *List, a: Allocator, value: T) Allocator.Error!void {
-            const new_node = try Node.init(a, value, self.head);
-
-            self.head = new_node;
+            if (self.tail) |tail| {
+                const new_node = try Node.init(a, value, tail.next);
+                tail.next = new_node;
+            } else {
+                self.tail = try Node.initNextSelf(a, value);
+            }
         }
 
         /// リストの末尾に要素を追加する。
         pub fn addLast(self: *List, a: Allocator, value: T) Allocator.Error!void {
-            const new_node = try Node.init(a, value, null);
-
-            if (self.getLastNode()) |n| {
-                n.next = new_node;
+            if (self.tail) |tail| {
+                const new_node = try Node.init(a, value, tail.next);
+                tail.next = new_node;
+                self.tail = new_node;
             } else {
-                self.head = new_node;
+                self.tail = try Node.initNextSelf(a, value);
             }
         }
 
@@ -147,44 +155,45 @@ pub fn SingleLinearList(T: type) type {
         pub fn remove(self: *List, a: Allocator, index: usize) void {
             if (index == 0) {
                 self.removeFirst(a);
-            } else if (self.getNode(index - 1)) |n| {
-                const target = n.next;
-                if (target) |t| {
-                    n.next = t.next;
-                    t.deinit(a);
-                }
-            } else {
-                // indexが範囲外の場合
-                unreachable;
+                return;
             }
+
+            const prev = self.getNode(index - 1).?;
+            const node = prev.next;
+            prev.next = node.next;
+            node.deinit(a);
         }
 
         /// リストの先頭の要素を削除する。
         pub fn removeFirst(self: *List, a: Allocator) void {
-            const target = self.head;
-            if (target) |node| {
-                self.head = node.next;
-                node.deinit(a);
+            assert(self.tail != null);
+
+            const tail = self.tail.?;
+            const head = tail.next;
+            tail.next = head.next;
+            if (tail == head) {
+                self.tail = null;
             }
+            head.deinit(a);
         }
 
         /// リストの末尾の要素を削除する。
         pub fn removeLast(self: *List, a: Allocator) void {
-            var pprev: ?*Node = null;
-            var prev: ?*Node = null;
-            var node = self.head;
+            assert(self.tail != null);
 
-            while (node) |n| {
-                pprev = prev;
-                prev = n;
-                node = n.next;
-            }
+            const tail = self.tail.?;
+            const head = tail.next;
 
-            if (pprev) |n| {
-                n.next = null;
-            }
-            if (prev) |n| {
-                n.deinit(a);
+            var prev: *Node = undefined;
+            var node = head;
+            while (true) : (node = node.next) {
+                if (node == tail) {
+                    prev.next = head;
+                    node.deinit(a);
+                    self.tail = prev;
+                    return;
+                }
+                prev = node;
             }
         }
 
@@ -207,33 +216,40 @@ pub fn SingleLinearList(T: type) type {
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
             try writer.print("List\n", .{});
 
-            var node = self.head;
+            const tail = self.tail orelse {
+                try writer.print("\n", .{});
+                return;
+            };
+
+            var node = tail.next;
             var index: usize = 0;
-            while (node) |n| {
-                try writer.print(" {d}: {}\n", .{ index, n });
-                node = n.next;
+            while (node != tail) {
+                try writer.print(" {d}: {}\n", .{ index, node });
+                node = node.next;
                 index += 1;
             }
+            try writer.print(" {d}: {}\n", .{ index, node });
         }
     };
 }
 
 test "list" {
-    const L = SingleLinearList(u8);
-    const allocator = std.testing.allocator;
+    const List = SingleCircularList(u8);
+    const a = std.testing.allocator;
     const expect = lib.assert.expect;
 
-    var list = L.init();
-    defer list.deinit(allocator);
+    var list = List.init();
+    defer list.deinit(a);
+
+    try expect(@TypeOf(list) == SingleCircularList(u8));
 
     // list == .{}
-    try expect(@TypeOf(list) == SingleLinearList(u8));
     try expect(list.size() == 0);
     try expect(list.getFirst() == null);
     try expect(list.getLast() == null);
 
-    try list.addFirst(allocator, 4);
-    try list.addFirst(allocator, 3);
+    try list.addFirst(a, 4);
+    try list.addFirst(a, 3);
 
     // list == .{3, 4}
     try expect(list.size() == 2);
@@ -242,8 +258,8 @@ test "list" {
     try expect(list.get(0) == 3);
     try expect(list.get(1) == 4);
 
-    try list.addLast(allocator, 7);
-    try list.addLast(allocator, 8);
+    try list.addLast(a, 7);
+    try list.addLast(a, 8);
 
     // list == .{3, 4, 7, 8}
     try expect(list.size() == 4);
@@ -254,8 +270,8 @@ test "list" {
     try expect(list.get(2) == 7);
     try expect(list.get(3) == 8);
 
-    try list.add(allocator, 2, 5);
-    try list.add(allocator, 3, 6);
+    try list.add(a, 2, 5);
+    try list.add(a, 3, 6);
 
     // list == .{3, 4, 5, 6, 7, 8}
     try expect(list.size() == 6);
@@ -268,7 +284,7 @@ test "list" {
     try expect(list.get(4) == 7);
     try expect(list.get(5) == 8);
 
-    list.removeFirst(allocator);
+    list.removeFirst(a);
 
     // list == .{4, 5, 6, 7, 8}
     try expect(list.size() == 5);
@@ -280,7 +296,7 @@ test "list" {
     try expect(list.get(3) == 7);
     try expect(list.get(4) == 8);
 
-    list.removeLast(allocator);
+    list.removeLast(a);
 
     // list == .{4, 5, 6, 7}
     try expect(list.size() == 4);
@@ -291,7 +307,7 @@ test "list" {
     try expect(list.get(2) == 6);
     try expect(list.get(3) == 7);
 
-    list.remove(allocator, 1);
+    list.remove(a, 1);
 
     // list == .{4, 6, 7}
     try expect(list.size() == 3);

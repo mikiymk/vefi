@@ -29,7 +29,7 @@ const AllocatorError = lib.allocator.AllocatorError;
 
 pub const single_linear_list = @import("./list-single-linear.zig");
 pub const single_linear_sentinel_list = @import("./list-single-linear-sentinel.zig");
-pub const single_circular_list = struct {};
+pub const single_circular_list = @import("./list-single-circular.zig");
 pub const single_circular_sentinel_list = struct {};
 pub const double_linear_list = struct {};
 pub const double_linear_sentinel_list = struct {};

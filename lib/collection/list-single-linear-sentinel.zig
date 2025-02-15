@@ -28,13 +28,21 @@ pub fn SingleLinearSentinelList(T: type) type {
             }
 
             /// ノードの値を返す。
-            fn getValue(node: *Node) ?T {
+            fn getValue(node: *const Node) ?T {
                 return if (node != ref_sentinel) node.value else null;
+            }
+
+            pub fn format(node: *const Node, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+                if (node == ref_sentinel) {
+                    try writer.print("sentinel", .{});
+                } else {
+                    try writer.print("{{{}}} -> next", .{node.value});
+                }
             }
         };
 
-        const sentinel: Node = undefined;
-        pub const ref_sentinel = @constCast(&sentinel);
+        var sentinel: Node = undefined;
+        pub const ref_sentinel = &sentinel;
 
         head: *Node,
 
@@ -58,8 +66,7 @@ pub fn SingleLinearSentinelList(T: type) type {
         pub fn size(self: List) usize {
             var node = self.head;
             var count: usize = 0;
-            while (node != ref_sentinel) {
-                node = node.next;
+            while (node != ref_sentinel) : (node = node.next) {
                 count += 1;
             }
             return count;
@@ -69,8 +76,7 @@ pub fn SingleLinearSentinelList(T: type) type {
         fn getNode(self: List, index: usize) *Node {
             var count = index;
             var node = self.head;
-            while (node != ref_sentinel and count != 0) {
-                node = node.next;
+            while (node != ref_sentinel and count != 0) : (node = node.next) {
                 count -= 1;
             }
             return node;
@@ -86,9 +92,8 @@ pub fn SingleLinearSentinelList(T: type) type {
             var prev = ref_sentinel;
             var node = self.head;
 
-            while (node != ref_sentinel) {
+            while (node != ref_sentinel) : (node = node.next) {
                 prev = node;
-                node = node.next;
             }
 
             return prev;
@@ -113,14 +118,15 @@ pub fn SingleLinearSentinelList(T: type) type {
         pub fn add(self: *List, a: Allocator, index: usize, value: T) Allocator.Error!void {
             if (index == 0) {
                 self.head = try Node.init(a, value, self.head);
+                return;
+            }
+
+            const node = self.getNode(index - 1);
+            if (node != ref_sentinel) {
+                node.next = try Node.init(a, value, node.next);
             } else {
-                const node = self.getNode(index - 1);
-                if (node != ref_sentinel) {
-                    node.next = try Node.init(a, value, node.next);
-                } else {
-                    // indexが範囲外の場合
-                    unreachable;
-                }
+                // indexが範囲外の場合
+                unreachable;
             }
         }
 
@@ -145,16 +151,17 @@ pub fn SingleLinearSentinelList(T: type) type {
         pub fn remove(self: *List, a: Allocator, index: usize) void {
             if (index == 0) {
                 self.removeFirst(a);
+                return;
+            }
+
+            const node = self.getNode(index - 1);
+            if (node != ref_sentinel) {
+                const target = node.next;
+                node.next = target.next;
+                target.deinit(a);
             } else {
-                const node = self.getNode(index - 1);
-                if (node != ref_sentinel) {
-                    const target = node.next;
-                    node.next = target.next;
-                    target.deinit(a);
-                } else {
-                    // indexが範囲外の場合
-                    unreachable;
-                }
+                // indexが範囲外の場合
+                unreachable;
             }
         }
 
@@ -171,10 +178,9 @@ pub fn SingleLinearSentinelList(T: type) type {
             var prev: *Node = ref_sentinel;
             var node: *Node = self.head;
 
-            while (node != ref_sentinel) {
+            while (node != ref_sentinel) : (node = node.next) {
                 prev_prev = prev;
                 prev = node;
-                node = node.next;
             }
 
             prev_prev.next = ref_sentinel;
@@ -195,6 +201,17 @@ pub fn SingleLinearSentinelList(T: type) type {
         pub fn equal(left: List, right: List) bool {
             _ = left;
             _ = right;
+        }
+
+        pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+            try writer.print("List\n", .{});
+
+            var node = self.head;
+            var index: usize = 0;
+            while (node != ref_sentinel) : (node = node.next) {
+                try writer.print(" {d}: {}\n", .{ index, node });
+                index += 1;
+            }
         }
     };
 }
