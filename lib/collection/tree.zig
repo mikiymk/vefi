@@ -11,7 +11,7 @@ test {
 const Allocator = std.mem.Allocator;
 const Optional = lib.types.Optional;
 const Order = lib.math.Order;
-const DynamicArray = lib.collection.array.dynamic_array.DynamicArray;
+const DynamicArray = lib.collection.dynamic_array.DynamicArray;
 const Stack = lib.collection.stack.Stack;
 
 /// AVL木

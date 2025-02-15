@@ -2,6 +2,7 @@ const std = @import("std");
 const lib = @import("../root.zig");
 
 const Allocator = std.mem.Allocator;
+const assert = lib.assert.assert;
 
 pub fn SingleLinearList(T: type) type {
     return struct {
@@ -25,7 +26,8 @@ pub fn SingleLinearList(T: type) type {
                 a.destroy(node);
             }
 
-            pub fn format(node: Node, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+            pub fn format(node: Node, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
+                const writer = lib.io.writer(w);
                 const next_str = "next";
                 const null_str = "null";
 
@@ -204,7 +206,8 @@ pub fn SingleLinearList(T: type) type {
             _ = right;
         }
 
-        pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
+            const writer = lib.io.writer(w);
             try writer.print("List\n", .{});
 
             var node = self.head;

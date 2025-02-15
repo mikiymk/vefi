@@ -33,7 +33,8 @@ pub fn SingleCircularList(T: type) type {
                 a.destroy(node);
             }
 
-            pub fn format(node: Node, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+            pub fn format(node: Node, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
+                const writer = lib.io.writer(w);
                 try writer.print("{{{}}} -> next", .{node.value});
             }
         };
@@ -213,7 +214,8 @@ pub fn SingleCircularList(T: type) type {
             _ = right;
         }
 
-        pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, writer: anytype) !void {
+        pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
+            const writer = lib.io.writer(w);
             try writer.print("List\n", .{});
 
             const tail = self.tail orelse {

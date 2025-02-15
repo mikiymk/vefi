@@ -2,7 +2,7 @@ const std = @import("std");
 const lib = @import("../root.zig");
 
 const assert = lib.assert.assert;
-const Range = lib.collection.array.Range;
+const Range = lib.collection.Range;
 
 pub fn StaticArrayOptions(T: type) type {
     return struct {
