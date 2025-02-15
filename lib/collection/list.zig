@@ -54,4 +54,5 @@ pub fn expectList(T: type) !void {
 test "list is list" {
     try expectList(single_linear_list.SingleLinearList(u8));
     try expectList(single_linear_sentinel_list.SingleLinearSentinelList(u8));
+    try expectList(single_circular_list.SingleCircularList(u8));
 }
