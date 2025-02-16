@@ -4,7 +4,7 @@ const lib = @import("../root.zig");
 const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
 
-pub fn SingleLinearList(T: type) type {
+pub fn DoubleLinearSentinelList(T: type) type {
     return struct {
         const List = @This();
 
@@ -12,53 +12,64 @@ pub fn SingleLinearList(T: type) type {
         pub const Item = T;
         pub const Node = struct {
             value: Item,
-            next: ?*Node = null,
+            next: *Node,
+            prev: *Node,
 
             /// 値を持つノードのメモリを作成する。
-            pub fn init(a: Allocator, value: T, next: ?*Node) Allocator.Error!*Node {
+            pub fn init(a: Allocator, value: T, next: *Node, prev: *Node) Allocator.Error!*Node {
                 const node: *Node = try a.create(Node);
-                node.* = .{ .value = value, .next = next };
+                node.* = .{ .value = value, .next = next, .prev = prev };
                 return node;
             }
 
             /// このノードを削除してメモリを解放する。
             pub fn deinit(node: *Node, a: Allocator) void {
-                a.destroy(node);
+                if (node != ref_sentinel) {
+                    a.destroy(node);
+                }
+            }
+
+            /// ノードの値を返す。
+            fn getValue(node: *const Node) ?T {
+                return if (node != ref_sentinel) node.value else null;
             }
 
             pub fn format(node: Node, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
                 const writer = lib.io.writer(w);
-                const next_str = "next";
-                const null_str = "null";
-
-                try writer.print("{{{}}} -> {s}", .{ node.value, if (node.next) |_| next_str else null_str });
+                if (node == ref_sentinel) {
+                    try writer.print("sentinel", .{});
+                } else {
+                    try writer.print("{{{}}} -> next", .{node.value});
+                }
             }
         };
 
-        head: ?*Node = null,
+        var sentinel: Node = undefined;
+        pub const ref_sentinel = &sentinel;
+
+        head: *Node = ref_sentinel,
 
         /// 空のリストを作成する。
         pub fn init() List {
-            return .{};
+            return .{ .head = ref_sentinel };
         }
 
         /// リストに含まれる全てのノードを削除する。
         pub fn deinit(self: *List, a: Allocator) void {
-            var node: ?*Node = self.head;
+            var node = self.head;
 
-            while (node) |n| {
-                const next = n.next;
-                n.deinit(a);
+            while (node != ref_sentinel) {
+                const next = node.next;
+                a.destroy(node);
                 node = next;
             }
         }
 
         /// リストの要素数を数える
         pub fn size(self: List) usize {
-            var node: ?*Node = self.head;
+            var node = self.head;
             var count: usize = 0;
-            while (node) |n| {
-                node = n.next;
+            while (node != ref_sentinel) : (node = node.next) {
                 count += 1;
             }
             return count;
@@ -66,45 +77,38 @@ pub fn SingleLinearList(T: type) type {
 
         /// リストの全ての要素を削除する。
         pub fn clear(self: *List, a: Allocator) void {
-            var node: ?*Node = self.head;
+            var node = self.head;
 
-            while (node) |n| {
-                const next = n.next;
-                n.deinit(a);
+            while (node != ref_sentinel) {
+                const next = node.next;
+                a.destroy(node);
                 node = next;
             }
-            self.head = null;
+            self.head = ref_sentinel;
         }
 
         /// リストの指定した位置のノードを返す。
-        fn getNode(self: List, index: usize) ?*Node {
+        fn getNode(self: List, index: usize) *Node {
             var count = index;
             var node = self.head;
-            while (node) |n| {
-                if (count == 0) {
-                    return n;
-                }
-
-                node = n.next;
+            while (node != ref_sentinel and count != 0) : (node = node.next) {
                 count -= 1;
             }
-
-            return null;
+            return node;
         }
 
         /// リストの先頭のノードを返す。
-        fn getFirstNode(self: List) ?*Node {
+        fn getFirstNode(self: List) *Node {
             return self.head;
         }
 
         /// リストの末尾のノードを返す。
-        fn getLastNode(self: List) ?*Node {
-            var prev: ?*Node = null;
+        fn getLastNode(self: List) *Node {
+            var prev = ref_sentinel;
             var node = self.head;
 
-            while (node) |n| {
-                prev = n;
-                node = n.next;
+            while (node != ref_sentinel) : (node = node.next) {
+                prev = node;
             }
 
             return prev;
@@ -112,27 +116,29 @@ pub fn SingleLinearList(T: type) type {
 
         /// リストの指定した位置の要素を返す。
         pub fn get(self: List, index: usize) ?T {
-            return if (self.getNode(index)) |n| n.value else null;
+            return self.getNode(index).getValue();
         }
 
         /// リストの先頭の要素を返す。
         pub fn getFirst(self: List) ?T {
-            return if (self.getFirstNode()) |n| n.value else null;
+            return self.getFirstNode().getValue();
         }
 
         /// リストの末尾の要素を返す。
         pub fn getLast(self: List) ?T {
-            return if (self.getLastNode()) |n| n.value else null;
+            return self.getLastNode().getValue();
         }
 
         /// リストの指定した位置に要素を追加する。
         pub fn add(self: *List, a: Allocator, index: usize, value: T) Allocator.Error!void {
             if (index == 0) {
-                const next = self.head;
-                self.head = try Node.init(a, value, next);
-            } else if (self.getNode(index - 1)) |n| {
-                const next = n.next;
-                n.next = try Node.init(a, value, next);
+                self.head = try Node.init(a, value, self.head);
+                return;
+            }
+
+            const node = self.getNode(index - 1);
+            if (node != ref_sentinel) {
+                node.next = try Node.init(a, value, node.next);
             } else {
                 // indexが範囲外の場合
                 unreachable;
@@ -141,17 +147,16 @@ pub fn SingleLinearList(T: type) type {
 
         /// リストの先頭に要素を追加する。
         pub fn addFirst(self: *List, a: Allocator, value: T) Allocator.Error!void {
-            const new_node = try Node.init(a, value, self.head);
-
-            self.head = new_node;
+            self.head = try Node.init(a, value, self.head);
         }
 
         /// リストの末尾に要素を追加する。
         pub fn addLast(self: *List, a: Allocator, value: T) Allocator.Error!void {
-            const new_node = try Node.init(a, value, null);
+            const new_node = try Node.init(a, value, ref_sentinel);
+            const last_node = self.getLastNode();
 
-            if (self.getLastNode()) |n| {
-                n.next = new_node;
+            if (last_node != ref_sentinel) {
+                last_node.next = new_node;
             } else {
                 self.head = new_node;
             }
@@ -161,12 +166,14 @@ pub fn SingleLinearList(T: type) type {
         pub fn remove(self: *List, a: Allocator, index: usize) void {
             if (index == 0) {
                 self.removeFirst(a);
-            } else if (self.getNode(index - 1)) |node| {
-                const next = node.next;
-                if (next) |n| {
-                    node.next = n.next;
-                    n.deinit(a);
-                }
+                return;
+            }
+
+            const node = self.getNode(index - 1);
+            if (node != ref_sentinel) {
+                const target = node.next;
+                node.next = target.next;
+                target.deinit(a);
             } else {
                 // indexが範囲外の場合
                 unreachable;
@@ -175,32 +182,27 @@ pub fn SingleLinearList(T: type) type {
 
         /// リストの先頭の要素を削除する。
         pub fn removeFirst(self: *List, a: Allocator) void {
-            const head = self.head;
-            if (head) |node| {
-                self.head = node.next;
-                node.deinit(a);
-            }
+            const target = self.head;
+            self.head = target.next;
+            target.deinit(a);
         }
 
         /// リストの末尾の要素を削除する。
         pub fn removeLast(self: *List, a: Allocator) void {
-            var pprev: ?*Node = null;
-            var prev: ?*Node = null;
-            var node = self.head;
+            var prev_prev: *Node = ref_sentinel;
+            var prev: *Node = ref_sentinel;
+            var node: *Node = self.head;
 
-            while (node) |n| {
-                pprev = prev;
-                prev = n;
-                node = n.next;
+            while (node != ref_sentinel) : (node = node.next) {
+                prev_prev = prev;
+                prev = node;
             }
 
-            if (prev) |n| {
-                n.deinit(a);
-            }
-            if (pprev) |n| {
-                n.next = null;
+            prev.deinit(a);
+            if (prev_prev != ref_sentinel) {
+                prev_prev.next = ref_sentinel;
             } else {
-                self.head = null;
+                self.head = ref_sentinel;
             }
         }
 
@@ -226,9 +228,8 @@ pub fn SingleLinearList(T: type) type {
 
             var node = self.head;
             var index: usize = 0;
-            while (node) |n| {
-                try writer.print(" {d}: {}\n", .{ index, n });
-                node = n.next;
+            while (node != ref_sentinel) : (node = node.next) {
+                try writer.print(" {d}: {}\n", .{ index, node });
                 index += 1;
             }
         }
@@ -236,13 +237,13 @@ pub fn SingleLinearList(T: type) type {
 }
 
 test "list" {
-    const List = SingleLinearList(u8);
+    const List = DoubleLinearSentinelList(u8);
     const a = std.testing.allocator;
     const expect = lib.assert.expect;
 
     var list = List.init();
     defer list.deinit(a);
 
-    try expect(@TypeOf(list) == SingleLinearList(u8));
+    try expect(@TypeOf(list) == DoubleLinearSentinelList(u8));
     try lib.collection.testList(List, &list, a);
 }

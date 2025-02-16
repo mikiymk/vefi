@@ -3,15 +3,6 @@ const lib = @import("../root.zig");
 
 const Allocator = std.mem.Allocator;
 
-// スタックの関数
-// pop push
-// peek size
-// isEmpty clear
-// iterator toSlice
-
-// スタックの種類
-// 動的配列・線形リスト
-
 /// データを先入れ後出し(FILO)で保持するコレクションです。
 pub fn Stack(T: type) type {
     return struct {

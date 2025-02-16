@@ -3,21 +3,6 @@ const lib = @import("../root.zig");
 
 const Allocator = std.mem.Allocator;
 
-// キューの関数
-// enqueue dequeue
-// peek size
-// isEmpty clear
-
-// キューの種類
-// 単方向キュー
-// 両端キュー
-// 優先度付きキュー
-
-// 実装
-// 循環配列(固定長・可変長)
-// リスト
-// スタック
-
 /// データを先入れ先出し(FIFO)で保持するコレクションです。
 /// リングバッファを使用した実装
 pub fn Queue(T: type) type {
