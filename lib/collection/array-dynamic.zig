@@ -16,8 +16,6 @@ pub const DynamicArrayOptions = struct {
 
 /// 動的配列 (Dynamic Array)
 pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
-    _ = options;
-
     return struct {
         _values: []T,
         _size: usize,
@@ -183,7 +181,12 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
 
         /// メモリを再確保して配列の長さを拡張する。
         fn extendSize(self: *@This(), allocator: Allocator) Allocator.Error!void {
-            self._values = try lib.collection.extendSize(allocator, self._values);
+            const initial_length = 8;
+
+            const length = self._values.len;
+            const new_length: usize = if (length == 0) initial_length else length * options.extend_factor;
+
+            self._values = try allocator.realloc(self._values, new_length);
         }
     };
 }

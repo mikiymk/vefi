@@ -2,15 +2,104 @@
 //!
 //! ## 配列
 //!
+//! ### 配列の関数
+//!
+//! - get
+//! - set
+//! - size
+//! - clear
+//! - indexOf
+//! - sort
+//! - reverse
+//!
+//! ### 動的配列の関数
+//!
+//! - pushFront
+//! - pushBack
+//! - popFront
+//! - popBack
+//! - concat
+//! - slice
+//!
+//! ### 配列の種類
+//!
+//! - 静的・動的
+//! - 線形・環状
+//!
 //! ## リスト
+//!
+//! ### リストの関数
+//!
+//! - addFirst addLast add
+//! - removeFirst removeLast remove
+//! - getFirst getLast get
+//! - size clear clone toSlice
+//! - sort reverse
+//! - toIterator
+//!
+//! ### リストの種類
+//!
+//! - 単方向・双方向
+//! - 線形・循環
+//! - 番兵ノード
+//!
+//! ### その他のリスト
+//!
+//! - アンロールドリスト
+//! - スキップリスト
+//! - XORリスト
 //!
 //! ## スタック
 //!
+//! ### スタックの関数
+//!
+//! - pop push
+//! - peek size
+//! - isEmpty clear
+//! - iterator toSlice
+//!
+//! ### スタックの種類
+//!
+//! - 動的配列・線形リスト
+//!
 //! ## キュー
+//!
+//! ### キューの関数
+//!
+//! - enqueue dequeue
+//! - peek size
+//! - isEmpty clear
+//!
+//! ### キューの種類
+//!
+//! - 単方向キュー
+//! - 両端キュー
+//! - 優先度付きキュー
+//!
+//! ### キューの実装
+//!
+//! - 循環配列(固定長・可変長)
+//! - リスト
+//! - スタック
 //!
 //! ## ツリー
 //!
 //! ## 連想配列
+//!
+//! ### 連想配列の関数
+//!
+//! - add set get delete
+//! - has
+//! - size clear
+//! - keys values entries
+//!
+//! ### 連想配列の種類
+//!
+//! ### 連想配列の実装
+//!
+//! - 配列・リスト
+//! - ハッシュテーブル(チェイン法・オープンアドレス法)
+//! - 木構造(二分木・平衡木)
 //!
 
 const std = @import("std");
@@ -26,20 +115,6 @@ pub const Range = struct {
     begin: usize,
     end: usize,
 };
-
-// 配列の関数
-// get set
-// size clear
-// indexOf
-// sort reverse
-
-// 動的配列
-// pushFront pushBack popFront popBack
-// concat slice
-
-// 配列の種類
-// 静的・動的
-// 線形・環状
 
 pub const static_array = @import("./collection/array-static.zig");
 pub const dynamic_array = @import("./collection/array-dynamic.zig");
@@ -69,23 +144,6 @@ test "array is array" {
     try expect(isArray(static_array.StaticArray(u8, 5, .{})));
     try expect(isDynamicArray(dynamic_array.DynamicArray(u8, .{})));
 }
-
-// リストの関数
-// addFirst addLast add
-// removeFirst removeLast remove
-// getFirst getLast get
-// size clear clone toSlice
-// sort reverse
-// toIterator
-
-// リストの種類
-// 単方向・双方向
-// 線形・循環
-// 番兵ノード
-
-// アンロールドリスト
-// スキップリスト
-// XORリスト
 
 pub const single_linear_list = @import("./collection/list-single-linear.zig");
 pub const single_linear_sentinel_list = @import("./collection/list-single-linear-sentinel.zig");
@@ -210,44 +268,10 @@ test "list is list" {
     try expect(isList(single_circular_sentinel_list.SingleCircularSentinelList(u8)));
 }
 
-// スタックの関数
-// pop push
-// peek size
-// isEmpty clear
-// iterator toSlice
-
-// スタックの種類
-// 動的配列・線形リスト
-
 pub const stack = @import("collection/stack.zig");
 
-// キューの関数
-// enqueue dequeue
-// peek size
-// isEmpty clear
-
-// キューの種類
-// 単方向キュー
-// 両端キュー
-// 優先度付きキュー
-
-// 実装
-// 循環配列(固定長・可変長)
-// リスト
-// スタック
 pub const queue = @import("collection/queue.zig");
 pub const tree = @import("collection/tree.zig");
-
-// 連想配列の関数
-// add set get delete
-// has
-// size clear
-// keys values entries
-
-// 連想配列の種類
-// 配列・リスト
-// ハッシュテーブル(チェイン法・オープンアドレス法)
-// 木構造(二分木・平衡木)
 
 pub const table = @import("collection/table.zig");
 
