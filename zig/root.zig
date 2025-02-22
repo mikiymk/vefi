@@ -1,19 +1,19 @@
 //! Zig言語の基本の書き方を確認する。
 
-const literals = @import("./literals.zig");
-const types = @import("./types.zig");
-const operators = @import("./operators.zig");
-const statements = @import("./statements.zig");
+const literal = @import("./literal.zig");
+const types = @import("./type.zig");
+const operator = @import("./operator.zig");
+const statement = @import("./statement.zig");
 const type_coercion = @import("./type_coercion.zig");
-const builtin_functions = @import("./builtin_functions.zig");
+const builtin_function = @import("./builtin_function.zig");
 
 test {
     _ = .{
-        literals,
+        literal,
         types,
-        operators,
-        statements,
+        operator,
+        statement,
         type_coercion,
-        // builtin_functions,
+        // builtin_function,
     };
 }

@@ -9,7 +9,7 @@ test {
     _ = @import("bigint.zig");
 }
 
-const Array = lib.collection.array.static_array.StaticArray(u8, 5, .{});
+const Array = lib.collection.static_array.StaticArray(u8, 5, .{});
 
 pub fn main() !void {
     const print = std.debug.print;
