@@ -2,6 +2,13 @@ const utils = @import("./utils.zig");
 const assert = utils.assert;
 const equalSlices = utils.equalSlices;
 
+const null_01: ?u8 = null;
+const null_02 = null;
+
+test "nullリテラルの型" {
+    try assert(@TypeOf(null) == @TypeOf(null));
+}
+
 const boolean_01 = true;
 const boolean_02 = false;
 
@@ -42,22 +49,14 @@ test "違う表記の同じ小数" {
 const unicode_01 = 'a';
 const unicode_02 = '😃'; // ascii外の文字
 
-/// 改行
-const escape_sequence_01 = '\n';
-/// キャリッジリターン
-const escape_sequence_02 = '\r';
-/// タブ文字
-const escape_sequence_03 = '\t';
-/// バックスラッシュ
-const escape_sequence_04 = '\\';
-/// シングルクオーテーション
-const escape_sequence_05 = '\'';
-/// ダブルクオーテーション
-const escape_sequence_06 = '\"';
-/// 16進数1バイト文字
-const escape_sequence_07 = '\x64';
-/// 16進数Unicodeコードポイント
-const escape_sequence_08 = '\u{1F604}';
+const escape_sequence_01 = '\n'; // 改行
+const escape_sequence_02 = '\r'; // キャリッジリターン
+const escape_sequence_03 = '\t'; // タブ文字
+const escape_sequence_04 = '\\'; // バックスラッシュ
+const escape_sequence_05 = '\''; // シングルクオーテーション
+const escape_sequence_06 = '\"'; // ダブルクオーテーション
+const escape_sequence_07 = '\x64'; // 16進数1バイト文字
+const escape_sequence_08 = '\u{1F604}'; // 16進数Unicodeコードポイント
 
 test "Unicodeコードポイントリテラルの型" {
     try assert(@TypeOf('a') == comptime_int);
@@ -85,8 +84,36 @@ test "複数行文字列リテラル" {
     try assert(equalSlices(string_04, string_05));
 }
 
-const enum_01 = .enum_literal;
+const Enum_01 = enum { value_1, value_2 };
 
-const struct_01 = .{
-    .foo = 1,
-};
+const enum_01 = Enum_01.value_1;
+const enum_02: Enum_01 = .value_2;
+const enum_03 = .value_3;
+
+test "列挙型リテラルの型" {
+    try assert(@TypeOf(.value_3) == @TypeOf(.enum_literal));
+}
+
+const Struct_01 = struct { value: i32 };
+
+const struct_01 = Struct_01{ .value = 1 };
+const struct_02: Struct_01 = .{ .value = 1 };
+const struct_03 = .{ .value = 1 };
+
+test "構造体リテラルの型" {
+    try assert(@TypeOf(.{ .value = 1 }) == @TypeOf(.{ .value = 1 }));
+    try assert(@TypeOf(.{ .value = 1 }) != @TypeOf(.{ .value_2 = 1 }));
+}
+
+const error_01 = error.Error_01;
+
+test "エラーリテラルの型" {
+    try assert(@TypeOf(error.Error_01) == error{Error_01});
+}
+
+const undefined_01: u8 = undefined;
+const undefined_02 = undefined;
+
+test "undefinedリテラルの型" {
+    try assert(@TypeOf(undefined) == @TypeOf(undefined));
+}

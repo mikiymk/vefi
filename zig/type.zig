@@ -46,7 +46,7 @@ const bool_02: bool = false;
 const void_01: void = void{};
 const void_02: void = {};
 
-test "noreturn" {
+test "noreturn型" {
     while (true) {
         const noreturn_01: noreturn = {
             break;
@@ -54,6 +54,16 @@ test "noreturn" {
 
         consume(noreturn_01);
     }
+}
+
+fn anytype_01(a: anytype) void {
+    _ = a;
+}
+
+test anytype_01 {
+    anytype_01(@as(u8, 1));
+    anytype_01(@as(f32, 3.14));
+    anytype_01(@as([]const u8, "hello"));
 }
 
 const anyopaque_01: *const anyopaque = @ptrCast(&integer_01);
@@ -72,24 +82,21 @@ const c_compatible_09: c_ulonglong = 90;
 const c_compatible_10: c_longdouble = 10.5;
 
 const array_01 = [3]u32{ 1, 2, 3 };
-/// 要素数を省略する
-const array_02 = [_]u32{ 1, 2, 3 };
-/// 型を省略する
-const array_03: [3]u32 = .{ 1, 2, 3 };
-/// 番兵付き配列
-const array_04 = [3:0]u32{ 1, 2, 3 };
+const array_02 = [_]u32{ 1, 2, 3 }; // 要素数を省略する
+const array_03: [3]u32 = .{ 1, 2, 3 }; // 型を省略する
+const array_04 = [3:0]u32{ 1, 2, 3 }; // 番兵付き配列
 
-/// 論理値型
-const vectors_01 = @Vector(4, bool){ true, false, true, false };
-/// 整数型
-const vectors_02 = @Vector(4, u32){ 1, 2, 3, 4 };
-/// 浮動小数点数型
-const vectors_03 = @Vector(4, f32){ 2.5, 3.5, 4.5, 5.5 };
-/// ポインタ型
-const vectors_04 = @Vector(4, *u32){ &integer_01, &integer_01, &integer_01, &integer_01 };
+const vectors_01 = @Vector(4, bool){ true, false, true, false }; // 論理値型
+const vectors_02 = @Vector(4, u32){ 1, 2, 3, 4 }; // 整数型
+const vectors_03 = @Vector(4, f32){ 2.5, 3.5, 4.5, 5.5 }; // 浮動小数点数型
+const vectors_04 = @Vector(4, *u32){ &integer_01, &integer_01, &integer_01, &integer_01 }; // ポインタ型
 
 const single_item_pointer_01: *u32 = &integer_01;
 const single_item_pointer_02: *const u32 = &integer_01;
+const single_item_pointer_03: *volatile u32 = &integer_01;
+const single_item_pointer_04: *align(32) u32 = &integer_01;
+const single_item_pointer_05: *allowzero u32 = &integer_01;
+const single_item_pointer_06: *allowzero align(32) const volatile u32 = &integer_01;
 
 const many_item_pointer_03: [*]u32 = &array_01;
 const many_item_pointer_04: [*]const u32 = &array_01;
