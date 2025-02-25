@@ -6,7 +6,9 @@ const Struct_01 = struct { x: u32, y: u32, z: u32 };
 const Struct_02 = struct { x: u32 = 16, y: u32, z: u32 };
 const Struct_03 = extern struct { x: u32, y: u32, z: u32 };
 const Struct_04 = packed struct { x: u32, y: u32, z: u32 };
-const Struct_05 = struct { u32, u32, u32 };
+
+const Tuple_01 = struct { u32, u32, u32 };
+const Tuple_02 = struct { u32, u32, u32 = 0 };
 
 const Enum_01 = enum { first, second, third };
 const Enum_02 = enum(u8) { first = 1, second = 2, third = 3 };
@@ -25,26 +27,62 @@ const ErrorSet_01 = error{ E, R };
 
 const ErrorUnion_01 = ErrorSet_01!u8;
 
-const integer_01: u32 = 50;
-const integer_02: i32 = -300;
-const integer_03: u0 = 0;
-const integer_04: i65535 = -9999;
+var var_01: u32 = 8;
+var var_02: [3:0]u32 = .{ 1, 2, 3 };
 
-const float_01: f16 = 0.01;
-const float_02: f32 = 0.001;
-const float_03: f64 = 0.0001;
-const float_04: f80 = 0.00001;
-const float_05: f128 = 0.000001;
+test "整数型" {
+    const integer_01: u32 = 50;
+    const integer_02: i32 = -300;
+    const integer_03: u0 = 0;
+    const integer_04: i65535 = -9999;
 
-const comptime_int_01: comptime_int = 999_999;
+    consume(integer_01);
+    consume(integer_02);
+    consume(integer_03);
+    consume(integer_04);
+}
 
-const comptime_float_01: comptime_float = 0.0000000009;
+test "浮動小数点型" {
+    const float_01: f16 = 0.01;
+    const float_02: f32 = 0.001;
+    const float_03: f64 = 0.0001;
+    const float_04: f80 = 0.00001;
+    const float_05: f128 = 0.000001;
 
-const bool_01: bool = true;
-const bool_02: bool = false;
+    consume(float_01);
+    consume(float_02);
+    consume(float_03);
+    consume(float_04);
+    consume(float_05);
+}
 
-const void_01: void = void{};
-const void_02: void = {};
+test "コンパイル時整数型" {
+    const comptime_int_01: comptime_int = 999_999;
+
+    consume(comptime_int_01);
+}
+
+test "コンパイル時浮動小数点型" {
+    const comptime_float_01: comptime_float = 0.0000000009;
+
+    consume(comptime_float_01);
+}
+
+test "論理型" {
+    const bool_01: bool = true;
+    const bool_02: bool = false;
+
+    consume(bool_01);
+    consume(bool_02);
+}
+
+test "void型" {
+    const void_01: void = void{};
+    const void_02: void = {};
+
+    consume(void_01);
+    consume(void_02);
+}
 
 test "noreturn型" {
     while (true) {
@@ -60,75 +98,153 @@ fn anytype_01(a: anytype) void {
     _ = a;
 }
 
-test anytype_01 {
+test "anytype型" {
     anytype_01(@as(u8, 1));
     anytype_01(@as(f32, 3.14));
     anytype_01(@as([]const u8, "hello"));
 }
 
-const anyopaque_01: *const anyopaque = @ptrCast(&integer_01);
+test "anyopaque型" {
+    const anyopaque_01: *anyopaque = @ptrCast(&var_01);
+    const anyopaque_02: *const anyopaque = @ptrCast(&var_01);
 
-const anyerror_01: anyerror = error.AnyError;
+    consume(anyopaque_01);
+    consume(anyopaque_02);
+}
 
-const c_compatible_01: c_char = 10;
-const c_compatible_02: c_short = 20;
-const c_compatible_03: c_ushort = 30;
-const c_compatible_04: c_int = 40;
-const c_compatible_05: c_uint = 50;
-const c_compatible_06: c_long = 60;
-const c_compatible_07: c_ulong = 70;
-const c_compatible_08: c_longlong = 80;
-const c_compatible_09: c_ulonglong = 90;
-const c_compatible_10: c_longdouble = 10.5;
+test "anyerror型" {
+    const anyerror_01: anyerror = error.AnyError;
 
-const array_01 = [3]u32{ 1, 2, 3 };
-const array_02 = [_]u32{ 1, 2, 3 }; // 要素数を省略する
-const array_03: [3]u32 = .{ 1, 2, 3 }; // 型を省略する
-const array_04 = [3:0]u32{ 1, 2, 3 }; // 番兵付き配列
+    consume(anyerror_01);
+}
 
-const vectors_01 = @Vector(4, bool){ true, false, true, false }; // 論理値型
-const vectors_02 = @Vector(4, u32){ 1, 2, 3, 4 }; // 整数型
-const vectors_03 = @Vector(4, f32){ 2.5, 3.5, 4.5, 5.5 }; // 浮動小数点数型
-const vectors_04 = @Vector(4, *u32){ &integer_01, &integer_01, &integer_01, &integer_01 }; // ポインタ型
+test "C-ABI互換型" {
+    const c_compatible_01: c_char = 10;
+    const c_compatible_02: c_short = 20;
+    const c_compatible_03: c_ushort = 30;
+    const c_compatible_04: c_int = 40;
+    const c_compatible_05: c_uint = 50;
+    const c_compatible_06: c_long = 60;
+    const c_compatible_07: c_ulong = 70;
+    const c_compatible_08: c_longlong = 80;
+    const c_compatible_09: c_ulonglong = 90;
+    const c_compatible_10: c_longdouble = 10.5;
 
-const single_item_pointer_01: *u32 = &integer_01;
-const single_item_pointer_02: *const u32 = &integer_01;
-const single_item_pointer_03: *volatile u32 = &integer_01;
-const single_item_pointer_04: *align(32) u32 = &integer_01;
-const single_item_pointer_05: *allowzero u32 = &integer_01;
-const single_item_pointer_06: *allowzero align(32) const volatile u32 = &integer_01;
+    consume(c_compatible_01);
+    consume(c_compatible_02);
+    consume(c_compatible_03);
+    consume(c_compatible_04);
+    consume(c_compatible_05);
+    consume(c_compatible_06);
+    consume(c_compatible_07);
+    consume(c_compatible_08);
+    consume(c_compatible_09);
+    consume(c_compatible_10);
+}
 
-const many_item_pointer_03: [*]u32 = &array_01;
-const many_item_pointer_04: [*]const u32 = &array_01;
-const many_item_pointer_05: [*:0]u32 = &array_01;
-const many_item_pointer_06: [*:0]const u32 = &array_01;
+test "配列型" {
+    const array_01 = [3]u32{ 1, 2, 3 };
+    const array_02 = [_]u32{ 1, 2, 3 }; // 要素数を省略する
+    const array_03: [3]u32 = .{ 1, 2, 3 }; // 型を省略する
+    const array_04 = [3:0]u32{ 1, 2, 3 }; // 番兵付き配列
 
-const slice_01: []u32 = &array_01;
-const slice_02: []const u32 = &array_01;
-const slice_03: [:0]u32 = &array_01;
-const slice_04: [:0]const u32 = &array_01;
+    consume(array_01);
+    consume(array_02);
+    consume(array_03);
+    consume(array_04);
+}
 
-/// 構造体。
-const struct_01 = Struct_01{ .x = 5, .y = 10, .z = 15 };
-/// 型を省略する。
-const struct_02: Struct_01 = .{ .x = 5, .y = 10, .z = 15 };
-/// フィールドを省略してデフォルト値を使用する。
-const struct_03: Struct_02 = .{ .y = 10, .z = 15 };
-/// C言語のABIと互換性のある構造体。
-const struct_04: Struct_03 = .{ .x = 5, .y = 10, .z = 15 };
-/// メモリレイアウトが保証される構造体。
-const struct_05: Struct_04 = .{ .x = 5, .y = 10, .z = 15 };
-/// タプル。
-const struct_06: Struct_05 = .{ 5, 10, 15 };
+test "ベクトル型" {
+    const vectors_01 = @Vector(4, bool){ true, false, true, false }; // 論理値型
+    const vectors_02 = @Vector(4, u32){ 1, 2, 3, 4 }; // 整数型
+    const vectors_03 = @Vector(4, f32){ 2.5, 3.5, 4.5, 5.5 }; // 浮動小数点数型
+    const vectors_04 = @Vector(4, *u32){ &var_01, &var_01, &var_01, &var_01 }; // ポインタ型
 
-const enum_01 = Enum_01.first;
-const enum_02: Enum_01 = .second;
-const enum_03: Enum_02 = .second;
-const enum_04: Enum_03 = .second;
-const enum_05: Enum_04 = .second;
-const enum_06: Enum_04 = @enumFromInt(99);
+    consume(vectors_01);
+    consume(vectors_02);
+    consume(vectors_03);
+    consume(vectors_04);
+}
 
-test "列挙型から整数へ変換" {
+test "単要素ポインター型" {
+    const single_item_pointer_01: *u32 = &var_01;
+    const single_item_pointer_02: *const u32 = &var_01;
+    const single_item_pointer_03: *volatile u32 = &var_01;
+    const single_item_pointer_04: *align(32) u32 = @alignCast(&var_01);
+    const single_item_pointer_05: *allowzero u32 = &var_01;
+    const single_item_pointer_06: *allowzero align(32) const volatile u32 = @alignCast(&var_01);
+
+    consume(single_item_pointer_01);
+    consume(single_item_pointer_02);
+    consume(single_item_pointer_03);
+    consume(single_item_pointer_04);
+    consume(single_item_pointer_05);
+    consume(single_item_pointer_06);
+}
+
+test "複数要素ポインター型" {
+    const many_item_pointer_01: [*]u32 = &var_02;
+    const many_item_pointer_02: [*:0]u32 = &var_02;
+
+    consume(many_item_pointer_01);
+    consume(many_item_pointer_02);
+}
+
+test "Cポインター型" {
+    const c_pointer_01: [*c]u32 = &var_01;
+    const c_pointer_02: [*c]u32 = &var_02;
+
+    consume(c_pointer_01);
+    consume(c_pointer_02);
+}
+
+test "スライス型" {
+    const slice_01: []u32 = &var_02;
+    const slice_02: [:0]u32 = &var_02;
+
+    consume(slice_01);
+    consume(slice_02);
+}
+
+test "構造体型" {
+    const struct_01 = Struct_01{ .x = 5, .y = 10, .z = 15 }; // 構造体。
+    const struct_02: Struct_01 = .{ .x = 5, .y = 10, .z = 15 }; // 型を省略する。
+    const struct_03: Struct_02 = .{ .y = 10, .z = 15 }; // フィールドを省略してデフォルト値を使用する。
+    const struct_04: Struct_03 = .{ .x = 5, .y = 10, .z = 15 }; // C言語のABIと互換性のある構造体。
+    const struct_05: Struct_04 = .{ .x = 5, .y = 10, .z = 15 }; // メモリレイアウトが保証される構造体。
+
+    consume(struct_01);
+    consume(struct_02);
+    consume(struct_03);
+    consume(struct_04);
+    consume(struct_05);
+}
+
+test "タプル型" {
+    const tuple_01 = Tuple_01{ 5, 10, 15 };
+    const tuple_02: Tuple_01 = .{ 5, 10, 15 };
+    const tuple_03: Tuple_02 = .{ 5, 10 };
+
+    consume(tuple_01);
+    consume(tuple_02);
+    consume(tuple_03);
+}
+
+test "列挙型" {
+    const enum_01 = Enum_01.first;
+    const enum_02: Enum_01 = .second;
+    const enum_03: Enum_02 = .second;
+    const enum_04: Enum_03 = .second;
+    const enum_05: Enum_04 = .second;
+    const enum_06: Enum_04 = @enumFromInt(99);
+
+    consume(enum_01);
+    consume(enum_02);
+    consume(enum_03);
+    consume(enum_04);
+    consume(enum_05);
+    consume(enum_06);
+
     try assert(@intFromEnum(enum_03) == 2);
     try assert(@intFromEnum(enum_04) == 5);
     try assert(@intFromEnum(enum_05) == 2);
@@ -173,3 +289,18 @@ test function_01 {
 
 const type_01: type = u8;
 const type_02: type = type;
+
+test "型のアラインメント" {
+    const a: *align(1:3:1) u3 = undefined;
+    // const b: *align(2:3:1) u3 = a; // pointer alignment '1' cannot cast into pointer alignment '2'
+    // const c: *align(1:2:1) u3 = a; // pointer bit offset '3' cannot cast into pointer bit offset '2'
+    // const d: *align(1:3:2) u3 = a; // pointer host size '1' cannot cast into pointer host size '2'
+
+    consume(a);
+    // consume(b);
+    // consume(c);
+    // consume(d);
+
+    const e: *align(8) u32 align(4) = @alignCast(&var_01);
+    consume(e);
+}
