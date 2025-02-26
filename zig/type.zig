@@ -238,69 +238,108 @@ test "列挙型" {
     const enum_05: Enum_04 = .second;
     const enum_06: Enum_04 = @enumFromInt(99);
 
+    try assert(@intFromEnum(enum_03) == 2);
+    try assert(@intFromEnum(enum_04) == 5);
+    try assert(@intFromEnum(enum_05) == 2);
+    try assert(@intFromEnum(enum_06) == 99);
+
     consume(enum_01);
     consume(enum_02);
     consume(enum_03);
     consume(enum_04);
     consume(enum_05);
     consume(enum_06);
-
-    try assert(@intFromEnum(enum_03) == 2);
-    try assert(@intFromEnum(enum_04) == 5);
-    try assert(@intFromEnum(enum_05) == 2);
-    try assert(@intFromEnum(enum_06) == 99);
 }
 
-const union_02 = Union_01{ .bool = false };
-const union_03: Union_01 = .{ .void = void{} };
-const union_04: Union_02 = .{ .first = 123456 };
-const union_05: Union_03 = .{ .first = 123456 };
-const union_06: Union_04 = .{ .first = 123456 };
-const union_07: Union_05 = .{ .first = 123456 };
+test "共用体型" {
+    const union_01 = Union_01{ .second = false };
+    const union_02: Union_01 = .{ .third = void{} };
+    const union_03: Union_02 = .{ .first = 123456 };
+    const union_04: Union_03 = .{ .first = 123456 };
+    const union_05: Union_04 = .{ .first = 123456 };
+    const union_06: Union_05 = .{ .first = 123456 };
 
-const opaque_01: Opaque_01 = undefined;
+    consume(union_01);
+    consume(union_02);
+    consume(union_03);
+    consume(union_04);
+    consume(union_05);
+    consume(union_06);
+}
 
-const optional_01: ?u8 = 5;
-const optional_02: ?u8 = null;
+test "不透明型" {
+    // const opaque_01: Opaque_01 = undefined;
+    const opaque_02: *Opaque_01 = undefined;
 
-const error_set_01 = ErrorSet_01.E;
-const error_set_02: ErrorSet_01 = error.R;
+    consume(opaque_02);
+}
 
 fn returnError() !u8 {
     return error.R;
 }
 
-const error_union_01: ErrorUnion_01 = 5;
-const error_union_02: ErrorUnion_01 = error.E;
-const error_union_03 = returnError();
+test "エラー型" {
+    const error_set_01 = ErrorSet_01.E;
+    const error_set_02: ErrorSet_01 = error.R;
+
+    consume(error_set_01);
+    consume(error_set_02);
+
+    const error_union_01: ErrorUnion_01 = 5;
+    const error_union_02: ErrorUnion_01 = error.E;
+    const error_union_03 = returnError();
+
+    consume(error_union_01);
+    consume(error_union_02);
+    consume(error_union_03);
+}
+
+test "オプション型" {
+    const optional_01: ?u8 = 5;
+    const optional_02: ?u8 = null;
+
+    consume(optional_01);
+    consume(optional_02);
+}
 
 fn add(a: u32, b: u32) u32 {
     return a + b;
 }
 
-const function_01: fn (u32, u32) u32 = add;
-const function_02: *const fn (u32, u32) u32 = add;
+test "関数型" {
+    const function_01: fn (u32, u32) u32 = add;
+    const function_02: *const fn (u32, u32) u32 = add;
 
-const n = 0;
-
-test function_01 {
-    consume(.{ function_01, function_02, &opaque_01 });
+    consume(function_01);
+    consume(function_02);
 }
 
-const type_01: type = u8;
-const type_02: type = type;
+test "型型" {
+    const type_01: type = u8;
+    const type_02: type = type;
+
+    consume(type_01);
+    consume(type_02);
+}
 
 test "型のアラインメント" {
-    const a: *align(1:3:1) u3 = undefined;
-    // const b: *align(2:3:1) u3 = a; // pointer alignment '1' cannot cast into pointer alignment '2'
-    // const c: *align(1:2:1) u3 = a; // pointer bit offset '3' cannot cast into pointer bit offset '2'
-    // const d: *align(1:3:2) u3 = a; // pointer host size '1' cannot cast into pointer host size '2'
+    // 型のアラインメント
+    const align_01: u8 align(128) = 1;
 
-    consume(a);
-    // consume(b);
-    // consume(c);
-    // consume(d);
+    // ポインターのアラインメント
+    const align_02: *align(128) u8 = @constCast(&align_01);
 
-    const e: *align(8) u32 align(4) = @alignCast(&var_01);
-    consume(e);
+    // ポインターのアラインメントと型のアラインメントの組み合わせ
+    const align_03: *align(8) u32 align(4) = @alignCast(&var_01);
+
+    // ビット単位のアラインメント
+    const pointer_alignment = 1;
+    const pointer_bit_offset = 3;
+    const pointer_host_size = 1;
+    const align_04: *align(pointer_alignment:pointer_bit_offset:pointer_host_size) u3 = undefined;
+
+    consume(align_01);
+    consume(align_02);
+    consume(align_03);
+    consume(align_04);
 }
