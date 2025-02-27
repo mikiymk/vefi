@@ -146,6 +146,12 @@
 - `opaque {}`
 - サイズとアラインメントが不明な型。
 
+### anyopaque型
+
+- `anyopaque`
+- 任意の不透明型。
+- 型の消去されたポインターに使用される。
+
 ## エラー集合型
 
 - `error {<識別子>, ...}`
@@ -174,15 +180,15 @@
 
 - `fn (<引数>, ...) <戻り値>`
 - 関数を表す型。
-- 関数型は`comptime-known`。
-- 関数型の`const`ポインター型はruntime-knownの型になる。
+- 関数型は*comptime-known*。
+- 関数型の`const`ポインター型は*runtime-known*の型になる。
 
-## 型型
+## タイプ型
 
 - `type`
 - 型を表す型。
-- 型型は`comptime-known`。
-- `type`も型型。
+- タイプ型は*comptime-known*。
+- `type`もタイプ型。
 
 ## その他の型
 
@@ -196,7 +202,8 @@
 - `noreturn`
 - 戻り値を得ることがないことを表す。
 - `noreturn`として扱われる型がある。
-  ([#13807](https://github.com/ziglang/zig/issues/13807))
+  ([#13807](https://github.com/ziglang/zig/issues/13807),
+  [#15909](https://github.com/ziglang/zig/issues/15909))
 
 ### anytype型
 
@@ -204,12 +211,6 @@
 - 任意の型。
 - コンパイル時に型が決定する。
 - 関数の引数の型に使用できる。
-
-### anyopaque型
-
-- `anyopaque`
-- 任意の不透明型。
-- 型の消去されたポインターに使用される。
 
 ## 型のアラインメント
 
