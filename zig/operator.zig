@@ -3,119 +3,254 @@ const assert = utils.assert;
 const consume = utils.consume;
 const equalSlices = utils.equalSlices;
 
-test "二項 +" {
-    const var_01_01: u8 = 5;
-    const var_01_02: u8 = 6;
-    try assert(var_01_01 + var_01_02 == 11);
-    try assert(@TypeOf(var_01_01 + var_01_02) == u8);
-
-    const var_02_01: f32 = 5.5;
-    const var_02_02: f32 = 6.75;
-    try assert(var_02_01 + var_02_02 == 12.25);
-    try assert(@TypeOf(var_02_01 + var_02_02) == f32);
-
-    const var_03_01: [3]u8 = .{ 1, 2, 3 };
-    const var_03_02: [*]const u8 = &var_03_01;
-    const var_03_03: usize = 1;
-    try assert((var_03_02 + var_03_03)[0] == 2);
-    try assert(@TypeOf(var_03_02 + var_03_03) == [*]const u8);
-
-    const var_04_01: [3]u8 = .{ 1, 2, 3 };
-    const var_04_02: [*c]const u8 = &var_04_01;
-    const var_04_03: usize = 1;
-    try assert((var_04_02 + var_04_03)[0] == 2);
-    try assert(@TypeOf(var_04_02 + var_04_03) == [*]const u8);
+test {
+    _ = add;
+    _ = subtract;
 }
 
-test "二項 +%" {
-    {
+const add = struct {
+    test "二項 + (整数 + 整数)" {
         const var_01: u8 = 5;
         const var_02: u8 = 6;
-        const var_03: u8 = var_01 +% var_02;
 
-        try assert(var_03 == 11);
+        try assert(var_01 + var_02 == 11);
+        try assert(@TypeOf(var_01 + var_02) == u8);
+
+        // コンパイル時のオーバーフロー
+        const var_03: u8 = 255;
+        const var_04: u8 = 1;
+
+        // error: overflow of integer type 'u8' with value '256'
+        // _ = var_03 + var_04;
+        consume(.{ var_03, var_04 });
+
+        // 実行時のオーバーフロー
+        var var_05: u8 = 255;
+        var var_06: u8 = 1;
+
+        // panic: integer overflow
+        // _ = var_05 + var_06;
+        consume(.{ &var_05, &var_06 });
     }
 
-    {
-        const var_01: u8 = 5;
-        const var_02: u8 = 255;
-        const var_03: u8 = var_01 +% var_02;
-
-        try assert(var_03 == 4);
-    }
-}
-
-test "二項 +|" {
-    {
-        const var_01: u8 = 5;
-        const var_02: u8 = 6;
-        const var_03: u8 = var_01 +| var_02;
-
-        try assert(var_03 == 11);
-    }
-
-    {
-        const var_01: u8 = 5;
-        const var_02: u8 = 255;
-        const var_03: u8 = var_01 +| var_02;
-
-        try assert(var_03 == 255);
-    }
-}
-
-test "二項 -" {
-    {
-        const var_01: u8 = 5;
-        const var_02: u8 = 3;
-        const var_03: u8 = var_01 - var_02;
-
-        try assert(var_03 == 2);
-    }
-
-    {
+    test "二項 + (浮動小数点数 + 浮動小数点数)" {
         const var_01: f32 = 5.5;
         const var_02: f32 = 6.75;
-        const var_03: f32 = var_01 - var_02;
 
-        try assert(var_03 == -1.25);
+        try assert(var_01 + var_02 == 12.25);
+        try assert(@TypeOf(var_01 + var_02) == f32);
     }
-}
 
-test "二項 -%" {
-    {
+    test "二項 + (複数要素ポインター + 整数)" {
+        const var_01: [3]u8 = .{ 1, 2, 3 };
+        const var_02: [*]const u8 = &var_01;
+        const var_03: usize = 1;
+
+        try assert((var_02 + var_03)[0] == 2);
+        try assert(@TypeOf(var_02 + var_03) == [*]const u8);
+    }
+
+    test "二項 + (Cポインター + 整数)" {
+        const var_01: [3]u8 = .{ 1, 2, 3 };
+        const var_02: [*c]const u8 = &var_01;
+        const var_03: usize = 1;
+
+        try assert((var_02 + var_03)[0] == 2);
+        try assert(@TypeOf(var_02 + var_03) == [*c]const u8);
+    }
+
+    test "二項 + (整数ベクトル + 整数ベクトル)" {
+        const var_01 = @Vector(3, u8){ 1, 2, 3 };
+        const var_02 = @Vector(3, u8){ 4, 5, 6 };
+
+        try assert(@reduce(.And, (var_01 + var_02) == @Vector(3, u8){ 5, 7, 9 }));
+        try assert(@TypeOf(var_01 + var_02) == @Vector(3, u8));
+
+        // コンパイル時のオーバーフロー
+        const var_03 = @Vector(3, u8){ 255, 255, 255 };
+        const var_04 = @Vector(3, u8){ 1, 2, 3 };
+
+        // error: overflow of vector type '@Vector(3, u8)' with value '.{ 256, 257, 258 }'
+        // try assert(@reduce(.And, (var_03 + var_04) == @Vector(3, u8){ 0, 0, 0 }));
+        consume(.{ var_03, var_04 });
+
+        // 実行時のオーバーフロー
+        var var_05 = @Vector(3, u8){ 255, 255, 255 };
+        var var_06 = @Vector(3, u8){ 1, 2, 3 };
+
+        // panic: integer overflow
+        // try assert(@reduce(.And, (var_05 + var_06) == @Vector(3, u8){ 0, 0, 0 }));
+        consume(.{ &var_05, &var_06 });
+    }
+
+    test "二項 + (浮動小数点数ベクトル + 浮動小数点数ベクトル)" {
+        const var_01 = @Vector(3, f32){ 1.1, 2.2, 3.3 };
+        const var_02 = @Vector(3, f32){ 4.4, 5.5, 6.6 };
+
+        try assert(@reduce(.And, (var_01 + var_02) == @Vector(3, f32){ 5.5, 7.7, 9.9 }));
+        try assert(@TypeOf(var_01 + var_02) == @Vector(3, f32));
+    }
+
+    test "二項 +% (整数 + 整数)" {
+        const var_01: u8 = 5;
+        const var_02: u8 = 6;
+
+        try assert(var_01 +% var_02 == 11);
+        try assert(@TypeOf(var_01 +% var_02) == u8);
+
+        // オーバーフロー
+        const var_03: u8 = 5;
+        const var_04: u8 = 255;
+        try assert(var_03 +% var_04 == 4);
+    }
+
+    test "二項 +% (整数ベクトル + 整数ベクトル)" {
+        const var_01 = @Vector(3, u8){ 1, 2, 3 };
+        const var_02 = @Vector(3, u8){ 4, 5, 6 };
+
+        try assert(@reduce(.And, (var_01 +% var_02) == @Vector(3, u8){ 5, 7, 9 }));
+        try assert(@TypeOf(var_01 +% var_02) == @Vector(3, u8));
+
+        // オーバーフロー
+        const var_03 = @Vector(3, u8){ 255, 255, 255 };
+        const var_04 = @Vector(3, u8){ 1, 2, 3 };
+        try assert(@reduce(.And, (var_03 +% var_04) == @Vector(3, u8){ 0, 1, 2 }));
+    }
+
+    test "二項 +| (整数 + 整数)" {
+        const var_01: u8 = 5;
+        const var_02: u8 = 6;
+
+        try assert(var_01 +| var_02 == 11);
+        try assert(@TypeOf(var_01 +% var_02) == u8);
+
+        // オーバーフロー
+        const var_03: u8 = 5;
+        const var_04: u8 = 255;
+
+        try assert(var_03 +| var_04 == 255);
+    }
+
+    test "二項 +| (整数ベクトル + 整数ベクトル)" {
+        const var_01 = @Vector(3, u8){ 1, 2, 3 };
+        const var_02 = @Vector(3, u8){ 4, 5, 6 };
+
+        try assert(@reduce(.And, (var_01 +| var_02) == @Vector(3, u8){ 5, 7, 9 }));
+        try assert(@TypeOf(var_01 +| var_02) == @Vector(3, u8));
+
+        // オーバーフロー
+        const var_03 = @Vector(3, u8){ 255, 255, 255 };
+        const var_04 = @Vector(3, u8){ 1, 2, 3 };
+        try assert(@reduce(.And, (var_03 +| var_04) == @Vector(3, u8){ 255, 255, 255 }));
+    }
+};
+
+const subtract = struct {
+    test "二項 - (整数 - 整数)" {
         const var_01: u8 = 5;
         const var_02: u8 = 3;
-        const var_03: u8 = var_01 -% var_02;
 
-        try assert(var_03 == 2);
+        try assert(var_01 - var_02 == 2);
+        try assert(@TypeOf(var_01 - var_02) == u8);
+
+        // コンパイル時のオーバーフロー
+        const var_03: u8 = 3;
+        const var_04: u8 = 5;
+
+        // error: overflow of integer type 'u8' with value '-2'
+        // try assert(var_03 - var_04 == 254);
+        consume(.{ var_03, var_04 });
+
+        // 実行時のオーバーフロー
+        var var_05: u8 = 3;
+        var var_06: u8 = 5;
+
+        // panic: integer overflow
+        // try assert(var_05 - var_06 == 254);
+        consume(.{ &var_05, &var_06 });
     }
 
-    {
-        const var_01: u8 = 5;
-        const var_02: u8 = 8;
-        const var_03: u8 = var_01 -% var_02;
+    test "二項 - (浮動小数点数 - 浮動小数点数)" {
+        const var_01: f32 = 5.5;
+        const var_02: f32 = 6.75;
 
-        try assert(var_03 == 253);
-    }
-}
-
-test "二項 -|" {
-    {
-        const var_01: u8 = 5;
-        const var_02: u8 = 3;
-        const var_03: u8 = var_01 -| var_02;
-
-        try assert(var_03 == 2);
+        try assert(var_01 - var_02 == -1.25);
     }
 
-    {
-        const var_01: u8 = 5;
-        const var_02: u8 = 8;
-        const var_03: u8 = var_01 -| var_02;
+    test "二項 - (単要素ポインター - 単要素ポインター)" {}
+    test "二項 - (複数要素ポインター - 複数要素ポインター)" {}
+    test "二項 - (複数要素ポインター - 整数)" {}
+    test "二項 - (Cポインター - 整数)" {}
+    test "二項 - (Cポインター - Cポインター)" {}
 
-        try assert(var_03 == 0);
+    test "二項 -%" {
+        {
+            const var_01: u8 = 5;
+            const var_02: u8 = 3;
+            const var_03: u8 = var_01 -% var_02;
+
+            try assert(var_03 == 2);
+        }
+
+        {
+            const var_01: u8 = 5;
+            const var_02: u8 = 8;
+            const var_03: u8 = var_01 -% var_02;
+
+            try assert(var_03 == 253);
+        }
     }
-}
+
+    test "二項 -|" {
+        {
+            const var_01: u8 = 5;
+            const var_02: u8 = 3;
+            const var_03: u8 = var_01 -| var_02;
+
+            try assert(var_03 == 2);
+        }
+
+        {
+            const var_01: u8 = 5;
+            const var_02: u8 = 8;
+            const var_03: u8 = var_01 -| var_02;
+
+            try assert(var_03 == 0);
+        }
+    }
+
+    test "単項 -" {
+        {
+            const var_01: i8 = 13;
+            const var_02: i8 = -var_01;
+
+            try assert(var_02 == -13);
+        }
+
+        {
+            const var_01: f32 = 13.75;
+            const var_02: f32 = -var_01;
+
+            try assert(var_02 == -13.75);
+        }
+    }
+
+    test "単項 -%" {
+        {
+            const var_01: i8 = 13;
+            const var_02: i8 = -%var_01;
+
+            try assert(var_02 == -13);
+        }
+
+        {
+            const var_01: i8 = -128;
+            const var_02: i8 = -%var_01;
+
+            try assert(var_02 == -128);
+        }
+    }
+};
 
 test "二項 *" {
     {
@@ -207,37 +342,6 @@ test "二項 %" {
     }
 }
 
-test "単項 -" {
-    {
-        const var_01: i8 = 13;
-        const var_02: i8 = -var_01;
-
-        try assert(var_02 == -13);
-    }
-
-    {
-        const var_01: f32 = 13.75;
-        const var_02: f32 = -var_01;
-
-        try assert(var_02 == -13.75);
-    }
-}
-
-test "単項 -%" {
-    {
-        const var_01: i8 = 13;
-        const var_02: i8 = -%var_01;
-
-        try assert(var_02 == -13);
-    }
-
-    {
-        const var_01: i8 = -128;
-        const var_02: i8 = -%var_01;
-
-        try assert(var_02 == -128);
-    }
-}
 test "二項 <<" {
     {
         const var_01: i8 = 11; // 0b0000 1011
