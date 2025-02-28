@@ -10,6 +10,11 @@ pub fn assert(value: bool) !void {
     }
 }
 
+/// valueが全てtrueであることを確認します。
+pub fn assertVec(value: anytype) !void {
+    return assert(@reduce(.And, value));
+}
+
 /// 2つのスライスを等値比較します。
 pub fn equalSlices(left: anytype, right: @TypeOf(left)) bool {
     return left.len == right.len and for (left, right) |l, r| {

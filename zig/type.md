@@ -16,8 +16,12 @@
 ## 浮動小数点数型
 
 - 浮動小数点数。
-- `f<ビットサイズ>`
-- ビットサイズは16(半精度)、32(単精度)、64(倍精度)、80(拡張倍精度)、128(四倍精度)がある。
+- `f16`
+- `f32`
+- `f64`
+- `f80`
+- `f128`
+- 半精度、単精度、倍精度、拡張倍精度、四倍精度がある。
 - IEEE-754-2008に準拠している。
 
 ## コンパイル時整数
@@ -40,17 +44,17 @@
 
 ## C-ABI互換型
 
-- `c_char`
-- `c_short`
-- `c_ushort`
-- `c_int`
-- `c_uint`
-- `c_long`
-- `c_ulong`
-- `c_longlong`
-- `c_ulonglong`
-- `c_longdouble`
 - C言語のABIと互換性を持つための型。
+- `c_char` C言語の`char`型。
+- `c_short` C言語の`short`型。
+- `c_int` C言語の`int`型。
+- `c_long` C言語の`long`型。
+- `c_longlong` C言語の`long long`型。
+- `c_ushort` C言語の`unsigned short`型。
+- `c_uint` C言語の`unsigned int`型。
+- `c_ulong` C言語の`unsigned long`型。
+- `c_ulonglong` C言語の`unsigned long long`型。
+- `c_longdouble` C言語の`long double`型。
 
 ## 配列型
 
