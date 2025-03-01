@@ -1,8 +1,11 @@
 const utils = @import("./utils.zig");
 const assert = utils.assert;
-const assertVec = utils.assertVec;
 const consume = utils.consume;
 const equalSlices = utils.equalSlices;
+
+pub fn assertVec(value: @Vector(3, bool)) !void {
+    return assert(@reduce(.And, value));
+}
 
 test {
     _ = add;
@@ -17,11 +20,18 @@ const v = struct {
     const int_02: u8 = 3;
     const int_03: u8 = 5;
     const int_04: u8 = 255;
+    const int_05: i8 = 1;
+    const int_06: i8 = -3;
+    const int_07: i8 = -128;
 
     const VecInt = @Vector(len, u8);
+    const VecInt2 = @Vector(len, i8);
     const vec_int_01: VecInt = .{ 1, 2, 3 };
     const vec_int_02: VecInt = .{ 4, 5, 6 };
     const vec_int_03: VecInt = .{ 255, 255, 255 };
+    const vec_int_04: VecInt2 = .{ 1, 2, 3 };
+    const vec_int_05: VecInt2 = .{ 127, 127, 127 };
+    const vec_int_06: VecInt2 = .{ -128, -128, -128 };
 
     const float_01: f32 = 1.25;
     const float_02: f32 = 2.5;
@@ -64,7 +74,7 @@ const add = struct {
         try assert(@TypeOf(v.int_01 + v.int_02) == u8);
 
         // オーバーフロー
-        // consume(.{v.int_01 + v.int_04});
+        // consume(v.int_01 + v.int_04);
     }
 
     test "二項 + (浮動小数点数 + 浮動小数点数)" {
@@ -87,7 +97,7 @@ const add = struct {
         try assert(@TypeOf(v.vec_int_01 + v.vec_int_02) == v.VecInt);
 
         // オーバーフロー
-        // consume(.{v.vec_int_01 + v.vec_int_03});
+        // consume(v.vec_int_01 + v.vec_int_03);
     }
 
     test "二項 + (浮動小数点数ベクトル + 浮動小数点数ベクトル)" {
@@ -107,7 +117,7 @@ const add = struct {
         // try assert(@TypeOf(v.vec_c_ptr + v.vec_usize) == [*c]const u8);
     }
 
-    test "二項 +% (整数 + 整数)" {
+    test "二項 +% (整数 +% 整数)" {
         try assert(v.int_01 +% v.int_02 == 4);
         try assert(@TypeOf(v.int_01 +% v.int_02) == u8);
 
@@ -115,7 +125,7 @@ const add = struct {
         try assert(v.int_03 +% v.int_04 == 4);
     }
 
-    test "二項 +% (整数ベクトル + 整数ベクトル)" {
+    test "二項 +% (整数ベクトル +% 整数ベクトル)" {
         try assertVec(v.vec_int_01 +% v.vec_int_02 == v.VecInt{ 5, 7, 9 });
         try assert(@TypeOf(v.vec_int_01 +% v.vec_int_02) == v.VecInt);
 
@@ -123,7 +133,7 @@ const add = struct {
         try assertVec(v.vec_int_01 +% v.vec_int_03 == v.VecInt{ 0, 1, 2 });
     }
 
-    test "二項 +| (整数 + 整数)" {
+    test "二項 +| (整数 +| 整数)" {
         try assert(v.int_01 +| v.int_02 == 4);
         try assert(@TypeOf(v.int_01 +| v.int_02) == u8);
 
@@ -131,7 +141,7 @@ const add = struct {
         try assert(v.int_03 +| v.int_04 == 255);
     }
 
-    test "二項 +| (整数ベクトル + 整数ベクトル)" {
+    test "二項 +| (整数ベクトル +| 整数ベクトル)" {
         try assertVec(v.vec_int_01 +| v.vec_int_02 == v.VecInt{ 5, 7, 9 });
         try assert(@TypeOf(v.vec_int_01 +| v.vec_int_02) == v.VecInt);
 
@@ -146,7 +156,7 @@ const subtract = struct {
         try assert(@TypeOf(v.int_02 - v.int_01) == u8);
 
         // オーバーフロー
-        // consume(.{v.int_01 - v.int_02});
+        // consume(v.int_01 - v.int_02);
     }
 
     test "二項 - (浮動小数点数 - 浮動小数点数)" {
@@ -187,7 +197,7 @@ const subtract = struct {
         try assert(@TypeOf(v.vec_int_02 - v.vec_int_01) == v.VecInt);
 
         // オーバーフロー
-        // consume(.{v.vec_int_01 - v.vec_int_02});
+        // consume(v.vec_int_01 - v.vec_int_02);
     }
 
     test "二項 - (浮動小数点数ベクトル - 浮動小数点数ベクトル)" {
@@ -225,7 +235,7 @@ const subtract = struct {
         // try assert(@TypeOf(v.vec_c_ptr_02 - v.vec_int_01) == v.CPtr);
     }
 
-    test "二項 -% (整数 - 整数)" {
+    test "二項 -% (整数 -% 整数)" {
         try assert(v.int_02 -% v.int_01 == 2);
         try assert(@TypeOf(v.int_02 -% v.int_01) == u8);
 
@@ -233,7 +243,7 @@ const subtract = struct {
         try assert(v.int_01 -% v.int_02 == 254);
     }
 
-    test "二項 -% (整数ベクトル - 整数ベクトル)" {
+    test "二項 -% (整数ベクトル -% 整数ベクトル)" {
         try assertVec(v.vec_int_02 -% v.vec_int_01 == v.VecInt{ 3, 3, 3 });
         try assert(@TypeOf(v.vec_int_02 -% v.vec_int_01) == v.VecInt);
 
@@ -241,7 +251,7 @@ const subtract = struct {
         try assertVec(v.vec_int_01 -% v.vec_int_02 == v.VecInt{ 253, 253, 253 });
     }
 
-    test "二項 -| (整数 - 整数)" {
+    test "二項 -| (整数 -| 整数)" {
         try assert(v.int_02 -| v.int_01 == 2);
         try assert(@TypeOf(v.int_02 -| v.int_01) == u8);
 
@@ -249,7 +259,7 @@ const subtract = struct {
         try assert(v.int_01 -| v.int_02 == 0);
     }
 
-    test "二項 -| (整数ベクトル - 整数ベクトル)" {
+    test "二項 -| (整数ベクトル -| 整数ベクトル)" {
         try assertVec(v.vec_int_02 -| v.vec_int_01 == v.VecInt{ 3, 3, 3 });
         try assert(@TypeOf(v.vec_int_02 -| v.vec_int_01) == v.VecInt);
 
@@ -257,36 +267,46 @@ const subtract = struct {
         try assertVec(v.vec_int_01 -| v.vec_int_02 == v.VecInt{ 0, 0, 0 });
     }
 
-    test "単項 -" {
-        {
-            const var_01: i8 = 13;
-            const var_02: i8 = -var_01;
+    test "単項 - (-整数)" {
+        try assert(-v.int_05 == -1);
+        try assert(@TypeOf(-v.int_05) == i8);
 
-            try assert(var_02 == -13);
-        }
-
-        {
-            const var_01: f32 = 13.75;
-            const var_02: f32 = -var_01;
-
-            try assert(var_02 == -13.75);
-        }
+        // オーバーフロー
+        // consume(-v.int_07);
     }
 
-    test "単項 -%" {
-        {
-            const var_01: i8 = 13;
-            const var_02: i8 = -%var_01;
+    test "単項 - (-浮動小数点数)" {
+        try assert(-v.float_01 == -1.25);
+        try assert(@TypeOf(-v.float_01) == f32);
+    }
 
-            try assert(var_02 == -13);
-        }
+    test "単項 - (-整数ベクトル)" {
+        try assertVec(-v.vec_int_04 == v.VecInt2{ -1, -2, -3 });
+        try assert(@TypeOf(-v.vec_int_04) == v.VecInt2);
 
-        {
-            const var_01: i8 = -128;
-            const var_02: i8 = -%var_01;
+        // オーバーフロー
+        // consume(-v.vec_int_06);
+    }
 
-            try assert(var_02 == -128);
-        }
+    test "単項 - (-浮動小数点数ベクトル)" {
+        try assertVec(-v.vec_float_01 == v.VecFloat{ -1.25, -2.5, -3.75 });
+        try assert(@TypeOf(-v.vec_float_01) == v.VecFloat);
+    }
+
+    test "単項 -% (-%整数)" {
+        try assert(-%v.int_05 == -1);
+        try assert(@TypeOf(-%v.int_05) == i8);
+
+        // オーバーフロー
+        try assert(-%v.int_07 == -128);
+    }
+
+    test "単項 -% (-%整数ベクトル)" {
+        try assertVec(-%v.vec_int_04 == v.VecInt2{ -1, -2, -3 });
+        try assert(@TypeOf(-%v.vec_int_04) == v.VecInt2);
+
+        // オーバーフロー
+        try assertVec(-%v.vec_int_06 == v.VecInt2{ -128, -128, -128 });
     }
 };
 
