@@ -557,3 +557,79 @@ test "unreachable" {
 
     try assert(value_01 == 5);
 }
+
+test "後置 ()" {
+    const function: fn () void = struct {
+        pub fn f() void {}
+    }.f;
+
+    function();
+}
+
+test "後置 単項 .*" {
+    const var_01: u8 = 5;
+    const var_02: *const u8 = &var_01;
+    const var_03: u8 = var_02.*;
+
+    try assert(var_03 == 5);
+}
+
+test "後置 []" {
+    const equalSlices = utils.equalSlices;
+
+    {
+        const var_01: [3]u8 = .{ 1, 2, 3 };
+        const var_02: u8 = var_01[0];
+        const var_03: *const [2]u8 = var_01[1..];
+        const var_04: *const [2]u8 = var_01[0..2];
+
+        try assert(var_02 == 1);
+        try assert(equalSlices(var_03, &.{ 2, 3 }));
+        try assert(equalSlices(var_04, &.{ 1, 2 }));
+    }
+
+    {
+        const var_01: [3]u8 = .{ 1, 2, 3 };
+        const var_02: *const [3]u8 = &var_01;
+        const var_03: u8 = var_02[0];
+        const var_04: *const [2]u8 = var_02[1..];
+        const var_05: *const [2]u8 = var_02[0..2];
+
+        try assert(var_03 == 1);
+        try assert(equalSlices(var_04, &.{ 2, 3 }));
+        try assert(equalSlices(var_05, &.{ 1, 2 }));
+    }
+
+    {
+        const var_01: [3]u8 = .{ 1, 2, 3 };
+        const var_02: [*]const u8 = &var_01;
+        const var_03: u8 = var_02[0];
+        const var_04: [*]const u8 = var_02[1..];
+        const var_05: [*]const u8 = var_02[0..2];
+
+        try assert(var_03 == 1);
+        try assert(var_04[0] == 2);
+        try assert(var_04[1] == 3);
+        try assert(var_05[0] == 1);
+        try assert(var_05[1] == 2);
+    }
+
+    {
+        const var_01: [3]u8 = .{ 1, 2, 3 };
+        const var_02: []const u8 = &var_01;
+        const var_03: u8 = var_02[0];
+        const var_04: []const u8 = var_02[1..];
+        const var_05: []const u8 = var_02[0..2];
+
+        try assert(var_03 == 1);
+        try assert(equalSlices(var_04, &.{ 2, 3 }));
+        try assert(equalSlices(var_05, &.{ 1, 2 }));
+    }
+}
+
+test "後置 単項 .?" {
+    const var_01: ?u8 = 5;
+    const var_02: u8 = var_01.?;
+
+    try assert(var_02 == 5);
+}
