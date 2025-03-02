@@ -123,19 +123,19 @@ pub const static_multi_dimensional_array = @import("./collection/array-static-mu
 pub fn isArray(T: type) bool {
     const match = lib.interface.match(T);
 
-    return match.hasFunc("get") and
-        match.hasFunc("set") and
-        match.hasFunc("size");
+    return match.hasFn("get") and
+        match.hasFn("set") and
+        match.hasFn("size");
 }
 
 pub fn isDynamicArray(T: type) bool {
     const match = lib.interface.match(T);
 
     return isArray(T) and
-        match.hasFunc("pushFront") and
-        match.hasFunc("pushBack") and
-        match.hasFunc("popFront") and
-        match.hasFunc("popBack");
+        match.hasFn("pushFront") and
+        match.hasFn("pushBack") and
+        match.hasFn("popFront") and
+        match.hasFn("popBack");
 }
 
 test "array is array" {
@@ -157,17 +157,17 @@ pub const double_circular_sentinel_list = struct {};
 pub fn isList(T: type) bool {
     const match = lib.interface.match(T);
 
-    return match.hasFunc("size") and
-        match.hasFunc("clear") and
-        match.hasFunc("get") and
-        match.hasFunc("getFirst") and
-        match.hasFunc("getLast") and
-        match.hasFunc("add") and
-        match.hasFunc("addFirst") and
-        match.hasFunc("addLast") and
-        match.hasFunc("remove") and
-        match.hasFunc("removeFirst") and
-        match.hasFunc("removeLast");
+    return match.hasFn("size") and
+        match.hasFn("clear") and
+        match.hasFn("get") and
+        match.hasFn("getFirst") and
+        match.hasFn("getLast") and
+        match.hasFn("add") and
+        match.hasFn("addFirst") and
+        match.hasFn("addLast") and
+        match.hasFn("remove") and
+        match.hasFn("removeFirst") and
+        match.hasFn("removeLast");
 }
 
 pub fn testList(List: type, list: *List, a: Allocator) !void {
