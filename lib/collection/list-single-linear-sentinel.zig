@@ -33,7 +33,7 @@ pub fn SingleLinearSentinelList(T: type) type {
                 return if (node != ref_sentinel) node.value else null;
             }
 
-            pub fn format(node: Node, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
+            pub fn format(node: *const Node, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
                 const writer = lib.io.writer(w);
                 if (node == ref_sentinel) {
                     try writer.print("sentinel", .{});

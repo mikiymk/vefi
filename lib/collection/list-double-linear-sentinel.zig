@@ -34,7 +34,7 @@ pub fn DoubleLinearSentinelList(T: type) type {
                 return if (node != ref_sentinel) node.value else null;
             }
 
-            pub fn format(node: Node, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
+            pub fn format(node: *const Node, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
                 const writer = lib.io.writer(w);
                 if (node == ref_sentinel) {
                     try writer.print("sentinel", .{});
@@ -131,14 +131,14 @@ pub fn DoubleLinearSentinelList(T: type) type {
 
         /// リストの指定した位置に要素を追加する。
         pub fn add(self: *List, a: Allocator, index: usize, value: T) Allocator.Error!void {
-            if (index == 0) {
-                self.head = try Node.init(a, value, self.head);
-                return;
-            }
+            if (index == 0) return self.addFirst(a, value);
 
-            const node = self.getNode(index - 1);
-            if (node != ref_sentinel) {
-                node.next = try Node.init(a, value, node.next);
+            const prev = self.getNode(index - 1);
+            if (prev != ref_sentinel) {
+                const next = prev.next;
+                const node = try Node.init(a, value, next, prev);
+                prev.next = node;
+                next.prev = node;
             } else {
                 // indexが範囲外の場合
                 unreachable;
@@ -147,37 +147,33 @@ pub fn DoubleLinearSentinelList(T: type) type {
 
         /// リストの先頭に要素を追加する。
         pub fn addFirst(self: *List, a: Allocator, value: T) Allocator.Error!void {
-            self.head = try Node.init(a, value, self.head);
+            const next = self.head;
+            const node = try Node.init(a, value, next, ref_sentinel);
+            self.head = node;
+            next.prev = node;
         }
 
         /// リストの末尾に要素を追加する。
         pub fn addLast(self: *List, a: Allocator, value: T) Allocator.Error!void {
-            const new_node = try Node.init(a, value, ref_sentinel);
-            const last_node = self.getLastNode();
+            const prev = self.getLastNode();
+            const node = try Node.init(a, value, ref_sentinel, prev);
+            prev.next = node;
 
-            if (last_node != ref_sentinel) {
-                last_node.next = new_node;
-            } else {
-                self.head = new_node;
+            if (prev == ref_sentinel) {
+                self.head = node;
             }
         }
 
         /// リストの指定した位置の要素を削除する。
         pub fn remove(self: *List, a: Allocator, index: usize) void {
-            if (index == 0) {
-                self.removeFirst(a);
-                return;
-            }
+            if (index == 0) return self.removeFirst(a);
 
             const node = self.getNode(index - 1);
             if (node != ref_sentinel) {
                 const target = node.next;
                 node.next = target.next;
                 target.deinit(a);
-            } else {
-                // indexが範囲外の場合
-                unreachable;
-            }
+            } else unreachable;
         }
 
         /// リストの先頭の要素を削除する。

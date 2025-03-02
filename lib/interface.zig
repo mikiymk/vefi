@@ -5,11 +5,11 @@ pub const Match = struct {
     type: type,
 
     pub fn isInt(self: Match) bool {
-        return @typeInfo(@TypeOf(self.type)) == .Int;
+        return @typeInfo(self.type) == .Int;
     }
 
     pub fn isFloat(self: Match) bool {
-        return @typeInfo(@TypeOf(self.type)) == .Float;
+        return @typeInfo(self.type) == .Float;
     }
 
     pub fn isNum(self: Match) bool {
@@ -17,11 +17,11 @@ pub const Match = struct {
     }
 
     pub fn isFunc(self: Match) bool {
-        return @typeInfo(@TypeOf(self.type)) == .Fn;
+        return @typeInfo(self.type) == .Fn;
     }
 
     pub fn decl(self: Match, comptime name: []const u8) Match {
-        return match(@field(self.type, name));
+        return match(@TypeOf(@field(self.type, name)));
     }
 
     pub fn hasFunc(self: Match, comptime name: []const u8) bool {
