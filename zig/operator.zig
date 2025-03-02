@@ -56,7 +56,13 @@ const VecFloat = @Vector(len, f32);
 const vec_float_01: VecFloat = .{ 1.25, 2.5, 3.75 };
 const vec_float_02: VecFloat = .{ 4.25, 5.5, 6.75 };
 
-const array_01: [3]u8 = .{ 1, 2, 3 };
+const Array = [3]u8;
+const array_01: Array = .{ 1, 2, 3 };
+const array_02: Array = .{ 4, 5, 6 };
+
+const Tuple = struct { u8, f32, u8 };
+const tuple_01: Tuple = .{ 1, 1.5, 2 };
+const tuple_02: Tuple = .{ 3, 4.5, 6 };
 
 const SinglePtr = *const u8;
 const single_ptr_01: SinglePtr = @ptrCast(&array_01);
@@ -81,6 +87,16 @@ const c_ptr_02: CPtr = @as(CPtr, &array_01) + 1;
 const VecCPtr = @Vector(len, [*c]const u8);
 const vec_c_ptr_01: VecCPtr = .{ c_ptr_01, c_ptr_01, c_ptr_01 };
 const vec_c_ptr_02: VecCPtr = .{ c_ptr_02, c_ptr_02, c_ptr_02 };
+
+const Enum = enum { v1, v2, v3 };
+
+const Option = ?u8;
+const option_01: Option = null;
+const option_02: Option = 1;
+
+const Error = error{Error}!u8;
+const error_01: Error = error.Error;
+const error_02: Error = 1;
 
 const add = struct {
     test "二項 + (整数 + 整数)" {
@@ -627,15 +643,13 @@ const compare_eq = struct {
     }
 
     test "二項 == (列挙型 == 列挙型)" {
-        // TODO
-    }
-
-    test "二項 == (タグ付き共用体型 == 列挙型)" {
-        // TODO
+        try assert((Enum.v1 == Enum.v2) == false);
+        try assert(@TypeOf(Enum.v1 == Enum.v2) == bool);
     }
 
     test "二項 == (型 == 型)" {
-        // TODO
+        try assert((u8 == f32) == false);
+        try assert(@TypeOf(u8 == f32) == bool);
     }
 };
 
@@ -723,46 +737,52 @@ const compare_ord = struct {
 
 const array = struct {
     test "二項 ++ (配列 ++ 配列)" {
-        // TODO
-    }
-
-    test "二項 ++ (ベクトル ++ ベクトル)" {
-        // TODO
+        try assert((array_01 ++ array_02).len == 6);
+        try assert((array_01 ++ array_02)[0] == 1);
+        try assert(@TypeOf(array_01 ++ array_02) == [6]u8);
     }
 
     test "二項 ++ (タプル ++ タプル)" {
-        // TODO
+        try assert((tuple_01 ++ tuple_02).len == 6);
+        try assert((tuple_01 ++ tuple_02)[0] == 1);
+        try assert(@TypeOf((tuple_01 ++ tuple_02)[0]) == u8);
+        // try assert(@TypeOf(tuple_01 ++ tuple_02) == struct { u8, f32, u8, u8, f32, u8 });
     }
 
     test "二項 ** (配列 ** 整数)" {
-        // TODO
-    }
-
-    test "二項 ** (ベクトル ** 整数)" {
-        // TODO
+        try assert((array_01 ** 3).len == 9);
+        try assert((array_01 ** 3)[0] == 1);
+        try assert(@TypeOf(array_01 ** 3) == [9]u8);
     }
 
     test "二項 ** (タプル ** 整数)" {
-        // TODO
+        try assert((tuple_01 ** 3).len == 9);
+        try assert((tuple_01 ** 3)[0] == 1);
+        try assert(@TypeOf((tuple_01 ** 3)[0]) == u8);
+        // try assert(@TypeOf(tuple_01 ** 3) == struct { u8, f32, u8, u8, f32, u8, u8, f32, u8 });
     }
 };
 
 test "単項 &" {
-    // TODO
+    try assert(@TypeOf(&int_01) == *const u8);
 }
 
 test "二項 orelse (オプション orelse 非オプション)" {
-    // TODO
+    try assert(option_01 orelse int_01 == 1);
+    try assert(@TypeOf(option_01 orelse int_01) == u8);
 }
 
 test "二項 orelse (オプション orelse noreturn)" {
-    // TODO
+    try assert(option_01 orelse return == 1);
+    try assert(@TypeOf(option_01 orelse return) == u8);
 }
 
 test "二項 catch (エラー catch 非エラー)" {
-    // TODO
+    try assert(error_01 catch int_01 == 1);
+    try assert(@TypeOf(error_01 catch int_01) == u8);
 }
 
 test "二項 catch (エラー catch noreturn)" {
-    // TODO
+    try assert(error_02 catch return == 1);
+    try assert(@TypeOf(error_02 catch return) == u8);
 }
