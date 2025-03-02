@@ -90,7 +90,7 @@ pub fn StaticArray(T: type, array_size: usize, comptime options: StaticArrayOpti
 
 test StaticArray {
     const Array = StaticArray(usize, 5, .{});
-    const equals = lib.assert.expectEqual;
+    const equals = lib.assert.expectEqualStruct;
 
     var array = Array.init(0);
     try equals(array._values, .{ 0, 0, 0, 0, 0 });

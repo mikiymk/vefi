@@ -24,7 +24,7 @@ pub fn Integer(sign: Sign, bits: u16) type {
 
 test "📖Integer" {
     const IntType: type = Integer(.signed, 16);
-    try lib.assert.expectEqual(IntType, i16);
+    try lib.assert.expectEqualStruct(IntType, i16);
 }
 
 /// 整数型を受け取り、同じビット数の符号あり整数を返します。
@@ -33,8 +33,8 @@ pub fn Signed(Number: type) type {
 }
 
 test "📖Signed" {
-    try lib.assert.expectEqual(Signed(usize), isize);
-    try lib.assert.expectEqual(Signed(isize), isize);
+    try lib.assert.expectEqualStruct(Signed(usize), isize);
+    try lib.assert.expectEqualStruct(Signed(isize), isize);
 }
 
 /// 整数型を受け取り、同じビット数の符号なし整数を返します。
@@ -43,8 +43,8 @@ pub fn Unsigned(Number: type) type {
 }
 
 test "📖Unsigned" {
-    try lib.assert.expectEqual(Unsigned(usize), usize);
-    try lib.assert.expectEqual(Unsigned(isize), usize);
+    try lib.assert.expectEqualStruct(Unsigned(usize), usize);
+    try lib.assert.expectEqualStruct(Unsigned(isize), usize);
 }
 
 /// 型が整数かどうかを判定します。

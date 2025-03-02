@@ -184,9 +184,9 @@ pub const RegularExpression = union(enum) {
 test "文字列" {
     const regexp = RegularExpression.compile("foo");
 
-    try lib.assert.expectEqual(regexp.match("foo bar"), "foo");
-    try lib.assert.expectEqual(regexp.match("bar foo"), "foo");
-    try lib.assert.expectEqual(regexp.match("bar baz"), null);
+    try lib.assert.expectEqualStruct(regexp.match("foo bar"), "foo");
+    try lib.assert.expectEqualStruct(regexp.match("bar foo"), "foo");
+    try lib.assert.expectEqualStruct(regexp.match("bar baz"), null);
 }
 
 test "選択" {

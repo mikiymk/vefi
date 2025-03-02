@@ -1,3 +1,5 @@
+//!
+
 const std = @import("std");
 const lib = @import("root.zig");
 
@@ -5,67 +7,72 @@ test {
     std.testing.refAllDecls(@This());
 }
 
-pub const Error = error{
-    AssertionFailed,
-};
-
 pub fn assert(ok: bool) void {
     if (!ok) {
         unreachable;
     }
 }
 
-pub fn expect(ok: bool) Error!void {
+pub const ExpectError = error{NotExpected};
+
+fn print(comptime fmt: []const u8, args: anytype) void {
+    std.debug.print(fmt ++ "\n", args);
+}
+
+pub fn expect(ok: bool) ExpectError!void {
     if (!ok) {
-        return error.AssertionFailed;
+        print("expect failed", .{});
+
+        return error.NotExpected;
     }
 }
 
-pub fn expectEqual(left: anytype, right: @TypeOf(left)) Error!void {
-    if (!lib.common.equal(left, right)) {
-        std.debug.print("left: {any} != right: {any}\n", .{ left, right });
+pub fn expectEqual(expected: anytype, actual: @TypeOf(expected)) ExpectError!void {
+    if (!lib.common.equal(expected, actual)) { // TODO
+        print("expect failed: expected = {any}, actual = {any}", .{ expected, actual });
 
-        return error.AssertionFailed;
+        return error.NotExpected;
     }
 }
 
-pub fn expectEqualWithType(T: type, left: anytype, right: @TypeOf(left)) Error!void {
-    if (T != @TypeOf(left)) {
-        std.debug.print("type expected: {s} != actual: {s}\n", .{ lib.primitive.types.toString(T), lib.primitive.types.toString(@TypeOf(left)) });
+pub fn expectEqualStruct(expected: anytype, actual: @TypeOf(expected)) ExpectError!void {
+    if (!lib.common.equal(expected, actual)) {
+        print("expect failed: expected = {any}, actual = {any}", .{ expected, actual });
 
-        return error.AssertionFailed;
-    }
-
-    if (!lib.common.equal(left, right)) {
-        std.debug.print("left: {any} != right: {any}\n", .{ left, right });
-
-        return error.AssertionFailed;
+        return error.NotExpected;
     }
 }
 
-pub fn expectEqualSlice(T: type, left: []const T, right: []const T) Error!void {
-    if (!lib.common.equal(left, right)) {
-        std.debug.print("left: {any} != right: {any}\n", .{ left, right });
+pub fn expectType(expected: type, actual: anytype) ExpectError!void {
+    const toString = lib.primitive.types.toString;
+    if (expected != @TypeOf(actual)) {
+        print("expect failed: expected = {s}, actual = {s}", .{ toString(expected), toString(@TypeOf(actual)) });
 
-        return error.AssertionFailed;
+        return error.NotExpected;
     }
 }
 
-pub fn expectEqualString(left: []const u8, right: []const u8) Error!void {
-    if (!lib.common.equal(left, right)) {
-        std.debug.print("left: \"{s}\"({d}) != right: \"{s}\"({d})\n", .{ left, left.len, right, right.len });
+pub fn expectEqualSlice(T: type, expected: []const T, actual: []const T) ExpectError!void {
+    if (!lib.common.equal(expected, actual)) {
+        print("expect failed: expected = {any}, actual = {any}", .{ expected, actual });
 
-        return error.AssertionFailed;
+        return error.NotExpected;
     }
 }
 
-pub fn expectEqualApproximate(left: anytype, right: @TypeOf(left), tolerance: @TypeOf(left)) Error!void {
-    if (!lib.math.float_point.equalApproximateAbsolute(left, right, tolerance)) {
-        std.debug.print(
-            "left: {any} - right: {any} = {any} > {any}\n",
-            .{ left, right, @abs(left - right), tolerance },
-        );
+pub fn expectEqualString(expected: []const u8, actual: []const u8) ExpectError!void {
+    if (!lib.common.equal(expected, actual)) {
+        print("expect failed: expected = {s}({d}), actual = {s}({d})", .{ expected, expected.len, actual, actual.len });
 
-        return error.AssertionFailed;
+        return error.NotExpected;
+    }
+}
+
+pub fn expectEqualApproximate(expected: anytype, actual: @TypeOf(expected), tolerance: @TypeOf(expected)) ExpectError!void {
+    if (!lib.math.float_point.equalApproximateAbsolute(expected, actual, tolerance)) {
+        print("expect failed: expected = {x}, actual = {x}", .{ expected, actual });
+        print("               tolerance = {x} > {x}", .{ @abs(expected - actual), tolerance });
+
+        return error.NotExpected;
     }
 }

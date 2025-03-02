@@ -4,8 +4,8 @@ const literal = @import("./literal.zig");
 const types = @import("./type.zig");
 const operator = @import("./operator.zig");
 const statement = @import("./statement.zig");
-const type_coercion = @import("./type_coercion.zig");
-const builtin_function = @import("./builtin_function.zig");
+const type_coercion = @import("./type-coercion.zig");
+const builtin_function = @import("./builtin-function.zig");
 
 test {
     _ = .{

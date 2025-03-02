@@ -194,7 +194,7 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
 test DynamicArray {
     const allocator = std.testing.allocator;
     const DA = DynamicArray(u8, .{});
-    const eq = lib.assert.expectEqual;
+    const eq = lib.assert.expectEqualStruct;
 
     var array = DA.init();
     defer array.deinit(allocator);
