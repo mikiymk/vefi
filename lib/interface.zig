@@ -16,7 +16,7 @@ pub const Match = struct {
         return self.isInt() or self.isFloat();
     }
 
-    pub isFunc(self: Match) bool {
+    pub fn isFunc(self: Match) bool {
         return @typeInfo(@TypeOf(self.type)) == .Fn;
     }
 

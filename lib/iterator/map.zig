@@ -6,7 +6,7 @@ pub fn Map(Iterator: type, NewType: type) type {
 
     return struct {
         pub const Item = NewType;
-  
+
         iterator: Iterator,
         map_fn: *const fn (value: T) NewType,
 
