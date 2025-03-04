@@ -28,15 +28,8 @@ pub fn DoubleLinearList(T: type) type {
             }
 
             pub fn format(node: Node, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
-                const next_str = "next";
-                const prev_str = "prev";
-                const null_str = "null";
-
                 const writer = lib.io.writer(w);
-                const next = if (node.next) |_| next_str else null_str;
-                const prev = if (node.prev) |_| prev_str else null_str;
-
-                try writer.print("{{{s} <- {} -> {s}}}", .{ prev, node.value, next });
+                try writer.print("{}", .{node.value});
             }
         };
 
@@ -236,21 +229,14 @@ pub fn DoubleLinearList(T: type) type {
         }
 
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
-            const writer = lib.io.writer(w);
-            try writer.print("List\n", .{});
+            const type_name = "DoubleLinearList(" ++ @typeName(T) ++ ")";
 
-            var node = self.head;
-            var index: usize = 0;
-            while (node) |n| {
-                try writer.print(" {d}: {}\n", .{ index, n });
-                node = n.next;
-                index += 1;
-            }
+            try @import("list.zig").formatList(w, type_name, self.head);
         }
     };
 }
 
-test "list" {
+test DoubleLinearList {
     const List = DoubleLinearList(u8);
     const a = std.testing.allocator;
     const expect = lib.assert.expect;
@@ -260,4 +246,23 @@ test "list" {
 
     try expect(@TypeOf(list) == DoubleLinearList(u8));
     try lib.collection.testList(List, &list, a);
+}
+
+test "format" {
+    const List = DoubleLinearList(u8);
+    const a = std.testing.allocator;
+
+    var list = List.init();
+    defer list.deinit(a);
+
+    try list.addLast(a, 1);
+    try list.addLast(a, 2);
+    try list.addLast(a, 3);
+    try list.addLast(a, 4);
+    try list.addLast(a, 5);
+
+    const format = try std.fmt.allocPrint(a, "{}", .{list});
+    defer a.free(format);
+
+    try lib.assert.expectEqualString("DoubleLinearList(u8){ 1, 2, 3, 4, 5 }", format);
 }

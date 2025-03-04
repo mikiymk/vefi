@@ -188,6 +188,25 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
 
             self._values = try allocator.realloc(self._values, new_length);
         }
+
+        pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
+            const writer = lib.io.writer(w);
+            try writer.print("DynamicArray({s}){{", .{@typeName(T)});
+
+            var first = true;
+            for (self._values[0..self._size]) |value| {
+                if (first) {
+                    try writer.print(" ", .{});
+                    first = false;
+                } else {
+                    try writer.print(", ", .{});
+                }
+
+                try writer.print("{}", .{value});
+            }
+
+            try writer.print(" }}", .{});
+        }
     };
 }
 
@@ -232,4 +251,23 @@ test DynamicArray {
     const slice = try array.copyToSlice(allocator);
     defer allocator.free(slice);
     try eq(slice, &.{ 5, 6, 7 });
+}
+
+test "format" {
+    const Array = DynamicArray(u8, .{});
+    const a = std.testing.allocator;
+
+    var array = Array.init();
+    defer array.deinit(a);
+
+    try array.pushBack(a, 1);
+    try array.pushBack(a, 2);
+    try array.pushBack(a, 3);
+    try array.pushBack(a, 4);
+    try array.pushBack(a, 5);
+
+    const format = try std.fmt.allocPrint(a, "{}", .{array});
+    defer a.free(format);
+
+    try lib.assert.expectEqualString("DynamicArray(u8){ 1, 2, 3, 4, 5 }", format);
 }

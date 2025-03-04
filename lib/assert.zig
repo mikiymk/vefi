@@ -62,7 +62,7 @@ pub fn expectEqualSlice(T: type, expected: []const T, actual: []const T) ExpectE
 
 pub fn expectEqualString(expected: []const u8, actual: []const u8) ExpectError!void {
     if (!lib.common.equal(expected, actual)) {
-        print("expect failed: expected = {s}({d}), actual = {s}({d})", .{ expected, expected.len, actual, actual.len });
+        print("expect failed: expected = \"{s}\"({d}), actual = \"{s}\"({d})", .{ expected, expected.len, actual, actual.len });
 
         return error.NotExpected;
     }

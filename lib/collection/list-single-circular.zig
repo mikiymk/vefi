@@ -35,7 +35,7 @@ pub fn SingleCircularList(T: type) type {
 
             pub fn format(node: Node, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
                 const writer = lib.io.writer(w);
-                try writer.print("{{{}}} -> next", .{node.value});
+                try writer.print("{}", .{node.value});
             }
         };
 
@@ -237,27 +237,32 @@ pub fn SingleCircularList(T: type) type {
         }
 
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
+            const type_name = "SingleCircularList(" ++ @typeName(T) ++ ")";
             const writer = lib.io.writer(w);
-            try writer.print("List\n", .{});
 
-            const tail = self.tail orelse {
-                try writer.print("\n", .{});
-                return;
-            };
+            try writer.print("{s}{{", .{type_name});
+            if (self.tail) |tail| {
+                var node = tail.next;
+                var first = true;
+                while (true) : (node = node.next) {
+                    if (first) {
+                        try writer.print(" ", .{});
+                        first = false;
+                    } else {
+                        try writer.print(", ", .{});
+                    }
 
-            var node = tail.next;
-            var index: usize = 0;
-            while (node != tail) {
-                try writer.print(" {d}: {}\n", .{ index, node });
-                node = node.next;
-                index += 1;
+                    try writer.print("{}", .{node});
+
+                    if (node == tail) break;
+                }
             }
-            try writer.print(" {d}: {}\n", .{ index, node });
+            try writer.print(" }}", .{});
         }
     };
 }
 
-test "list" {
+test SingleCircularList {
     const List = SingleCircularList(u8);
     const a = std.testing.allocator;
     const expect = lib.assert.expect;
@@ -267,4 +272,23 @@ test "list" {
 
     try expect(@TypeOf(list) == SingleCircularList(u8));
     try lib.collection.testList(List, &list, a);
+}
+
+test "format" {
+    const List = SingleCircularList(u8);
+    const a = std.testing.allocator;
+
+    var list = List.init();
+    defer list.deinit(a);
+
+    try list.addLast(a, 1);
+    try list.addLast(a, 2);
+    try list.addLast(a, 3);
+    try list.addLast(a, 4);
+    try list.addLast(a, 5);
+
+    const format = try std.fmt.allocPrint(a, "{}", .{list});
+    defer a.free(format);
+
+    try lib.assert.expectEqualString("SingleCircularList(u8){ 1, 2, 3, 4, 5 }", format);
 }

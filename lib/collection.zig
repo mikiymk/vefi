@@ -119,6 +119,7 @@ pub const Range = struct {
 pub const static_array = @import("./collection/array-static.zig");
 pub const dynamic_array = @import("./collection/array-dynamic.zig");
 pub const static_multi_dimensional_array = @import("./collection/array-static-multi-dimensional.zig");
+pub const bit_array = struct {};
 
 pub fn isArray(T: type) bool {
     const match = lib.interface.match(T);
@@ -168,6 +169,15 @@ pub fn isList(T: type) bool {
         match.hasFn("remove") and
         match.hasFn("removeFirst") and
         match.hasFn("removeLast");
+}
+
+test "list is list" {
+    const expect = lib.assert.expect;
+
+    try expect(isList(single_linear_list.SingleLinearList(u8)));
+    try expect(isList(single_linear_sentinel_list.SingleLinearSentinelList(u8)));
+    try expect(isList(single_circular_list.SingleCircularList(u8)));
+    try expect(isList(single_circular_sentinel_list.SingleCircularSentinelList(u8)));
 }
 
 pub fn testList(List: type, list: *List, a: Allocator) !void {
@@ -259,16 +269,8 @@ pub fn testList(List: type, list: *List, a: Allocator) !void {
     try expect(list.size() == 0);
 }
 
-test "list is list" {
-    const expect = lib.assert.expect;
-
-    try expect(isList(single_linear_list.SingleLinearList(u8)));
-    try expect(isList(single_linear_sentinel_list.SingleLinearSentinelList(u8)));
-    try expect(isList(single_circular_list.SingleCircularList(u8)));
-    try expect(isList(single_circular_sentinel_list.SingleCircularSentinelList(u8)));
-}
-
 pub const stack = @import("collection/stack.zig");
+pub const array_stack = @import("./collection/stack-array.zig");
 
 pub const queue = @import("collection/queue.zig");
 pub const tree = @import("collection/tree.zig");
@@ -283,7 +285,6 @@ pub const heap = struct {};
 pub const tree_map = struct {};
 pub const bidirectional_map = struct {};
 pub const ordered_map = struct {};
-pub const bit_array = struct {};
 
 pub fn extendSize(allocator: Allocator, slice: anytype) Allocator.Error!@TypeOf(slice) {
     const initial_length = 8;

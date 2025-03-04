@@ -85,6 +85,25 @@ pub fn StaticArray(T: type, array_size: usize, comptime options: StaticArrayOpti
                 self.swap(i, self.size() - i - 1);
             }
         }
+
+        pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
+            const writer = lib.io.writer(w);
+            try writer.print("StaticArray({s}){{", .{@typeName(T)});
+
+            var first = true;
+            for (self._values) |value| {
+                if (first) {
+                    try writer.print(" ", .{});
+                    first = false;
+                } else {
+                    try writer.print(", ", .{});
+                }
+
+                try writer.print("{}", .{value});
+            }
+
+            try writer.print(" }}", .{});
+        }
     };
 }
 
@@ -111,4 +130,23 @@ test StaticArray {
 
     array.reverse();
     try equals(array._values, .{ 4, 0, 2, 4, 1 });
+}
+
+test "format" {
+    const Array = StaticArray(u8, 5, .{});
+    const a = std.testing.allocator;
+
+    var array = Array.init(0);
+    defer array.deinit();
+
+    array.set(0, 1);
+    array.set(1, 2);
+    array.set(2, 3);
+    array.set(3, 4);
+    array.set(4, 5);
+
+    const format = try std.fmt.allocPrint(a, "{}", .{array});
+    defer a.free(format);
+
+    try lib.assert.expectEqualString("StaticArray(u8){ 1, 2, 3, 4, 5 }", format);
 }

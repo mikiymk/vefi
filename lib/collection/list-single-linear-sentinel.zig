@@ -35,11 +35,7 @@ pub fn SingleLinearSentinelList(T: type) type {
 
             pub fn format(node: *const Node, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
                 const writer = lib.io.writer(w);
-                if (node == ref_sentinel) {
-                    try writer.print("sentinel", .{});
-                } else {
-                    try writer.print("{{{}}} -> next", .{node.value});
-                }
+                try writer.print("{}", .{node.value});
             }
         };
 
@@ -222,20 +218,14 @@ pub fn SingleLinearSentinelList(T: type) type {
         }
 
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
-            const writer = lib.io.writer(w);
-            try writer.print("List\n", .{});
+            const type_name = "SingleLinearSentinelList(" ++ @typeName(T) ++ ")";
 
-            var node = self.head;
-            var index: usize = 0;
-            while (node != ref_sentinel) : (node = node.next) {
-                try writer.print(" {d}: {}\n", .{ index, node });
-                index += 1;
-            }
+            try @import("list.zig").formatListSentinel(w, type_name, self.head, ref_sentinel);
         }
     };
 }
 
-test "list" {
+test SingleLinearSentinelList {
     const List = SingleLinearSentinelList(u8);
     const a = std.testing.allocator;
     const expect = lib.assert.expect;
@@ -245,4 +235,23 @@ test "list" {
 
     try expect(@TypeOf(list) == SingleLinearSentinelList(u8));
     try lib.collection.testList(List, &list, a);
+}
+
+test "format" {
+    const List = SingleLinearSentinelList(u8);
+    const a = std.testing.allocator;
+
+    var list = List.init();
+    defer list.deinit(a);
+
+    try list.addLast(a, 1);
+    try list.addLast(a, 2);
+    try list.addLast(a, 3);
+    try list.addLast(a, 4);
+    try list.addLast(a, 5);
+
+    const format = try std.fmt.allocPrint(a, "{}", .{list});
+    defer a.free(format);
+
+    try lib.assert.expectEqualString("SingleLinearSentinelList(u8){ 1, 2, 3, 4, 5 }", format);
 }

@@ -40,7 +40,7 @@ pub fn SingleCircularSentinelList(T: type) type {
 
             pub fn format(node: Node, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
                 const writer = lib.io.writer(w);
-                try writer.print("{{{}}} -> next", .{node.value});
+                try writer.print("{}", .{node.value});
             }
         };
 
@@ -212,20 +212,14 @@ pub fn SingleCircularSentinelList(T: type) type {
         }
 
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
-            const writer = lib.io.writer(w);
-            try writer.print("List\n", .{});
+            const type_name = "SingleCircularSentinelList(" ++ @typeName(T) ++ ")";
 
-            var node = self.head;
-            var index: usize = 0;
-            while (node != self.sentinel) : (node = node.next) {
-                try writer.print(" {d}: {}\n", .{ index, node });
-                index += 1;
-            }
+            try @import("list.zig").formatListSentinel(w, type_name, self.head, self.sentinel);
         }
     };
 }
 
-test "list" {
+test SingleCircularSentinelList {
     const List = SingleCircularSentinelList(u8);
     const a = std.testing.allocator;
     const expect = lib.assert.expect;
@@ -235,4 +229,23 @@ test "list" {
 
     try expect(@TypeOf(list) == SingleCircularSentinelList(u8));
     try lib.collection.testList(List, &list, a);
+}
+
+test "format" {
+    const List = SingleCircularSentinelList(u8);
+    const a = std.testing.allocator;
+
+    var list = try List.init(a);
+    defer list.deinit(a);
+
+    try list.addLast(a, 1);
+    try list.addLast(a, 2);
+    try list.addLast(a, 3);
+    try list.addLast(a, 4);
+    try list.addLast(a, 5);
+
+    const format = try std.fmt.allocPrint(a, "{}", .{list});
+    defer a.free(format);
+
+    try lib.assert.expectEqualString("SingleCircularSentinelList(u8){ 1, 2, 3, 4, 5 }", format);
 }
