@@ -32,6 +32,9 @@ pub fn SingleLinearList(T: type) type {
             }
         };
 
+        pub const AllocateError = Allocator.Error;
+        pub const IndexError = error{OutOfBounds};
+
         head: ?*Node = null,
 
         /// 空のリストを作成する。
@@ -57,30 +60,13 @@ pub fn SingleLinearList(T: type) type {
 
         /// リストの全ての要素を削除する。
         pub fn clear(self: *List, a: Allocator) void {
-            var node: ?*Node = self.head;
-
-            while (node) |n| {
-                const next = n.next;
-                n.deinit(a);
-                node = next;
-            }
+            @import("list.zig").clear(a, self.head);
             self.head = null;
         }
 
         /// リストの指定した位置のノードを返す。
         fn getNode(self: List, index: usize) ?*Node {
-            var count = index;
-            var node = self.head;
-            while (node) |n| {
-                if (count == 0) {
-                    return n;
-                }
-
-                node = n.next;
-                count -= 1;
-            }
-
-            return null;
+            return @import("list.zig").getNode(self.head, index);
         }
 
         /// リストの先頭のノードを返す。
@@ -93,9 +79,8 @@ pub fn SingleLinearList(T: type) type {
             var prev: ?*Node = null;
             var node = self.head;
 
-            while (node) |n| {
+            while (node) |n| : (node = n.next) {
                 prev = n;
-                node = n.next;
             }
 
             return prev;
@@ -119,11 +104,11 @@ pub fn SingleLinearList(T: type) type {
         /// リストの指定した位置に要素を追加する。
         pub fn add(self: *List, a: Allocator, index: usize, value: T) Allocator.Error!void {
             if (index == 0) {
-                const next = self.head;
-                self.head = try Node.init(a, value, next);
-            } else if (self.getNode(index - 1)) |n| {
-                const next = n.next;
-                n.next = try Node.init(a, value, next);
+                return self.addFirst(a, value);
+            }
+
+            if (self.getNode(index - 1)) |node| {
+                node.next = try Node.init(a, value, node.next);
             } else {
                 // indexが範囲外の場合
                 unreachable;
@@ -132,9 +117,7 @@ pub fn SingleLinearList(T: type) type {
 
         /// リストの先頭に要素を追加する。
         pub fn addFirst(self: *List, a: Allocator, value: T) Allocator.Error!void {
-            const new_node = try Node.init(a, value, self.head);
-
-            self.head = new_node;
+            self.head = try Node.init(a, value, self.head);
         }
 
         /// リストの末尾に要素を追加する。
@@ -151,8 +134,10 @@ pub fn SingleLinearList(T: type) type {
         /// リストの指定した位置の要素を削除する。
         pub fn remove(self: *List, a: Allocator, index: usize) void {
             if (index == 0) {
-                self.removeFirst(a);
-            } else if (self.getNode(index - 1)) |node| {
+                return self.removeFirst(a);
+            }
+
+            if (self.getNode(index - 1)) |node| {
                 const next = node.next;
                 if (next) |n| {
                     node.next = n.next;

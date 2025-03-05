@@ -24,14 +24,12 @@ pub fn DoubleLinearSentinelList(T: type) type {
 
             /// このノードを削除してメモリを解放する。
             pub fn deinit(node: *Node, a: Allocator) void {
-                if (node != ref_sentinel) {
-                    a.destroy(node);
-                }
+                a.destroy(node);
             }
 
             /// ノードの値を返す。
-            fn getValue(node: *const Node) ?T {
-                return if (node != ref_sentinel) node.value else null;
+            fn getValue(node: *const Node, sentinel: *const Node) ?T {
+                return if (node != sentinel) node.value else null;
             }
 
             pub fn format(node: *const Node, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
@@ -40,52 +38,47 @@ pub fn DoubleLinearSentinelList(T: type) type {
             }
         };
 
-        var sentinel: Node = undefined;
-        pub const ref_sentinel = &sentinel;
-
-        head: *Node = ref_sentinel,
+        head: *Node,
+        tail: *Node,
+        sentinel: *Node,
 
         /// 空のリストを作成する。
-        pub fn init() List {
-            return .{ .head = ref_sentinel };
+        pub fn init(a: Allocator) Allocator.Error!List {
+            var sentinel = try Node.init(a, undefined, undefined, undefined);
+            sentinel.next = sentinel;
+            sentinel.prev = sentinel;
+
+            return .{ .head = sentinel, .tail = sentinel, .sentinel = sentinel };
         }
 
         /// リストに含まれる全てのノードを削除する。
         pub fn deinit(self: *List, a: Allocator) void {
             var node = self.head;
 
-            while (node != ref_sentinel) {
+            while (node != self.sentinel) {
                 const next = node.next;
-                a.destroy(node);
+                node.deinit(a);
                 node = next;
             }
+
+            self.sentinel.deinit(a);
         }
 
         /// リストの要素数を数える
         pub fn size(self: List) usize {
-            return @import("list.zig").sizeSentinel(self.head, ref_sentinel);
+            return @import("list.zig").sizeSentinel(self.head, self.sentinel);
         }
 
         /// リストの全ての要素を削除する。
         pub fn clear(self: *List, a: Allocator) void {
-            var node = self.head;
-
-            while (node != ref_sentinel) {
-                const next = node.next;
-                a.destroy(node);
-                node = next;
-            }
-            self.head = ref_sentinel;
+            @import("list.zig").clearSentinel(a, self.head, self.sentinel);
+            self.head = self.sentinel;
+            self.tail = self.sentinel;
         }
 
         /// リストの指定した位置のノードを返す。
         fn getNode(self: List, index: usize) *Node {
-            var count = index;
-            var node = self.head;
-            while (node != ref_sentinel and count != 0) : (node = node.next) {
-                count -= 1;
-            }
-            return node;
+            return @import("list.zig").getNodeSentinel(self.head, self.sentinel, index);
         }
 
         /// リストの先頭のノードを返す。
@@ -95,29 +88,22 @@ pub fn DoubleLinearSentinelList(T: type) type {
 
         /// リストの末尾のノードを返す。
         fn getLastNode(self: List) *Node {
-            var prev = ref_sentinel;
-            var node = self.head;
-
-            while (node != ref_sentinel) : (node = node.next) {
-                prev = node;
-            }
-
-            return prev;
+            return self.tail;
         }
 
         /// リストの指定した位置の要素を返す。
         pub fn get(self: List, index: usize) ?T {
-            return self.getNode(index).getValue();
+            return self.getNode(index).getValue(self.sentinel);
         }
 
         /// リストの先頭の要素を返す。
         pub fn getFirst(self: List) ?T {
-            return self.getFirstNode().getValue();
+            return self.getFirstNode().getValue(self.sentinel);
         }
 
         /// リストの末尾の要素を返す。
         pub fn getLast(self: List) ?T {
-            return self.getLastNode().getValue();
+            return self.getLastNode().getValue(self.sentinel);
         }
 
         /// リストの指定した位置に要素を追加する。
@@ -125,11 +111,14 @@ pub fn DoubleLinearSentinelList(T: type) type {
             if (index == 0) return self.addFirst(a, value);
 
             const prev = self.getNode(index - 1);
-            if (prev != ref_sentinel) {
+            if (prev != self.sentinel) {
                 const next = prev.next;
                 const node = try Node.init(a, value, next, prev);
                 prev.next = node;
                 next.prev = node;
+                if (next == self.sentinel) {
+                    self.tail = node;
+                }
             } else {
                 // indexが範囲外の場合
                 unreachable;
@@ -139,58 +128,66 @@ pub fn DoubleLinearSentinelList(T: type) type {
         /// リストの先頭に要素を追加する。
         pub fn addFirst(self: *List, a: Allocator, value: T) Allocator.Error!void {
             const next = self.head;
-            const node = try Node.init(a, value, next, ref_sentinel);
-            self.head = node;
+            const node = try Node.init(a, value, next, self.sentinel);
+
             next.prev = node;
+
+            self.head = node;
+            if (next == self.sentinel) {
+                self.tail = node;
+            }
         }
 
         /// リストの末尾に要素を追加する。
         pub fn addLast(self: *List, a: Allocator, value: T) Allocator.Error!void {
             const prev = self.getLastNode();
-            const node = try Node.init(a, value, ref_sentinel, prev);
+            const node = try Node.init(a, value, self.sentinel, prev);
+
             prev.next = node;
 
-            if (prev == ref_sentinel) {
+            if (prev == self.sentinel) {
                 self.head = node;
             }
+            self.tail = node;
         }
 
         /// リストの指定した位置の要素を削除する。
         pub fn remove(self: *List, a: Allocator, index: usize) void {
             if (index == 0) return self.removeFirst(a);
 
-            const node = self.getNode(index - 1);
-            if (node != ref_sentinel) {
-                const target = node.next;
-                node.next = target.next;
-                target.deinit(a);
-            } else unreachable;
+            const node = self.getNode(index);
+            assert(node != self.sentinel);
+
+            const prev = node.prev;
+            const next = node.next;
+
+            node.deinit(a);
+            prev.next = next;
+            if (next == self.sentinel) {
+                self.tail = prev;
+            }
         }
 
         /// リストの先頭の要素を削除する。
         pub fn removeFirst(self: *List, a: Allocator) void {
-            const target = self.head;
-            self.head = target.next;
-            target.deinit(a);
+            const node = self.head;
+            const next = node.next;
+
+            node.deinit(a);
+
+            self.head = next;
+            next.prev = self.sentinel;
         }
 
         /// リストの末尾の要素を削除する。
         pub fn removeLast(self: *List, a: Allocator) void {
-            var prev_prev: *Node = ref_sentinel;
-            var prev: *Node = ref_sentinel;
-            var node: *Node = self.head;
+            const node = self.tail;
+            const prev = node.prev;
 
-            while (node != ref_sentinel) : (node = node.next) {
-                prev_prev = prev;
-                prev = node;
-            }
+            node.deinit(a);
 
-            prev.deinit(a);
-            if (prev_prev != ref_sentinel) {
-                prev_prev.next = ref_sentinel;
-            } else {
-                self.head = ref_sentinel;
-            }
+            self.tail = prev;
+            prev.next = self.sentinel;
         }
 
         /// リストを複製する。
@@ -212,7 +209,7 @@ pub fn DoubleLinearSentinelList(T: type) type {
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
             const type_name = "DoubleLinearSentinelList(" ++ @typeName(T) ++ ")";
 
-            try @import("list.zig").formatSentinel(w, type_name, self.head, ref_sentinel);
+            try @import("list.zig").formatSentinel(w, type_name, self.head, self.sentinel);
         }
     };
 }
@@ -222,7 +219,7 @@ test DoubleLinearSentinelList {
     const a = std.testing.allocator;
     const expect = lib.assert.expect;
 
-    var list = List.init();
+    var list = try List.init(a);
     defer list.deinit(a);
 
     try expect(@TypeOf(list) == DoubleLinearSentinelList(u8));
@@ -233,7 +230,7 @@ test "format" {
     const List = DoubleLinearSentinelList(u8);
     const a = std.testing.allocator;
 
-    var list = List.init();
+    var list = try List.init(a);
     defer list.deinit(a);
 
     try list.addLast(a, 1);

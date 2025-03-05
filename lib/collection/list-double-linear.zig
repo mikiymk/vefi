@@ -59,31 +59,14 @@ pub fn DoubleLinearList(T: type) type {
 
         /// リストの全ての要素を削除する。
         pub fn clear(self: *List, a: Allocator) void {
-            var node: ?*Node = self.head;
-
-            while (node) |n| {
-                const next = n.next;
-                n.deinit(a);
-                node = next;
-            }
+            @import("list.zig").clear(a, self.head);
             self.head = null;
             self.tail = null;
         }
 
         /// リストの指定した位置のノードを返す。
         fn getNode(self: List, index: usize) ?*Node {
-            var count = index;
-            var node = self.head;
-            while (node) |n| {
-                if (count == 0) {
-                    return n;
-                }
-
-                node = n.next;
-                count -= 1;
-            }
-
-            return null;
+            return @import("list.zig").getNode(self.head, index);
         }
 
         /// リストの先頭のノードを返す。

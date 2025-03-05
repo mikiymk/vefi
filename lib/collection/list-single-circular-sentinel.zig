@@ -15,7 +15,7 @@ pub fn SingleCircularSentinelList(T: type) type {
             next: *Node,
 
             /// 値を持つノードのメモリを作成する。
-            fn init(a: Allocator, value: T, next: *Node) Allocator.Error!*Node {
+            pub fn init(a: Allocator, value: T, next: *Node) Allocator.Error!*Node {
                 const node: *Node = try a.create(Node);
                 node.* = .{ .value = value, .next = next };
                 return node;
@@ -23,18 +23,18 @@ pub fn SingleCircularSentinelList(T: type) type {
 
             /// 値を持つノードのメモリを作成する。
             /// 自分自身をnextに指定する。
-            fn initNextSelf(a: Allocator, value: T) Allocator.Error!*Node {
+            pub fn initNextSelf(a: Allocator, value: T) Allocator.Error!*Node {
                 const node: *Node = try a.create(Node);
                 node.* = .{ .value = value, .next = node };
                 return node;
             }
 
-            fn deinit(node: *Node, a: Allocator) void {
+            pub fn deinit(node: *Node, a: Allocator) void {
                 a.destroy(node);
             }
 
             /// ノードの値を返す。
-            fn getValue(node: *const Node, sentinel: *const Node) ?T {
+            pub fn getValue(node: *const Node, sentinel: *const Node) ?T {
                 return if (node != sentinel) node.value else null;
             }
 
@@ -71,27 +71,13 @@ pub fn SingleCircularSentinelList(T: type) type {
 
         /// リストの全ての要素を削除する。
         pub fn clear(self: *List, a: Allocator) void {
-            var node = self.head;
-            while (node != self.sentinel) {
-                const next = node.next;
-                node.deinit(a);
-                node = next;
-            }
+            @import("list.zig").clearSentinel(a, self.head, self.sentinel);
             self.head = self.sentinel;
-            self.head.next = self.sentinel;
         }
 
         /// リストの指定した位置のノードを返す。
         fn getNode(self: List, index: usize) *Node {
-            var node = self.head;
-            var count = index;
-            while (node != self.sentinel) : (node = node.next) {
-                if (count == 0) {
-                    return node;
-                }
-                count -= 1;
-            }
-            return self.sentinel;
+            return @import("list.zig").getNodeSentinel(self.head, self.sentinel, index);
         }
 
         /// リストの先頭のノードを返す。
@@ -103,9 +89,11 @@ pub fn SingleCircularSentinelList(T: type) type {
         fn getLastNode(self: List) *Node {
             var prev = self.sentinel;
             var node = self.head;
+
             while (node != self.sentinel) : (node = node.next) {
                 prev = node;
             }
+
             return prev;
         }
 
