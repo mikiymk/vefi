@@ -1,5 +1,6 @@
 const std = @import("std");
 const lib = @import("../root.zig");
+const list_util = @import("list.zig");
 
 const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
@@ -33,12 +34,14 @@ pub fn DoubleLinearList(T: type) type {
             }
         };
 
-        head: ?*Node = null,
-        tail: ?*Node = null,
+        pub const IndexError = error{OutOfBounds};
+
+        head: ?*Node,
+        tail: ?*Node,
 
         /// 空のリストを作成する。
         pub fn init() List {
-            return .{};
+            return .{ .head = null, .tail = null };
         }
 
         /// リストに含まれる全てのノードを削除する。
@@ -54,19 +57,19 @@ pub fn DoubleLinearList(T: type) type {
 
         /// リストの要素数を数える
         pub fn size(self: List) usize {
-            return @import("list.zig").size(self.head);
+            return list_util.size(self.head);
         }
 
         /// リストの全ての要素を削除する。
         pub fn clear(self: *List, a: Allocator) void {
-            @import("list.zig").clear(a, self.head);
+            list_util.clear(a, self.head);
             self.head = null;
             self.tail = null;
         }
 
         /// リストの指定した位置のノードを返す。
         fn getNode(self: List, index: usize) ?*Node {
-            return @import("list.zig").getNode(self.head, index);
+            return list_util.getNode(self.head, index);
         }
 
         /// リストの先頭のノードを返す。
@@ -208,7 +211,7 @@ pub fn DoubleLinearList(T: type) type {
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
             const type_name = "DoubleLinearList(" ++ @typeName(T) ++ ")";
 
-            try @import("list.zig").format(w, type_name, self.head);
+            try list_util.format(w, type_name, self.head);
         }
     };
 }

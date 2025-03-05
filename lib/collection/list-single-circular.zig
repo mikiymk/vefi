@@ -39,11 +39,13 @@ pub fn SingleCircularList(T: type) type {
             }
         };
 
-        head: ?*Node = null,
+        pub const IndexError = error{OutOfBounds};
+
+        head: ?*Node,
 
         /// 空のリストを作成する。
         pub fn init() List {
-            return .{};
+            return .{ .head = null };
         }
 
         /// リストに含まれる全てのノードを削除する。
