@@ -66,12 +66,7 @@ pub fn SingleCircularSentinelList(T: type) type {
 
         /// リストの要素数を数える
         pub fn size(self: List) usize {
-            var node = self.head;
-            var count: usize = 0;
-            while (node != self.sentinel) : (node = node.next) {
-                count += 1;
-            }
-            return count;
+            return @import("list.zig").sizeSentinel(self.head, self.sentinel);
         }
 
         /// リストの全ての要素を削除する。
@@ -214,7 +209,7 @@ pub fn SingleCircularSentinelList(T: type) type {
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
             const type_name = "SingleCircularSentinelList(" ++ @typeName(T) ++ ")";
 
-            try @import("list.zig").formatListSentinel(w, type_name, self.head, self.sentinel);
+            try @import("list.zig").formatSentinel(w, type_name, self.head, self.sentinel);
         }
     };
 }

@@ -52,13 +52,7 @@ pub fn SingleLinearList(T: type) type {
 
         /// リストの要素数を数える
         pub fn size(self: List) usize {
-            var node: ?*Node = self.head;
-            var count: usize = 0;
-            while (node) |n| {
-                node = n.next;
-                count += 1;
-            }
-            return count;
+            return @import("list.zig").size(self.head);
         }
 
         /// リストの全ての要素を削除する。
@@ -220,7 +214,7 @@ pub fn SingleLinearList(T: type) type {
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
             const type_name = "SingleLinearList(" ++ @typeName(T) ++ ")";
 
-            try @import("list.zig").formatList(w, type_name, self.head);
+            try @import("list.zig").format(w, type_name, self.head);
         }
     };
 }
