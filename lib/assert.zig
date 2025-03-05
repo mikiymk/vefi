@@ -27,6 +27,14 @@ pub fn expect(ok: bool) ExpectError!void {
     }
 }
 
+pub fn expectEqualP(value: anytype, expected: @TypeOf(value)) ExpectError!void {
+    if (value != expected) {
+        print("expect failed: value = {any}, expected = {any}", .{ value, expected });
+
+        return error.NotExpected;
+    }
+}
+
 pub fn expectEqual(expected: anytype, actual: @TypeOf(expected)) ExpectError!void {
     if (!lib.common.equal(expected, actual)) { // TODO
         print("expect failed: expected = {any}, actual = {any}", .{ expected, actual });

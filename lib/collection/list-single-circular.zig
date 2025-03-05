@@ -39,7 +39,7 @@ pub fn SingleCircularList(T: type) type {
             }
         };
 
-        tail: ?*Node = null,
+        head: ?*Node = null,
 
         /// 空のリストを作成する。
         pub fn init() List {
@@ -48,76 +48,77 @@ pub fn SingleCircularList(T: type) type {
 
         /// リストに含まれる全てのノードを削除する。
         pub fn deinit(self: *List, a: Allocator) void {
-            const tail = self.tail orelse return;
+            const head = self.head orelse return;
 
-            var node = tail.next;
-            while (true) {
+            var node = head.next;
+            while (node != head) {
                 const next = node.next;
-
                 node.deinit(a);
-
-                if (node == tail) break;
-
                 node = next;
             }
+            head.deinit(a);
         }
 
         /// リストの要素数を数える
         pub fn size(self: List) usize {
-            const tail = self.tail orelse return 0;
-
-            var node = tail.next;
+            const head = self.head orelse return 0;
+            var node = head;
             var count: usize = 0;
-            while (true) : (node = node.next) {
-                count += 1;
 
-                if (node == tail) return count;
+            while (true) {
+                count += 1;
+                node = node.next;
+                if (node == head) break;
             }
+            return count;
         }
 
         /// リストの全ての要素を削除する。
         pub fn clear(self: *List, a: Allocator) void {
-            const tail = self.tail orelse return;
+            const head = self.head orelse return;
 
-            var node = tail.next;
+            var node = head;
             while (true) {
                 const next = node.next;
-
                 node.deinit(a);
-
-                if (node == tail) break;
-
                 node = next;
+                if (node == head) break; // do-whileになる
             }
-            self.tail = null;
+            self.head = null;
         }
 
         /// リストの指定した位置のノードを返す。
         fn getNode(self: List, index: usize) ?*Node {
-            const tail = self.tail orelse return null;
-            const head = tail.next;
+            const head = self.head orelse return null;
 
             var node = head;
             var count = index;
-            while (true) : (node = node.next) {
+            while (true) {
                 if (count == 0) {
                     return node;
                 }
                 count -= 1;
 
-                if (node == tail) return null;
+                node = node.next;
+                if (node == head) return null;
             }
         }
 
         /// リストの先頭のノードを返す。
         fn getFirstNode(self: List) ?*Node {
-            const tail = self.tail orelse return null;
-            return tail.next;
+            return self.head;
         }
 
         /// リストの末尾のノードを返す。
         fn getLastNode(self: List) ?*Node {
-            return self.tail;
+            var prev = self.head orelse return null;
+            var node = prev.next;
+
+            while (node != self.head) : (node = node.next) {
+                prev = node;
+            }
+
+            return prev;
         }
 
         /// リストの指定した位置の要素を返す。
@@ -139,33 +140,33 @@ pub fn SingleCircularList(T: type) type {
         pub fn add(self: *List, a: Allocator, index: usize, value: T) Allocator.Error!void {
             if (index == 0) {
                 try self.addFirst(a, value);
-            } else if (self.getNode(index - 1)) |n| {
-                const next = n.next;
-                n.next = try Node.init(a, value, next);
-            } else {
-                // indexが範囲外の場合
-                unreachable;
+                return;
             }
+
+            const node = self.getNode(index - 1).?;
+            node.next = try Node.init(a, value, node.next);
         }
 
         /// リストの先頭に要素を追加する。
         pub fn addFirst(self: *List, a: Allocator, value: T) Allocator.Error!void {
-            if (self.tail) |tail| {
-                const new_node = try Node.init(a, value, tail.next);
-                tail.next = new_node;
+            if (self.getLastNode()) |tail| {
+                const head = tail.next;
+                const node = try Node.init(a, value, head);
+                tail.next = node;
+                self.head = node;
             } else {
-                self.tail = try Node.initNextSelf(a, value);
+                self.head = try Node.initNextSelf(a, value);
             }
         }
 
         /// リストの末尾に要素を追加する。
         pub fn addLast(self: *List, a: Allocator, value: T) Allocator.Error!void {
-            if (self.tail) |tail| {
-                const new_node = try Node.init(a, value, tail.next);
-                tail.next = new_node;
-                self.tail = new_node;
+            if (self.getLastNode()) |last| {
+                const node = try Node.init(a, value, last.next);
+                last.next = node;
             } else {
-                self.tail = try Node.initNextSelf(a, value);
+                const node = try Node.initNextSelf(a, value);
+                self.head = node;
             }
         }
 
@@ -184,40 +185,48 @@ pub fn SingleCircularList(T: type) type {
 
         /// リストの先頭の要素を削除する。
         pub fn removeFirst(self: *List, a: Allocator) void {
-            assert(self.tail != null);
+            assert(self.head != null);
 
-            const tail = self.tail.?;
-            const head = tail.next;
-            tail.next = head.next;
-            if (tail == head) {
-                self.tail = null;
+            const tail = self.getLastNode().?;
+            const head = self.head.?;
+            const next = head.next;
+
+            self.head = next;
+            tail.next = next;
+            if (head == next) {
+                self.head = null;
             }
+
             head.deinit(a);
         }
 
         /// リストの末尾の要素を削除する。
         pub fn removeLast(self: *List, a: Allocator) void {
-            assert(self.tail != null);
+            assert(self.head != null);
 
-            const tail = self.tail.?;
-            const head = tail.next;
+            const head = self.head.?;
 
-            var prev: *Node = tail;
-            var node = head;
+            var prev_prev = head;
+            var prev = head;
+            var node = head.next;
             while (true) : (node = node.next) {
-                if (node == tail) {
+                if (node == head) {
                     break;
                 }
+                prev_prev = prev;
                 prev = node;
             }
 
-            prev.next = head;
-            if (node != prev) {
-                self.tail = prev;
-            } else {
-                self.tail = null;
+            //                  1     2         3~
+            // prev_prev ->  head  head  prev_last
+            // prev      ->  head  last       last
+            // node      ->  head  head       head
+
+            prev_prev.next = node;
+            if (node == prev) {
+                self.head = null;
             }
-            node.deinit(a);
+            prev.deinit(a);
         }
 
         /// リストを複製する。
@@ -241,10 +250,10 @@ pub fn SingleCircularList(T: type) type {
             const writer = lib.io.writer(w);
 
             try writer.print("{s}{{", .{type_name});
-            if (self.tail) |tail| {
-                var node = tail.next;
+            if (self.head) |head| {
+                var node = head;
                 var first = true;
-                while (true) : (node = node.next) {
+                while (true) {
                     if (first) {
                         try writer.print(" ", .{});
                         first = false;
@@ -254,7 +263,8 @@ pub fn SingleCircularList(T: type) type {
 
                     try writer.print("{}", .{node});
 
-                    if (node == tail) break;
+                    node = node.next;
+                    if (node == head) break;
                 }
             }
             try writer.print(" }}", .{});
