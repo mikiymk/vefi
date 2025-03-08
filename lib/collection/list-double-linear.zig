@@ -35,6 +35,7 @@ pub fn DoubleLinearList(T: type) type {
         };
 
         pub const IndexError = error{OutOfBounds};
+        pub const AllocIndexError = Allocator.Error || IndexError;
 
         head: ?*Node,
         tail: ?*Node,
@@ -98,20 +99,18 @@ pub fn DoubleLinearList(T: type) type {
         }
 
         /// リストの指定した位置に要素を追加する。
-        pub fn add(self: *List, a: Allocator, index: usize, value: T) Allocator.Error!void {
-            if (index == 0) {
-                try self.addFirst(a, value);
-                return;
-            }
+        pub fn add(self: *List, a: Allocator, index: usize, value: T) (Allocator.Error || IndexError)!void {
+            if (index == 0) return self.addFirst(a, value);
 
-            const prev = self.getNode(index - 1).?;
+            const prev = self.getNode(index - 1) orelse return error.OutOfBounds;
             const next = prev.next;
-            const new_node = try Node.init(a, value, next, prev);
-            prev.next = new_node;
+
+            const node = try Node.init(a, value, next, prev);
+            prev.next = node;
             if (next) |n| {
-                n.prev = new_node;
+                n.prev = node;
             } else {
-                self.tail = new_node;
+                self.tail = node;
             }
         }
 
@@ -142,23 +141,19 @@ pub fn DoubleLinearList(T: type) type {
         }
 
         /// リストの指定した位置の要素を削除する。
-        pub fn remove(self: *List, a: Allocator, index: usize) void {
-            if (index == 0) {
-                self.removeFirst(a);
-                return;
-            }
+        pub fn remove(self: *List, a: Allocator, index: usize) IndexError!void {
+            if (index == 0) return self.removeFirst(a);
 
-            const node = self.getNode(index).?;
+            const node = self.getNode(index) orelse return error.OutOfBounds;
             const prev = node.prev;
             const next = node.next;
-            node.deinit(a);
 
+            node.deinit(a);
             if (prev) |n| {
                 n.next = next;
             } else {
                 self.head = next;
             }
-
             if (next) |n| {
                 n.prev = prev;
             } else {
@@ -167,9 +162,10 @@ pub fn DoubleLinearList(T: type) type {
         }
 
         /// リストの先頭の要素を削除する。
-        pub fn removeFirst(self: *List, a: Allocator) void {
-            const head = self.head.?;
+        pub fn removeFirst(self: *List, a: Allocator) IndexError!void {
+            const head = self.head orelse return error.OutOfBounds;
             const next = head.next;
+
             head.deinit(a);
             self.head = next;
             if (next) |n| {
@@ -180,10 +176,11 @@ pub fn DoubleLinearList(T: type) type {
         }
 
         /// リストの末尾の要素を削除する。
-        pub fn removeLast(self: *List, a: Allocator) void {
-            const tail = self.tail.?;
-            const prev = tail.prev;
-            tail.deinit(a);
+        pub fn removeLast(self: *List, a: Allocator) IndexError!void {
+            const node = self.tail orelse return error.OutOfBounds;
+            const prev = node.prev;
+
+            node.deinit(a);
             self.tail = prev;
             if (prev) |n| {
                 n.next = null;

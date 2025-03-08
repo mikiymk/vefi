@@ -139,13 +139,13 @@ pub fn SingleCircularList(T: type) type {
         }
 
         /// リストの指定した位置に要素を追加する。
-        pub fn add(self: *List, a: Allocator, index: usize, value: T) Allocator.Error!void {
+        pub fn add(self: *List, a: Allocator, index: usize, value: T) (Allocator.Error || IndexError)!void {
             if (index == 0) {
                 try self.addFirst(a, value);
                 return;
             }
 
-            const node = self.getNode(index - 1).?;
+            const node = self.getNode(index - 1) orelse return error.OutOfBounds;
             node.next = try Node.init(a, value, node.next);
         }
 
@@ -173,23 +173,22 @@ pub fn SingleCircularList(T: type) type {
         }
 
         /// リストの指定した位置の要素を削除する。
-        pub fn remove(self: *List, a: Allocator, index: usize) void {
+        pub fn remove(self: *List, a: Allocator, index: usize) IndexError!void {
             if (index == 0) {
-                self.removeFirst(a);
-                return;
+                return self.removeFirst(a);
             }
 
-            const prev = self.getNode(index - 1).?;
+            const prev = self.getNode(index - 1) orelse return error.OutOfBounds;
             const node = prev.next;
             prev.next = node.next;
             node.deinit(a);
         }
 
         /// リストの先頭の要素を削除する。
-        pub fn removeFirst(self: *List, a: Allocator) void {
+        pub fn removeFirst(self: *List, a: Allocator) IndexError!void {
             assert(self.head != null);
 
-            const tail = self.getLastNode().?;
+            const tail = self.getLastNode() orelse return error.OutOfBounds;
             const head = self.head.?;
             const next = head.next;
 
@@ -203,10 +202,10 @@ pub fn SingleCircularList(T: type) type {
         }
 
         /// リストの末尾の要素を削除する。
-        pub fn removeLast(self: *List, a: Allocator) void {
+        pub fn removeLast(self: *List, a: Allocator) IndexError!void {
             assert(self.head != null);
 
-            const head = self.head.?;
+            const head = self.head orelse return error.OutOfBounds;
 
             var prev_prev = head;
             var prev = head;

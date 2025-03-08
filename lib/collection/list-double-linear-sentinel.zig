@@ -40,6 +40,7 @@ pub fn DoubleLinearSentinelList(T: type) type {
         };
 
         pub const IndexError = error{OutOfBounds};
+        pub const AllocIndexError = Allocator.Error || IndexError;
 
         head: *Node,
         tail: *Node,
@@ -110,21 +111,18 @@ pub fn DoubleLinearSentinelList(T: type) type {
         }
 
         /// リストの指定した位置に要素を追加する。
-        pub fn add(self: *List, a: Allocator, index: usize, value: T) Allocator.Error!void {
+        pub fn add(self: *List, a: Allocator, index: usize, value: T) AllocIndexError!void {
             if (index == 0) return self.addFirst(a, value);
 
             const prev = self.getNode(index - 1);
-            if (prev != self.sentinel) {
-                const next = prev.next;
-                const node = try Node.init(a, value, next, prev);
-                prev.next = node;
-                next.prev = node;
-                if (next == self.sentinel) {
-                    self.tail = node;
-                }
-            } else {
-                // indexが範囲外の場合
-                unreachable;
+            if (prev == self.sentinel) return error.OutOfBounds;
+
+            const next = prev.next;
+            const node = try Node.init(a, value, next, prev);
+            prev.next = node;
+            next.prev = node;
+            if (next == self.sentinel) {
+                self.tail = node;
             }
         }
 
@@ -155,40 +153,44 @@ pub fn DoubleLinearSentinelList(T: type) type {
         }
 
         /// リストの指定した位置の要素を削除する。
-        pub fn remove(self: *List, a: Allocator, index: usize) void {
-            if (index == 0) return self.removeFirst(a);
-
+        pub fn remove(self: *List, a: Allocator, index: usize) IndexError!void {
             const node = self.getNode(index);
-            assert(node != self.sentinel);
+            if (node == self.sentinel) return error.OutOfBounds;
 
             const prev = node.prev;
             const next = node.next;
 
             node.deinit(a);
-            prev.next = next;
+            if (prev == self.sentinel) {
+                self.head = next;
+            } else {
+                prev.next = next;
+            }
             if (next == self.sentinel) {
                 self.tail = prev;
+            } else {
+                next.prev = prev;
             }
         }
 
         /// リストの先頭の要素を削除する。
-        pub fn removeFirst(self: *List, a: Allocator) void {
+        pub fn removeFirst(self: *List, a: Allocator) IndexError!void {
             const node = self.head;
             const next = node.next;
+            if (node == self.sentinel) return error.OutOfBounds;
 
             node.deinit(a);
-
             self.head = next;
             next.prev = self.sentinel;
         }
 
         /// リストの末尾の要素を削除する。
-        pub fn removeLast(self: *List, a: Allocator) void {
+        pub fn removeLast(self: *List, a: Allocator) IndexError!void {
             const node = self.tail;
             const prev = node.prev;
+            if (node == self.sentinel) return error.OutOfBounds;
 
             node.deinit(a);
-
             self.tail = prev;
             prev.next = self.sentinel;
         }

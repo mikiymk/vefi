@@ -34,6 +34,7 @@ pub fn SingleLinearList(T: type) type {
         };
 
         pub const IndexError = error{OutOfBounds};
+        pub const AllocIndexError = Allocator.Error || IndexError;
 
         head: ?*Node,
 

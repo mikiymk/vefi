@@ -222,7 +222,7 @@ pub fn testList(List: type, list: *List, a: Allocator) !void {
     try expectEq(list.get(4), 7);
     try expectEq(list.get(5), 8);
 
-    list.removeFirst(a);
+    try list.removeFirst(a);
 
     // list == .{4, 5, 6, 7, 8}
     try expectEq(list.size(), 5);
@@ -232,7 +232,7 @@ pub fn testList(List: type, list: *List, a: Allocator) !void {
     try expectEq(list.get(3), 7);
     try expectEq(list.get(4), 8);
 
-    list.removeLast(a);
+    try list.removeLast(a);
 
     // list == .{4, 5, 6, 7}
     try expectEq(list.size(), 4);
@@ -241,7 +241,7 @@ pub fn testList(List: type, list: *List, a: Allocator) !void {
     try expectEq(list.get(2), 6);
     try expectEq(list.get(3), 7);
 
-    list.remove(a, 1);
+    try list.remove(a, 1);
 
     // list == .{4, 6, 7}
     try expectEq(list.size(), 3);
@@ -257,15 +257,15 @@ pub fn testList(List: type, list: *List, a: Allocator) !void {
     try expectEq(list.getLast(), null);
 
     try list.addFirst(a, 1);
-    list.removeFirst(a);
+    try list.removeFirst(a);
     try expectEq(list.size(), 0);
 
     try list.addLast(a, 1);
-    list.removeLast(a);
+    try list.removeLast(a);
     try expectEq(list.size(), 0);
 
     try list.add(a, 0, 1);
-    list.remove(a, 0);
+    try list.remove(a, 0);
     try expectEq(list.size(), 0);
 }
 

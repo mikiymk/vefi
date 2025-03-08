@@ -39,6 +39,7 @@ pub fn SingleLinearSentinelList(T: type) type {
         };
 
         pub const IndexError = error{OutOfBounds};
+        pub const AllocIndexError = Allocator.Error || IndexError;
 
         head: *Node,
         sentinel: *Node,
@@ -113,7 +114,7 @@ pub fn SingleLinearSentinelList(T: type) type {
         }
 
         /// リストの指定した位置に要素を追加する。
-        pub fn add(self: *List, a: Allocator, index: usize, value: T) Allocator.Error!void {
+        pub fn add(self: *List, a: Allocator, index: usize, value: T) (Allocator.Error || IndexError)!void {
             if (index == 0) {
                 self.head = try Node.init(a, value, self.head);
                 return;
@@ -123,8 +124,7 @@ pub fn SingleLinearSentinelList(T: type) type {
             if (node != self.sentinel) {
                 node.next = try Node.init(a, value, node.next);
             } else {
-                // indexが範囲外の場合
-                unreachable;
+                return error.OutOfBounds;
             }
         }
 
@@ -146,32 +146,29 @@ pub fn SingleLinearSentinelList(T: type) type {
         }
 
         /// リストの指定した位置の要素を削除する。
-        pub fn remove(self: *List, a: Allocator, index: usize) void {
-            if (index == 0) {
-                self.removeFirst(a);
-                return;
-            }
+        pub fn remove(self: *List, a: Allocator, index: usize) IndexError!void {
+            if (index == 0) return self.removeFirst(a);
 
-            const node = self.getNode(index - 1);
-            if (node != self.sentinel) {
-                const target = node.next;
-                node.next = target.next;
-                target.deinit(a);
-            } else {
-                // indexが範囲外の場合
-                unreachable;
-            }
+            const prev = self.getNode(index - 1);
+            if (prev == self.sentinel) return error.OutOfBounds;
+            const node = prev.next;
+            if (node == self.sentinel) return error.OutOfBounds;
+
+            prev.next = node.next;
+            node.deinit(a);
         }
 
         /// リストの先頭の要素を削除する。
-        pub fn removeFirst(self: *List, a: Allocator) void {
-            const target = self.head;
-            self.head = target.next;
-            target.deinit(a);
+        pub fn removeFirst(self: *List, a: Allocator) IndexError!void {
+            const node = self.head;
+            if (node == self.sentinel) return error.OutOfBounds;
+
+            self.head = node.next;
+            node.deinit(a);
         }
 
         /// リストの末尾の要素を削除する。
-        pub fn removeLast(self: *List, a: Allocator) void {
+        pub fn removeLast(self: *List, a: Allocator) IndexError!void {
             var prev_prev: *Node = self.sentinel;
             var prev: *Node = self.sentinel;
             var node: *Node = self.head;
@@ -180,6 +177,8 @@ pub fn SingleLinearSentinelList(T: type) type {
                 prev_prev = prev;
                 prev = node;
             }
+
+            if (prev == self.sentinel) return error.OutOfBounds;
 
             prev.deinit(a);
             if (prev_prev != self.sentinel) {
