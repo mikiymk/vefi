@@ -12,29 +12,11 @@ pub fn size(head: anytype) usize {
     return count;
 }
 
-pub fn sizeSentinel(head: anytype, sentinel: @TypeOf(head)) usize {
-    var node = head;
-    var count: usize = 0;
-
-    while (node != sentinel) : (node = node.next) count += 1;
-    return count;
-}
-
 pub fn clear(a: Allocator, head: anytype) void {
     var node = head;
     while (node) |n| {
         const next = n.next;
         n.deinit(a);
-        node = next;
-    }
-}
-
-pub fn clearSentinel(a: Allocator, head: anytype, sentinel: @TypeOf(head)) void {
-    var node = head;
-
-    while (node != sentinel) {
-        const next = node.next;
-        node.deinit(a);
         node = next;
     }
 }
@@ -53,14 +35,15 @@ pub fn getNode(head: anytype, index: usize) Option(@TypeOf(head)) {
     } else null;
 }
 
-pub fn getNodeSentinel(head: anytype, sentinel: @TypeOf(head), index: usize) @TypeOf(head) {
+pub fn getLastNode(head: anytype) Option(@TypeOf(head)) {
+    var prev: Option(@TypeOf(head)) = null;
     var node = head;
-    var count = index;
 
-    while (node != sentinel and count != 0) : (node = node.next) {
-        count -= 1;
+    while (node) |n| : (node = n.next) {
+        prev = n;
     }
-    return node;
+
+    return prev;
 }
 
 pub fn format(w: anytype, type_name: []const u8, head: anytype) !void {
@@ -76,23 +59,6 @@ pub fn format(w: anytype, type_name: []const u8, head: anytype) !void {
         } else ", ";
 
         try writer.print("{s}{}", .{ sep, n });
-    }
-    try writer.print(" }}", .{});
-}
-
-pub fn formatSentinel(w: anytype, type_name: []const u8, head: anytype, sentinel: @TypeOf(head)) !void {
-    const writer = lib.io.writer(w);
-
-    try writer.print("{s}{{", .{type_name});
-    var node = head;
-    var first = true;
-    while (node != sentinel) : (node = node.next) {
-        const sep = if (first) b: {
-            first = false;
-            break :b " ";
-        } else ", ";
-
-        try writer.print("{s}{}", .{ sep, node });
     }
     try writer.print(" }}", .{});
 }

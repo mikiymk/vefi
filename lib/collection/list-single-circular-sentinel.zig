@@ -1,6 +1,6 @@
 const std = @import("std");
 const lib = @import("../root.zig");
-const list_util = @import("list.zig");
+const generic_list = lib.collection.generic_list_sentinel;
 
 const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
@@ -70,18 +70,18 @@ pub fn SingleCircularSentinelList(T: type) type {
 
         /// リストの要素数を数える
         pub fn size(self: List) usize {
-            return list_util.sizeSentinel(self.head, self.sentinel);
+            return generic_list.size(self.head, self.sentinel);
         }
 
         /// リストの全ての要素を削除する。
         pub fn clear(self: *List, a: Allocator) void {
-            list_util.clearSentinel(a, self.head, self.sentinel);
+            generic_list.clear(a, self.head, self.sentinel);
             self.head = self.sentinel;
         }
 
         /// リストの指定した位置のノードを返す。
         fn getNode(self: List, index: usize) *Node {
-            return list_util.getNodeSentinel(self.head, self.sentinel, index);
+            return generic_list.getNode(self.head, self.sentinel, index);
         }
 
         /// リストの先頭のノードを返す。
@@ -204,7 +204,7 @@ pub fn SingleCircularSentinelList(T: type) type {
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
             const type_name = "SingleCircularSentinelList(" ++ @typeName(T) ++ ")";
 
-            try list_util.formatSentinel(w, type_name, self.head, self.sentinel);
+            try generic_list.format(w, type_name, self.head, self.sentinel);
         }
     };
 }

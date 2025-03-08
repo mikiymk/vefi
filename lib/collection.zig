@@ -146,6 +146,9 @@ test "array is array" {
     try expect(isDynamicArray(dynamic_array.DynamicArray(u8, .{})));
 }
 
+pub const generic_list = @import("./collection/generic-list.zig");
+pub const generic_list_sentinel = @import("./collection/generic-list-sentinel.zig");
+
 pub const single_linear_list = @import("./collection/list-single-linear.zig");
 pub const single_linear_sentinel_list = @import("./collection/list-single-linear-sentinel.zig");
 pub const single_circular_list = @import("./collection/list-single-circular.zig");

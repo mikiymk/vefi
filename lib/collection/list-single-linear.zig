@@ -1,6 +1,6 @@
 const std = @import("std");
 const lib = @import("../root.zig");
-const list_util = @import("list.zig");
+const generic_list = lib.collection.generic_list;
 
 const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
@@ -45,29 +45,23 @@ pub fn SingleLinearList(T: type) type {
 
         /// リストに含まれる全てのノードを削除する。
         pub fn deinit(self: *List, a: Allocator) void {
-            var node: ?*Node = self.head;
-
-            while (node) |n| {
-                const next = n.next;
-                n.deinit(a);
-                node = next;
-            }
+            generic_list.clear(a, self.head);
         }
 
         /// リストの要素数を数える
         pub fn size(self: List) usize {
-            return list_util.size(self.head);
+            return generic_list.size(self.head);
         }
 
         /// リストの全ての要素を削除する。
         pub fn clear(self: *List, a: Allocator) void {
-            list_util.clear(a, self.head);
+            generic_list.clear(a, self.head);
             self.head = null;
         }
 
         /// リストの指定した位置のノードを返す。
         fn getNode(self: List, index: usize) ?*Node {
-            return list_util.getNode(self.head, index);
+            return generic_list.getNode(self.head, index);
         }
 
         /// リストの先頭のノードを返す。
@@ -77,14 +71,7 @@ pub fn SingleLinearList(T: type) type {
 
         /// リストの末尾のノードを返す。
         fn getLastNode(self: List) ?*Node {
-            var prev: ?*Node = null;
-            var node = self.head;
-
-            while (node) |n| : (node = n.next) {
-                prev = n;
-            }
-
-            return prev;
+            return generic_list.getLastNode(self.head);
         }
 
         /// リストの指定した位置の要素を返す。
@@ -104,11 +91,11 @@ pub fn SingleLinearList(T: type) type {
 
         /// リストの指定した位置に要素を追加する。
         pub fn add(self: *List, a: Allocator, index: usize, value: T) (Allocator.Error || IndexError)!void {
-            if (index == 0) {
+            if (index == 0)
                 return self.addFirst(a, value);
-            }
 
-            const node = self.getNode(index - 1) orelse return error.OutOfBounds;
+            const node = self.getNode(index - 1) orelse
+                return error.OutOfBounds;
             node.next = try Node.init(a, value, node.next);
         }
 
@@ -149,19 +136,19 @@ pub fn SingleLinearList(T: type) type {
 
         /// リストの末尾の要素を削除する。
         pub fn removeLast(self: *List, a: Allocator) IndexError!void {
-            var pprev: ?*Node = null;
+            var prev_prev: ?*Node = null;
             var prev: ?*Node = null;
             var node = self.head;
 
             while (node) |n| : (node = n.next) {
-                pprev = prev;
+                prev_prev = prev;
                 prev = n;
             }
 
             const p = prev orelse return error.OutOfBounds;
-            p.deinit(a);
 
-            if (pprev) |n| {
+            p.deinit(a);
+            if (prev_prev) |n| {
                 n.next = null;
             } else {
                 self.head = null;
@@ -187,7 +174,7 @@ pub fn SingleLinearList(T: type) type {
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
             const type_name = "SingleLinearList(" ++ @typeName(T) ++ ")";
 
-            try list_util.format(w, type_name, self.head);
+            try generic_list.format(w, type_name, self.head);
         }
     };
 }
