@@ -47,13 +47,8 @@ pub fn DoubleLinearList(T: type) type {
 
         /// リストに含まれる全てのノードを削除する。
         pub fn deinit(self: *List, a: Allocator) void {
-            var node: ?*Node = self.head;
-
-            while (node) |n| {
-                const next = n.next;
-                n.deinit(a);
-                node = next;
-            }
+            generic_list.clear(a, self.head);
+            self.* = undefined;
         }
 
         /// リストの要素数を数える
@@ -99,7 +94,7 @@ pub fn DoubleLinearList(T: type) type {
         }
 
         /// リストの指定した位置に要素を追加する。
-        pub fn add(self: *List, a: Allocator, index: usize, value: T) (Allocator.Error || IndexError)!void {
+        pub fn add(self: *List, a: Allocator, index: usize, value: T) AllocIndexError!void {
             if (index == 0) return self.addFirst(a, value);
 
             const prev = self.getNode(index - 1) orelse return error.OutOfBounds;

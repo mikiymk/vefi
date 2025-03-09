@@ -252,6 +252,7 @@ pub fn testList(List: type, list: *List, a: Allocator) !void {
     try expectEq(list.get(1), 6);
     try expectEq(list.get(2), 7);
 
+    // リストを空にする時の操作
     list.clear(a);
 
     // list == .{}
@@ -270,6 +271,15 @@ pub fn testList(List: type, list: *List, a: Allocator) !void {
     try list.add(a, 0, 1);
     try list.remove(a, 0);
     try expectEq(list.size(), 0);
+
+    // インデックスエラー
+    const expectError = lib.assert.expectError;
+    list.clear(a);
+
+    try expectError(list.add(a, 1, 10), error.OutOfBounds);
+    try expectError(list.remove(a, 0), error.OutOfBounds);
+    try expectError(list.removeFirst(a), error.OutOfBounds);
+    try expectError(list.removeLast(a), error.OutOfBounds);
 }
 
 pub const stack = @import("collection/stack.zig");

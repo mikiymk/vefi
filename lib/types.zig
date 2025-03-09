@@ -17,6 +17,7 @@ pub const Slice = @import("types/slice.zig");
 pub const Vector = @import("types/vector.zig");
 
 pub const Optional = @import("types/optional.zig");
+pub const error_union = @import("types/error-union.zig");
 
 pub fn typeName(comptime T: type) []const u8 {
     return @typeName(T);

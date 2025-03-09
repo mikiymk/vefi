@@ -38,14 +38,17 @@ pub fn SingleLinearList(T: type) type {
 
         head: ?*Node,
 
-        /// 空のリストを作成する。
+        /// 新しい要素を持たないリストのインスタンスを生成し、それを返します。
+        /// インスタンスを解放するときはクリーンアップのため、`List.deinit`を呼び出してください。
         pub fn init() List {
             return .{ .head = null };
         }
 
-        /// リストに含まれる全てのノードを削除する。
+        /// 全てのノードを削除します。
+        /// リストが持つ値の解放は行いません。
         pub fn deinit(self: *List, a: Allocator) void {
             generic_list.clear(a, self.head);
+            self.* = undefined;
         }
 
         /// リストの要素数を数える
@@ -90,7 +93,7 @@ pub fn SingleLinearList(T: type) type {
         }
 
         /// リストの指定した位置に要素を追加する。
-        pub fn add(self: *List, a: Allocator, index: usize, value: T) (Allocator.Error || IndexError)!void {
+        pub fn add(self: *List, a: Allocator, index: usize, value: T) AllocIndexError!void {
             if (index == 0)
                 return self.addFirst(a, value);
 

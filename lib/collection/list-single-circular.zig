@@ -40,6 +40,7 @@ pub fn SingleCircularList(T: type) type {
         };
 
         pub const IndexError = error{OutOfBounds};
+        pub const AllocIndexError = Allocator.Error || IndexError;
 
         head: ?*Node,
 
@@ -139,7 +140,7 @@ pub fn SingleCircularList(T: type) type {
         }
 
         /// リストの指定した位置に要素を追加する。
-        pub fn add(self: *List, a: Allocator, index: usize, value: T) (Allocator.Error || IndexError)!void {
+        pub fn add(self: *List, a: Allocator, index: usize, value: T) AllocIndexError!void {
             if (index == 0) {
                 try self.addFirst(a, value);
                 return;
@@ -186,8 +187,6 @@ pub fn SingleCircularList(T: type) type {
 
         /// リストの先頭の要素を削除する。
         pub fn removeFirst(self: *List, a: Allocator) IndexError!void {
-            assert(self.head != null);
-
             const tail = self.getLastNode() orelse return error.OutOfBounds;
             const head = self.head.?;
             const next = head.next;
@@ -203,8 +202,6 @@ pub fn SingleCircularList(T: type) type {
 
         /// リストの末尾の要素を削除する。
         pub fn removeLast(self: *List, a: Allocator) IndexError!void {
-            assert(self.head != null);
-
             const head = self.head orelse return error.OutOfBounds;
 
             var prev_prev = head;

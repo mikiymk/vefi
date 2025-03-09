@@ -51,10 +51,22 @@ pub fn expectEqualStruct(expected: anytype, actual: @TypeOf(expected)) ExpectErr
     }
 }
 
-pub fn expectType(expected: type, actual: anytype) ExpectError!void {
-    const toString = lib.primitive.types.toString;
-    if (expected != @TypeOf(actual)) {
-        print("expect failed: expected = {s}, actual = {s}", .{ toString(expected), toString(@TypeOf(actual)) });
+pub fn expectError(expected: anytype, actual: anyerror) ExpectError!void {
+    if (expected) {
+        print("expect failed: expected = {any}, actual = {any}({d})", .{ expected, actual, @intFromError(actual) });
+
+        return error.NotExpected;
+    } else |e| if (e != actual) {
+        print("expect failed: expected = {any}({d}), actual = {any}({d})", .{ expected, @intFromError(e), actual, @intFromError(actual) });
+
+        return error.NotExpected;
+    }
+}
+
+pub fn expectType(expected: type, actual: type) ExpectError!void {
+    const toString = lib.types.typeName;
+    if (expected != actual) {
+        print("expect failed: expected = {s}, actual = {s}", .{ toString(expected), toString(actual) });
 
         return error.NotExpected;
     }

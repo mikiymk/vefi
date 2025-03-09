@@ -18,19 +18,7 @@ pub fn equal(left: anytype, right: @TypeOf(left)) bool {
                 return equal(left.?, right.?);
             }
         },
-        .ErrorUnion => {
-            if (left) |l| {
-                if (right) |r| {
-                    return equal(l, r);
-                } else |_| {}
-            } else |e| {
-                _ = right catch |f| {
-                    return e == f;
-                };
-            }
-
-            return false;
-        },
+        .ErrorUnion => return equalErrorUnion(left, right),
         .Struct => |s| {
             inline for (s.fields) |field| {
                 const field_name = field.name;
@@ -132,6 +120,20 @@ pub fn equal(left: anytype, right: @TypeOf(left)) bool {
 
         else => return left == right,
     }
+}
+
+pub fn equalErrorUnion(left: anytype, right: @TypeOf(left)) bool {
+    if (left) |l| {
+        if (right) |r| {
+            return equal(l, r);
+        } else |_| {}
+    } else |e| {
+        _ = right catch |f| {
+            return e == f;
+        };
+    }
+
+    return false;
 }
 
 pub fn compare(T: type) fn (left: T, right: T) lib.math.Order {

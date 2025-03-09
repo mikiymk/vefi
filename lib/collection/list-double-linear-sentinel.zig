@@ -120,9 +120,10 @@ pub fn DoubleLinearSentinelList(T: type) type {
             const next = prev.next;
             const node = try Node.init(a, value, next, prev);
             prev.next = node;
-            next.prev = node;
             if (next == self.sentinel) {
                 self.tail = node;
+            } else {
+                next.prev = node;
             }
         }
 

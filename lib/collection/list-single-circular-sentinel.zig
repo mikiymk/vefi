@@ -117,7 +117,7 @@ pub fn SingleCircularSentinelList(T: type) type {
         }
 
         /// リストの指定した位置に要素を追加する。
-        pub fn add(self: *List, a: Allocator, index: usize, value: T) (Allocator.Error || IndexError)!void {
+        pub fn add(self: *List, a: Allocator, index: usize, value: T) AllocIndexError!void {
             if (index == 0) return self.addFirst(a, value);
 
             const prev = self.getNode(index - 1);
