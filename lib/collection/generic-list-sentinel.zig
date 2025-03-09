@@ -32,6 +32,17 @@ pub fn getNode(head: anytype, sentinel: @TypeOf(head), index: usize) @TypeOf(hea
     return node;
 }
 
+pub fn getLastNode(head: anytype, sentinel: @TypeOf(head)) @TypeOf(head) {
+    var prev = sentinel;
+    var node = head;
+
+    while (node != sentinel) : (node = node.next) {
+        prev = node;
+    }
+
+    return prev;
+}
+
 pub fn format(w: anytype, type_name: []const u8, head: anytype, sentinel: @TypeOf(head)) !void {
     const writer = lib.io.writer(w);
 

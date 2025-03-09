@@ -278,6 +278,7 @@ pub fn testList(List: type, list: *List, a: Allocator) !void {
 
     try expectError(list.add(a, 1, 10), error.OutOfBounds);
     try expectError(list.remove(a, 0), error.OutOfBounds);
+    try expectError(list.remove(a, 2), error.OutOfBounds);
     try expectError(list.removeFirst(a), error.OutOfBounds);
     try expectError(list.removeLast(a), error.OutOfBounds);
 }

@@ -24,7 +24,7 @@ pub fn SingleCircularSentinelList(T: type) type {
 
             /// 値を持つノードのメモリを作成する。
             /// 自分自身をnextに指定する。
-            pub fn initNextSelf(a: Allocator, value: T) Allocator.Error!*Node {
+            pub fn initSelf(a: Allocator, value: T) Allocator.Error!*Node {
                 const node: *Node = try a.create(Node);
                 node.* = .{ .value = value, .next = node };
                 return node;
@@ -53,19 +53,19 @@ pub fn SingleCircularSentinelList(T: type) type {
 
         /// 空のリストを作成する。
         pub fn init(a: Allocator) Allocator.Error!List {
-            const sentinel = try Node.initNextSelf(a, undefined);
+            const sentinel = try Node.initSelf(a, undefined);
             return .{ .head = sentinel, .sentinel = sentinel };
         }
 
         /// リストに含まれる全てのノードを削除する。
         pub fn deinit(self: *List, a: Allocator) void {
-            var node = self.head;
-            while (node != self.sentinel) {
-                const next = node.next;
-                node.deinit(a);
-                node = next;
-            }
+            generic_list.clear(a, self.head, self.sentinel);
             self.sentinel.deinit(a);
+        }
+
+        /// リストの構造が正しいか確認する。
+        fn isValidList(self: List) bool {
+            _ = self;
         }
 
         /// リストの要素数を数える
@@ -91,14 +91,7 @@ pub fn SingleCircularSentinelList(T: type) type {
 
         /// リストの末尾のノードを返す。
         fn getLastNode(self: List) *Node {
-            var prev = self.sentinel;
-            var node = self.head;
-
-            while (node != self.sentinel) : (node = node.next) {
-                prev = node;
-            }
-
-            return prev;
+            return generic_list.getLastNode(self.head, self.sentinel);
         }
 
         /// リストの指定した位置の要素を返す。
@@ -118,10 +111,11 @@ pub fn SingleCircularSentinelList(T: type) type {
 
         /// リストの指定した位置に要素を追加する。
         pub fn add(self: *List, a: Allocator, index: usize, value: T) AllocIndexError!void {
-            if (index == 0) return self.addFirst(a, value);
+            if (index == 0) {
+                return self.addFirst(a, value);
+            }
 
             const prev = self.getNode(index - 1);
-            if (prev == self.sentinel) return error.OutOfBounds;
             const node = prev.next;
             if (node == self.sentinel) return error.OutOfBounds;
 
@@ -149,7 +143,6 @@ pub fn SingleCircularSentinelList(T: type) type {
             if (index == 0) return self.removeFirst(a);
 
             const prev = self.getNode(index - 1);
-            if (prev == self.sentinel) return error.OutOfBounds;
             const node = prev.next;
             if (node == self.sentinel) return error.OutOfBounds;
 
@@ -203,7 +196,6 @@ pub fn SingleCircularSentinelList(T: type) type {
 
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
             const type_name = "SingleCircularSentinelList(" ++ @typeName(T) ++ ")";
-
             try generic_list.format(w, type_name, self.head, self.sentinel);
         }
     };

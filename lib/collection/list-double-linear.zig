@@ -51,6 +51,11 @@ pub fn DoubleLinearList(T: type) type {
             self.* = undefined;
         }
 
+        /// リストの構造が正しいか確認する。
+        fn isValidList(self: List) bool {
+            _ = self;
+        }
+
         /// リストの要素数を数える
         pub fn size(self: List) usize {
             return generic_list.size(self.head);
@@ -202,7 +207,6 @@ pub fn DoubleLinearList(T: type) type {
 
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
             const type_name = "DoubleLinearList(" ++ @typeName(T) ++ ")";
-
             try generic_list.format(w, type_name, self.head);
         }
     };

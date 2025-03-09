@@ -65,6 +65,11 @@ pub fn SingleLinearSentinelList(T: type) type {
             self.sentinel.deinit(a);
         }
 
+        /// リストの構造が正しいか確認する。
+        fn isValidList(self: List) bool {
+            _ = self;
+        }
+
         /// リストの要素数を数える
         pub fn size(self: List) usize {
             return generic_list.size(self.head, self.sentinel);
@@ -88,14 +93,7 @@ pub fn SingleLinearSentinelList(T: type) type {
 
         /// リストの末尾のノードを返す。
         fn getLastNode(self: List) *Node {
-            var prev = self.sentinel;
-            var node = self.head;
-
-            while (node != self.sentinel) : (node = node.next) {
-                prev = node;
-            }
-
-            return prev;
+            return generic_list.getLastNode(self.head, self.sentinel);
         }
 
         /// リストの指定した位置の要素を返す。
@@ -116,16 +114,15 @@ pub fn SingleLinearSentinelList(T: type) type {
         /// リストの指定した位置に要素を追加する。
         pub fn add(self: *List, a: Allocator, index: usize, value: T) AllocIndexError!void {
             if (index == 0) {
-                self.head = try Node.init(a, value, self.head);
-                return;
+                return self.addFirst(a, value);
             }
 
             const node = self.getNode(index - 1);
-            if (node != self.sentinel) {
-                node.next = try Node.init(a, value, node.next);
-            } else {
+            if (node == self.sentinel) {
                 return error.OutOfBounds;
             }
+
+            node.next = try Node.init(a, value, node.next);
         }
 
         /// リストの先頭に要素を追加する。
@@ -150,7 +147,6 @@ pub fn SingleLinearSentinelList(T: type) type {
             if (index == 0) return self.removeFirst(a);
 
             const prev = self.getNode(index - 1);
-            if (prev == self.sentinel) return error.OutOfBounds;
             const node = prev.next;
             if (node == self.sentinel) return error.OutOfBounds;
 
@@ -206,7 +202,6 @@ pub fn SingleLinearSentinelList(T: type) type {
 
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
             const type_name = "SingleLinearSentinelList(" ++ @typeName(T) ++ ")";
-
             try generic_list.format(w, type_name, self.head, self.sentinel);
         }
     };

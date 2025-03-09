@@ -57,15 +57,13 @@ pub fn DoubleLinearSentinelList(T: type) type {
 
         /// リストに含まれる全てのノードを削除する。
         pub fn deinit(self: *List, a: Allocator) void {
-            var node = self.head;
-
-            while (node != self.sentinel) {
-                const next = node.next;
-                node.deinit(a);
-                node = next;
-            }
-
+            generic_list.clear(a, self.head, self.sentinel);
             self.sentinel.deinit(a);
+        }
+
+        /// リストの構造が正しいか確認する。
+        fn isValidList(self: List) bool {
+            _ = self;
         }
 
         /// リストの要素数を数える
@@ -112,13 +110,15 @@ pub fn DoubleLinearSentinelList(T: type) type {
 
         /// リストの指定した位置に要素を追加する。
         pub fn add(self: *List, a: Allocator, index: usize, value: T) AllocIndexError!void {
-            if (index == 0) return self.addFirst(a, value);
+            if (index == 0) {
+                return self.addFirst(a, value);
+            }
 
             const prev = self.getNode(index - 1);
             if (prev == self.sentinel) return error.OutOfBounds;
-
             const next = prev.next;
             const node = try Node.init(a, value, next, prev);
+
             prev.next = node;
             if (next == self.sentinel) {
                 self.tail = node;
@@ -156,10 +156,9 @@ pub fn DoubleLinearSentinelList(T: type) type {
         /// リストの指定した位置の要素を削除する。
         pub fn remove(self: *List, a: Allocator, index: usize) IndexError!void {
             const node = self.getNode(index);
-            if (node == self.sentinel) return error.OutOfBounds;
-
             const prev = node.prev;
             const next = node.next;
+            if (node == self.sentinel) return error.OutOfBounds;
 
             node.deinit(a);
             if (prev == self.sentinel) {
@@ -214,7 +213,6 @@ pub fn DoubleLinearSentinelList(T: type) type {
 
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
             const type_name = "DoubleLinearSentinelList(" ++ @typeName(T) ++ ")";
-
             try generic_list.format(w, type_name, self.head, self.sentinel);
         }
     };

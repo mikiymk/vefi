@@ -23,7 +23,7 @@ pub fn SingleCircularList(T: type) type {
 
             /// 値を持つノードのメモリを作成する。
             /// 自分自身をnextに指定する。
-            fn initNextSelf(a: Allocator, value: T) Allocator.Error!*Node {
+            fn initSelf(a: Allocator, value: T) Allocator.Error!*Node {
                 const node: *Node = try a.create(Node);
                 node.* = .{ .value = value, .next = node };
                 return node;
@@ -52,14 +52,19 @@ pub fn SingleCircularList(T: type) type {
         /// リストに含まれる全てのノードを削除する。
         pub fn deinit(self: *List, a: Allocator) void {
             const head = self.head orelse return;
+            var node = head;
 
-            var node = head.next;
-            while (node != head) {
+            while (true) {
                 const next = node.next;
                 node.deinit(a);
                 node = next;
+                if (node == head) break; // do-whileになる
             }
-            head.deinit(a);
+        }
+
+        /// リストの構造が正しいか確認する。
+        fn isValidList(self: List) bool {
+            _ = self;
         }
 
         /// リストの要素数を数える
@@ -67,11 +72,9 @@ pub fn SingleCircularList(T: type) type {
             const head = self.head orelse return 0;
             var node = head;
             var count: usize = 0;
-
-            while (true) {
+            while (true) : (node = node.next) {
                 count += 1;
-                node = node.next;
-                if (node == head) break;
+                if (node.next == head) break;
             }
             return count;
         }
@@ -79,8 +82,8 @@ pub fn SingleCircularList(T: type) type {
         /// リストの全ての要素を削除する。
         pub fn clear(self: *List, a: Allocator) void {
             const head = self.head orelse return;
-
             var node = head;
+
             while (true) {
                 const next = node.next;
                 node.deinit(a);
@@ -93,17 +96,13 @@ pub fn SingleCircularList(T: type) type {
         /// リストの指定した位置のノードを返す。
         fn getNode(self: List, index: usize) ?*Node {
             const head = self.head orelse return null;
-
             var node = head;
             var count = index;
-            while (true) {
-                if (count == 0) {
-                    return node;
-                }
-                count -= 1;
 
-                node = node.next;
-                if (node == head) return null;
+            while (true) : (node = node.next) {
+                if (count == 0) return node;
+                count -= 1;
+                if (node.next == head) return null;
             }
         }
 
@@ -142,8 +141,7 @@ pub fn SingleCircularList(T: type) type {
         /// リストの指定した位置に要素を追加する。
         pub fn add(self: *List, a: Allocator, index: usize, value: T) AllocIndexError!void {
             if (index == 0) {
-                try self.addFirst(a, value);
-                return;
+                return self.addFirst(a, value);
             }
 
             const node = self.getNode(index - 1) orelse return error.OutOfBounds;
@@ -152,24 +150,22 @@ pub fn SingleCircularList(T: type) type {
 
         /// リストの先頭に要素を追加する。
         pub fn addFirst(self: *List, a: Allocator, value: T) Allocator.Error!void {
-            if (self.getLastNode()) |tail| {
-                const head = tail.next;
-                const node = try Node.init(a, value, head);
-                tail.next = node;
+            if (self.getLastNode()) |prev| {
+                const node = try Node.init(a, value, prev.next);
+
+                prev.next = node;
                 self.head = node;
             } else {
-                self.head = try Node.initNextSelf(a, value);
+                self.head = try Node.initSelf(a, value);
             }
         }
 
         /// リストの末尾に要素を追加する。
         pub fn addLast(self: *List, a: Allocator, value: T) Allocator.Error!void {
-            if (self.getLastNode()) |last| {
-                const node = try Node.init(a, value, last.next);
-                last.next = node;
+            if (self.getLastNode()) |prev| {
+                prev.next = try Node.init(a, value, prev.next);
             } else {
-                const node = try Node.initNextSelf(a, value);
-                self.head = node;
+                self.head = try Node.initSelf(a, value);
             }
         }
 
@@ -181,23 +177,24 @@ pub fn SingleCircularList(T: type) type {
 
             const prev = self.getNode(index - 1) orelse return error.OutOfBounds;
             const node = prev.next;
+
             prev.next = node.next;
             node.deinit(a);
         }
 
         /// リストの先頭の要素を削除する。
         pub fn removeFirst(self: *List, a: Allocator) IndexError!void {
-            const tail = self.getLastNode() orelse return error.OutOfBounds;
-            const head = self.head.?;
-            const next = head.next;
+            const prev = self.getLastNode() orelse return error.OutOfBounds;
+            const node = self.head.?;
+            const next = node.next;
 
             self.head = next;
-            tail.next = next;
-            if (head == next) {
+            prev.next = next;
+            if (node == next) {
                 self.head = null;
             }
 
-            head.deinit(a);
+            node.deinit(a);
         }
 
         /// リストの末尾の要素を削除する。
@@ -208,9 +205,7 @@ pub fn SingleCircularList(T: type) type {
             var prev = head;
             var node = head.next;
             while (true) : (node = node.next) {
-                if (node == head) {
-                    break;
-                }
+                if (node == head) break;
                 prev_prev = prev;
                 prev = node;
             }
@@ -251,7 +246,7 @@ pub fn SingleCircularList(T: type) type {
             if (self.head) |head| {
                 var node = head;
                 var first = true;
-                while (true) {
+                while (true) : (node = node.next) {
                     if (first) {
                         try writer.print(" ", .{});
                         first = false;
@@ -261,8 +256,7 @@ pub fn SingleCircularList(T: type) type {
 
                     try writer.print("{}", .{node});
 
-                    node = node.next;
-                    if (node == head) break;
+                    if (node.next == head) break;
                 }
             }
             try writer.print(" }}", .{});
