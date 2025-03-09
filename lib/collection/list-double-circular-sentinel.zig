@@ -1,10 +1,11 @@
 const std = @import("std");
 const lib = @import("../root.zig");
+const generic_list = lib.collection.generic_list_sentinel;
 
 const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
 
-pub fn DoubleCircularList(T: type) type {
+pub fn DoubleCircularSentinelList(T: type) type {
     return struct {
         const List = @This();
 
@@ -16,7 +17,7 @@ pub fn DoubleCircularList(T: type) type {
             prev: *Node,
 
             /// 値を持つノードのメモリを作成する。
-            fn init(a: Allocator, value: T, next: *Node, prev: *Node) Allocator.Error!*Node {
+            pub fn init(a: Allocator, value: T, next: *Node, prev: *Node) Allocator.Error!*Node {
                 const node: *Node = try a.create(Node);
                 node.* = .{ .value = value, .next = next, .prev = prev };
                 return node;
@@ -24,14 +25,23 @@ pub fn DoubleCircularList(T: type) type {
 
             /// 値を持つノードのメモリを作成する。
             /// 自分自身をnextに指定する。
-            fn initSelf(a: Allocator, value: T) Allocator.Error!*Node {
+            pub fn initSelf(a: Allocator, value: T) Allocator.Error!*Node {
                 const node: *Node = try a.create(Node);
-                node.* = .{ .value = value, .next = node, .prev = node };
+                node.* = .{
+                    .value = value,
+                    .next = node,
+                    .prev = node,
+                };
                 return node;
             }
 
-            fn deinit(node: *Node, a: Allocator) void {
+            pub fn deinit(node: *Node, a: Allocator) void {
                 a.destroy(node);
+            }
+
+            /// ノードの値を返す。
+            pub fn getValue(node: *const Node, sentinel: *const Node) ?T {
+                return if (node != sentinel) node.value else null;
             }
 
             pub fn format(node: Node, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
@@ -43,44 +53,38 @@ pub fn DoubleCircularList(T: type) type {
         pub const IndexError = error{OutOfBounds};
         pub const AllocIndexError = Allocator.Error || IndexError;
 
-        head: ?*Node,
-        tail: ?*Node,
+        head: *Node,
+        tail: *Node,
+        sentinel: *Node,
 
         /// 空のリストを作成する。
-        pub fn init() List {
+        pub fn init(a: Allocator) Allocator.Error!List {
+            const sentinel = try Node.initSelf(a, undefined);
             return .{
-                .head = null,
-                .tail = null,
+                .head = sentinel,
+                .tail = sentinel,
+                .sentinel = sentinel,
             };
         }
 
         /// リストに含まれる全てのノードを削除する。
         pub fn deinit(self: *List, a: Allocator) void {
-            const head = self.head orelse return;
-            var node = head;
-
-            while (true) {
-                const next = node.next;
-                node.deinit(a);
-                node = next;
-                if (node == head) break; // do-whileになる
-            }
+            generic_list.clear(a, self.head, self.sentinel);
+            self.sentinel.deinit(a);
         }
 
         /// リストの構造が正しいか確認する。
         fn isValidList(self: List) bool {
-            const head = self.head orelse return true;
-            var prev = head;
-            var node = prev.next;
-
-            while (node != self.head) : (node = node.next) {
-                if (node.prev != prev) return false;
+            var prev = self.sentinel;
+            var node = self.head;
+            while (node != self.sentinel) : (node = node.next) {
+                if (prev != node.prev) return false;
                 prev = node;
             }
 
-            if (self.tail != prev) return false;
-            if (prev.next != head) return false;
-            if (prev != head.prev) return false;
+            if (prev != self.tail) return false;
+            if (self.sentinel.next != self.head) return false;
+            if (self.sentinel.prev != self.tail) return false;
             return true;
         }
 
@@ -88,14 +92,7 @@ pub fn DoubleCircularList(T: type) type {
         pub fn size(self: List) usize {
             assert(self.isValidList());
 
-            const head = self.head orelse return 0;
-            var node = head;
-            var count: usize = 0;
-            while (true) : (node = node.next) {
-                count += 1;
-                if (node.next == head) break;
-            }
-            return count;
+            return generic_list.size(self.head, self.sentinel);
         }
 
         /// リストの全ての要素を削除する。
@@ -103,43 +100,29 @@ pub fn DoubleCircularList(T: type) type {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
-            const head = self.head orelse return;
-            var node = head;
-
-            while (true) {
-                const next = node.next;
-                node.deinit(a);
-                node = next;
-                if (node == head) break; // do-whileになる
-            }
-            self.head = null;
-            self.tail = null;
+            generic_list.clear(a, self.head, self.sentinel);
+            self.head = self.sentinel;
+            self.tail = self.sentinel;
+            self.sentinel.next = self.sentinel;
+            self.sentinel.prev = self.sentinel;
         }
 
         /// リストの指定した位置のノードを返す。
-        fn getNode(self: List, index: usize) ?*Node {
+        fn getNode(self: List, index: usize) *Node {
             assert(self.isValidList());
 
-            const head = self.head orelse return null;
-            var node = head;
-            var count = index;
-
-            while (true) : (node = node.next) {
-                if (count == 0) return node;
-                count -= 1;
-                if (node.next == head) return null;
-            }
+            return generic_list.getNode(self.head, self.sentinel, index);
         }
 
         /// リストの先頭のノードを返す。
-        fn getFirstNode(self: List) ?*Node {
+        fn getFirstNode(self: List) *Node {
             assert(self.isValidList());
 
             return self.head;
         }
 
         /// リストの末尾のノードを返す。
-        fn getLastNode(self: List) ?*Node {
+        fn getLastNode(self: List) *Node {
             assert(self.isValidList());
 
             return self.tail;
@@ -147,30 +130,25 @@ pub fn DoubleCircularList(T: type) type {
 
         /// リストの指定した位置の要素を返す。
         pub fn get(self: List, index: usize) ?T {
-            return if (self.getNode(index)) |n| n.value else null;
+            return self.getNode(index).getValue(self.sentinel);
         }
 
         /// リストの先頭の要素を返す。
         pub fn getFirst(self: List) ?T {
-            return if (self.getFirstNode()) |n| n.value else null;
+            return self.getFirstNode().getValue(self.sentinel);
         }
 
         /// リストの末尾の要素を返す。
         pub fn getLast(self: List) ?T {
-            return if (self.getLastNode()) |n| n.value else null;
+            return self.getLastNode().getValue(self.sentinel);
         }
 
         fn addNode(a: Allocator, value: T, next: *Node, prev: *Node) Allocator.Error!*Node {
             const node = try Node.init(a, value, next, prev);
             prev.next = node;
             next.prev = node;
-            return node;
-        }
 
-        fn addNodeSelf(self: *List, a: Allocator, value: T) Allocator.Error!void {
-            const node = try Node.initSelf(a, value);
-            self.head = node;
-            self.tail = node;
+            return node;
         }
 
         /// リストの指定した位置に要素を追加する。
@@ -182,8 +160,14 @@ pub fn DoubleCircularList(T: type) type {
                 return self.addFirst(a, value);
             }
 
-            const prev = self.getNode(index - 1) orelse return error.OutOfBounds;
-            _ = try addNode(a, value, prev.next, prev);
+            const prev = self.getNode(index - 1);
+            if (prev == self.sentinel) return error.OutOfBounds;
+            const next = prev.next;
+            const node = try addNode(a, value, next, prev);
+
+            if (next == self.sentinel) {
+                self.tail = node;
+            }
         }
 
         /// リストの先頭に要素を追加する。
@@ -191,11 +175,13 @@ pub fn DoubleCircularList(T: type) type {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
-            if (self.getFirstNode()) |next| {
-                const node = try addNode(a, value, next, next.prev);
-                self.head = node;
-            } else {
-                try self.addNodeSelf(a, value);
+            const next = self.head;
+            const prev = self.sentinel;
+            const node = try addNode(a, value, next, prev);
+
+            self.head = node;
+            if (next == self.sentinel) {
+                self.tail = node;
             }
         }
 
@@ -204,15 +190,20 @@ pub fn DoubleCircularList(T: type) type {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
-            if (self.getLastNode()) |prev| {
-                const node = try addNode(a, value, prev.next, prev);
-                self.tail = node;
-            } else {
-                try self.addNodeSelf(a, value);
+            const prev = self.tail;
+            const next = self.sentinel;
+            const node = try addNode(a, value, next, prev);
+
+            if (prev == self.sentinel) {
+                self.head = node;
             }
+            self.tail = node;
         }
 
-        fn removeNode(a: Allocator, node: *Node, next: *Node, prev: *Node) void {
+        fn removeNode(a: Allocator, node: *Node) void {
+            const next = node.next;
+            const prev = node.prev;
+
             prev.next = next;
             next.prev = prev;
             node.deinit(a);
@@ -223,12 +214,19 @@ pub fn DoubleCircularList(T: type) type {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
-            if (index == 0) {
-                return self.removeFirst(a);
-            }
+            const node = self.getNode(index);
+            if (node == self.sentinel) return error.OutOfBounds;
+            const next = node.next;
+            const prev = node.prev;
 
-            const node = self.getNode(index) orelse return error.OutOfBounds;
-            removeNode(a, node, node.next, node.prev);
+            removeNode(a, node);
+
+            if (self.head == node) {
+                self.head = next;
+            }
+            if (self.tail == node) {
+                self.tail = prev;
+            }
         }
 
         /// リストの先頭の要素を削除する。
@@ -236,21 +234,17 @@ pub fn DoubleCircularList(T: type) type {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
-            const node = self.getFirstNode() orelse return error.OutOfBounds;
-            const prev = node.prev;
+            const node = self.getFirstNode();
+            if (node == self.sentinel) return error.OutOfBounds;
             const next = node.next;
+            const prev = node.prev;
+
+            removeNode(a, node);
 
             self.head = next;
-            if (prev == next) {
-                self.tail = next;
+            if (self.tail == node) {
+                self.tail = prev;
             }
-
-            if (node == next) {
-                self.head = null;
-                self.tail = null;
-            }
-
-            removeNode(a, node, next, prev);
         }
 
         /// リストの末尾の要素を削除する。
@@ -258,21 +252,17 @@ pub fn DoubleCircularList(T: type) type {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
-            const node = self.getLastNode() orelse return error.OutOfBounds;
-            const prev = node.prev;
+            const node = self.getLastNode();
+            if (node == self.sentinel) return error.OutOfBounds;
             const next = node.next;
+            const prev = node.prev;
 
+            removeNode(a, node);
+
+            if (self.head == node) {
+                self.head = next;
+            }
             self.tail = prev;
-            if (prev == next) {
-                self.head = prev;
-            }
-
-            if (node == next) {
-                self.head = null;
-                self.tail = null;
-            }
-
-            removeNode(a, node, next, prev);
         }
 
         /// リストを複製する。
@@ -292,48 +282,29 @@ pub fn DoubleCircularList(T: type) type {
         }
 
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
-            const type_name = "DoubleCircularList(" ++ @typeName(T) ++ ")";
-            const writer = lib.io.writer(w);
-
-            try writer.print("{s}{{", .{type_name});
-            if (self.head) |head| {
-                var node = head;
-                var first = true;
-                while (true) : (node = node.next) {
-                    if (first) {
-                        try writer.print(" ", .{});
-                        first = false;
-                    } else {
-                        try writer.print(", ", .{});
-                    }
-
-                    try writer.print("{}", .{node});
-
-                    if (node.next == head) break;
-                }
-            }
-            try writer.print(" }}", .{});
+            const type_name = "DoubleCircularSentinelList(" ++ @typeName(T) ++ ")";
+            try generic_list.format(w, type_name, self.head, self.sentinel);
         }
     };
 }
 
-test DoubleCircularList {
-    const List = DoubleCircularList(u8);
+test DoubleCircularSentinelList {
+    const List = DoubleCircularSentinelList(u8);
     const a = std.testing.allocator;
     const expect = lib.assert.expect;
 
-    var list = List.init();
+    var list = try List.init(a);
     defer list.deinit(a);
 
-    try expect(@TypeOf(list) == DoubleCircularList(u8));
+    try expect(@TypeOf(list) == DoubleCircularSentinelList(u8));
     try lib.collection.testList(List, &list, a);
 }
 
 test "format" {
-    const List = DoubleCircularList(u8);
+    const List = DoubleCircularSentinelList(u8);
     const a = std.testing.allocator;
 
-    var list = List.init();
+    var list = try List.init(a);
     defer list.deinit(a);
 
     try list.addLast(a, 1);
@@ -345,5 +316,5 @@ test "format" {
     const format = try std.fmt.allocPrint(a, "{}", .{list});
     defer a.free(format);
 
-    try lib.assert.expectEqualString("DoubleCircularList(u8){ 1, 2, 3, 4, 5 }", format);
+    try lib.assert.expectEqualString("DoubleCircularSentinelList(u8){ 1, 2, 3, 4, 5 }", format);
 }

@@ -149,14 +149,14 @@ test "array is array" {
 pub const generic_list = @import("./collection/generic-list.zig");
 pub const generic_list_sentinel = @import("./collection/generic-list-sentinel.zig");
 
-pub const single_linear_list = @import("./collection/list-single-linear.zig");
-pub const single_linear_sentinel_list = @import("./collection/list-single-linear-sentinel.zig");
-pub const single_circular_list = @import("./collection/list-single-circular.zig");
-pub const single_circular_sentinel_list = @import("./collection/list-single-circular-sentinel.zig");
-pub const double_linear_list = @import("./collection/list-double-linear.zig");
-pub const double_linear_sentinel_list = @import("./collection/list-double-linear-sentinel.zig");
-pub const double_circular_list = @import("./collection/list-double-circular.zig");
-pub const double_circular_sentinel_list = struct {};
+pub const SingleLinearList = @import("./collection/list-single-linear.zig").SingleLinearList;
+pub const SingleLinearSentinelList = @import("./collection/list-single-linear-sentinel.zig").SingleLinearSentinelList;
+pub const SingleCircularList = @import("./collection/list-single-circular.zig").SingleCircularList;
+pub const SingleCircularSentinelList = @import("./collection/list-single-circular-sentinel.zig").SingleCircularSentinelList;
+pub const DoubleLinearList = @import("./collection/list-double-linear.zig").DoubleLinearList;
+pub const DoubleLinearSentinelList = @import("./collection/list-double-linear-sentinel.zig").DoubleLinearSentinelList;
+pub const DoubleCircularList = @import("./collection/list-double-circular.zig").DoubleCircularList;
+pub const DoubleCircularSentinelList = @import("./collection/list-double-circular-sentinel.zig").DoubleCircularSentinelList;
 
 pub fn isList(T: type) bool {
     const match = lib.interface.match(T);
@@ -177,10 +177,10 @@ pub fn isList(T: type) bool {
 test "list is list" {
     const expect = lib.assert.expect;
 
-    try expect(isList(single_linear_list.SingleLinearList(u8)));
-    try expect(isList(single_linear_sentinel_list.SingleLinearSentinelList(u8)));
-    try expect(isList(single_circular_list.SingleCircularList(u8)));
-    try expect(isList(single_circular_sentinel_list.SingleCircularSentinelList(u8)));
+    try expect(isList(SingleLinearList(u8)));
+    try expect(isList(SingleLinearSentinelList(u8)));
+    try expect(isList(SingleCircularList(u8)));
+    try expect(isList(SingleCircularSentinelList(u8)));
 }
 
 pub fn testList(List: type, list: *List, a: Allocator) !void {
