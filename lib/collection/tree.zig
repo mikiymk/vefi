@@ -11,7 +11,7 @@ test {
 const Allocator = std.mem.Allocator;
 const Optional = lib.types.Optional;
 const Order = lib.math.Order;
-const DynamicArray = lib.collection.dynamic_array.DynamicArray;
+const DynamicArray = lib.collection.DynamicArray;
 const Stack = lib.collection.stack.Stack;
 
 /// AVL木
@@ -233,7 +233,7 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
                 return false;
             }
 
-            fn copyToSliceNode(node: *Node, allocator: Allocator, array: *DynamicArray(Value, .{})) Allocator.Error!void {
+            fn copyToSliceNode(node: *Node, allocator: Allocator, array: *DynamicArray(Value)) Allocator.Error!void {
                 if (node.left) |left| {
                     try left.copyToSliceNode(allocator, array);
                 }
@@ -329,7 +329,7 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
         }
 
         pub fn copyToSlice(self: @This(), allocator: Allocator) Allocator.Error![]const Value {
-            var array = DynamicArray(Value, .{}).init();
+            var array = DynamicArray(Value).init();
             defer array.deinit(allocator);
 
             if (self.root) |root| {

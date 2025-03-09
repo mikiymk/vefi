@@ -116,9 +116,10 @@ pub const Range = struct {
     end: usize,
 };
 
-pub const static_array = @import("./collection/array-static.zig");
-pub const dynamic_array = @import("./collection/array-dynamic.zig");
+pub const StaticArray = @import("./collection/array-static.zig").StaticArray;
+pub const DynamicArray = @import("./collection/array-dynamic.zig").DynamicArray;
 pub const static_multi_dimensional_array = @import("./collection/array-static-multi-dimensional.zig");
+pub const StringArray = @import("./collection/array-string.zig");
 pub const bit_array = struct {};
 
 pub fn isArray(T: type) bool {
@@ -142,8 +143,9 @@ pub fn isDynamicArray(T: type) bool {
 test "array is array" {
     const expect = lib.assert.expect;
 
-    try expect(isArray(static_array.StaticArray(u8, 5, .{})));
-    try expect(isDynamicArray(dynamic_array.DynamicArray(u8, .{})));
+    try expect(isArray(StaticArray(u8, 5)));
+    try expect(isDynamicArray(DynamicArray(u8)));
+    try expect(isDynamicArray(StringArray));
 }
 
 pub const generic_list = @import("./collection/generic-list.zig");

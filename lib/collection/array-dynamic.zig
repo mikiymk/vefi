@@ -9,13 +9,8 @@ const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
 const Range = lib.collection.array.Range;
 
-pub const DynamicArrayOptions = struct {
-    extend_factor: usize = 2,
-    max_length: ?usize = null,
-};
-
 /// 動的配列 (Dynamic Array)
-pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
+pub fn DynamicArray(T: type) type {
     return struct {
         _values: []T,
         _size: usize,
@@ -181,10 +176,11 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
 
         /// メモリを再確保して配列の長さを拡張する。
         fn extendSize(self: *@This(), allocator: Allocator) Allocator.Error!void {
+            const extend_factor = 2;
             const initial_length = 8;
 
             const length = self._values.len;
-            const new_length: usize = if (length == 0) initial_length else length * options.extend_factor;
+            const new_length: usize = if (length == 0) initial_length else length * extend_factor;
 
             self._values = try allocator.realloc(self._values, new_length);
         }
@@ -212,7 +208,7 @@ pub fn DynamicArray(T: type, comptime options: DynamicArrayOptions) type {
 
 test DynamicArray {
     const allocator = std.testing.allocator;
-    const DA = DynamicArray(u8, .{});
+    const DA = DynamicArray(u8);
     const eq = lib.assert.expectEqualStruct;
 
     var array = DA.init();
@@ -254,7 +250,7 @@ test DynamicArray {
 }
 
 test "format" {
-    const Array = DynamicArray(u8, .{});
+    const Array = DynamicArray(u8);
     const a = std.testing.allocator;
 
     var array = Array.init();

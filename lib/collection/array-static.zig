@@ -4,18 +4,9 @@ const lib = @import("../root.zig");
 const assert = lib.assert.assert;
 const Range = lib.collection.Range;
 
-pub fn StaticArrayOptions(T: type) type {
-    return struct {
-        comptime sentinel: ?T = null,
-    };
-}
-
 /// 静的配列 (Static Array)
-pub fn StaticArray(T: type, array_size: usize, comptime options: StaticArrayOptions(T)) type {
-    const Array = if (options.sentinel) |sentinel|
-        [array_size:sentinel]T
-    else
-        [array_size]T;
+pub fn StaticArray(T: type, array_size: usize) type {
+    const Array = [array_size]T;
 
     return struct {
         _values: Array,
@@ -108,7 +99,7 @@ pub fn StaticArray(T: type, array_size: usize, comptime options: StaticArrayOpti
 }
 
 test StaticArray {
-    const Array = StaticArray(usize, 5, .{});
+    const Array = StaticArray(usize, 5);
     const equals = lib.assert.expectEqualStruct;
 
     var array = Array.init(0);
@@ -133,7 +124,7 @@ test StaticArray {
 }
 
 test "format" {
-    const Array = StaticArray(u8, 5, .{});
+    const Array = StaticArray(u8, 5);
     const a = std.testing.allocator;
 
     var array = Array.init(0);
