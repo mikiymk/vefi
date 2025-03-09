@@ -155,7 +155,7 @@ pub const single_circular_list = @import("./collection/list-single-circular.zig"
 pub const single_circular_sentinel_list = @import("./collection/list-single-circular-sentinel.zig");
 pub const double_linear_list = @import("./collection/list-double-linear.zig");
 pub const double_linear_sentinel_list = @import("./collection/list-double-linear-sentinel.zig");
-pub const double_circular_list = struct {};
+pub const double_circular_list = @import("./collection/list-double-circular.zig");
 pub const double_circular_sentinel_list = struct {};
 
 pub fn isList(T: type) bool {
