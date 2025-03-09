@@ -95,6 +95,19 @@ pub fn DoubleLinearList(T: type) type {
             return generic_list.getNode(self.head, index);
         }
 
+        /// リストの最後から指定した位置のノードを返す。
+        fn getNodeFromLast(self: List, index: usize) ?*Node {
+            assert(self.isValidList());
+
+            var node = self.tail;
+            var count = index;
+
+            return while (node) |n| : (node = n.prev) {
+                if (count == 0) break n;
+                count -= 1;
+            } else null;
+        }
+
         /// リストの先頭のノードを返す。
         fn getFirstNode(self: List) ?*Node {
             assert(self.isValidList());
@@ -112,6 +125,11 @@ pub fn DoubleLinearList(T: type) type {
         /// リストの指定した位置の要素を返す。
         pub fn get(self: List, index: usize) ?T {
             return if (self.getNode(index)) |n| n.value else null;
+        }
+
+        /// リストの最後から指定した位置の要素を返す。
+        pub fn getFromLast(self: List, index: usize) ?T {
+            return if (self.getNodeFromLast(index)) |n| n.value else null;
         }
 
         /// リストの先頭の要素を返す。
@@ -269,7 +287,10 @@ test DoubleLinearList {
     defer list.deinit(a);
 
     try expect(@TypeOf(list) == DoubleLinearList(u8));
-    try lib.collection.testList(List, &list, a);
+    try lib.collection.test_list.testList(List, &list, a);
+    try lib.collection.test_list.testRemoveToZero(List, &list, a);
+    try lib.collection.test_list.testIndexError(List, &list, a);
+    try lib.collection.test_list.testGetFromLast(List, &list, a);
 }
 
 test "format" {

@@ -158,6 +158,8 @@ pub const DoubleLinearSentinelList = @import("./collection/list-double-linear-se
 pub const DoubleCircularList = @import("./collection/list-double-circular.zig").DoubleCircularList;
 pub const DoubleCircularSentinelList = @import("./collection/list-double-circular-sentinel.zig").DoubleCircularSentinelList;
 
+pub const test_list = @import("./collection/test-list.zig");
+
 pub fn isList(T: type) bool {
     const match = lib.interface.match(T);
 
@@ -174,6 +176,13 @@ pub fn isList(T: type) bool {
         match.hasFn("removeLast");
 }
 
+pub fn isDoubleList(T: type) bool {
+    const match = lib.interface.match(T);
+
+    return isList(T) and
+        match.hasFn("getFromLast");
+}
+
 test "list is list" {
     const expect = lib.assert.expect;
 
@@ -181,106 +190,10 @@ test "list is list" {
     try expect(isList(SingleLinearSentinelList(u8)));
     try expect(isList(SingleCircularList(u8)));
     try expect(isList(SingleCircularSentinelList(u8)));
-}
-
-pub fn testList(List: type, list: *List, a: Allocator) !void {
-    const expectEq = lib.assert.expectEqualP;
-
-    // list == .{}
-    try expectEq(list.size(), 0);
-    try expectEq(list.getFirst(), null);
-    try expectEq(list.getLast(), null);
-
-    try list.addFirst(a, 4);
-    try list.addFirst(a, 3);
-
-    // list == .{3, 4}
-    try expectEq(list.size(), 2);
-    try expectEq(list.getFirst(), 3);
-    try expectEq(list.getLast(), 4);
-    try expectEq(list.get(0), 3);
-    try expectEq(list.get(1), 4);
-
-    try list.addLast(a, 7);
-    try list.addLast(a, 8);
-
-    // list == .{3, 4, 7, 8}
-    try expectEq(list.size(), 4);
-    try expectEq(list.get(0), 3);
-    try expectEq(list.get(1), 4);
-    try expectEq(list.get(2), 7);
-    try expectEq(list.get(3), 8);
-
-    try list.add(a, 2, 5);
-    try list.add(a, 3, 6);
-
-    // list == .{3, 4, 5, 6, 7, 8}
-    try expectEq(list.size(), 6);
-    try expectEq(list.getFirst(), 3);
-    try expectEq(list.getLast(), 8);
-    try expectEq(list.get(0), 3);
-    try expectEq(list.get(1), 4);
-    try expectEq(list.get(2), 5);
-    try expectEq(list.get(3), 6);
-    try expectEq(list.get(4), 7);
-    try expectEq(list.get(5), 8);
-
-    try list.removeFirst(a);
-
-    // list == .{4, 5, 6, 7, 8}
-    try expectEq(list.size(), 5);
-    try expectEq(list.get(0), 4);
-    try expectEq(list.get(1), 5);
-    try expectEq(list.get(2), 6);
-    try expectEq(list.get(3), 7);
-    try expectEq(list.get(4), 8);
-
-    try list.removeLast(a);
-
-    // list == .{4, 5, 6, 7}
-    try expectEq(list.size(), 4);
-    try expectEq(list.get(0), 4);
-    try expectEq(list.get(1), 5);
-    try expectEq(list.get(2), 6);
-    try expectEq(list.get(3), 7);
-
-    try list.remove(a, 1);
-
-    // list == .{4, 6, 7}
-    try expectEq(list.size(), 3);
-    try expectEq(list.get(0), 4);
-    try expectEq(list.get(1), 6);
-    try expectEq(list.get(2), 7);
-
-    // リストを空にする時の操作
-    list.clear(a);
-
-    // list == .{}
-    try expectEq(list.size(), 0);
-    try expectEq(list.getFirst(), null);
-    try expectEq(list.getLast(), null);
-
-    try list.addFirst(a, 1);
-    try list.removeFirst(a);
-    try expectEq(list.size(), 0);
-
-    try list.addLast(a, 1);
-    try list.removeLast(a);
-    try expectEq(list.size(), 0);
-
-    try list.add(a, 0, 1);
-    try list.remove(a, 0);
-    try expectEq(list.size(), 0);
-
-    // インデックスエラー
-    const expectError = lib.assert.expectError;
-    list.clear(a);
-
-    try expectError(list.add(a, 1, 10), error.OutOfBounds);
-    try expectError(list.remove(a, 0), error.OutOfBounds);
-    try expectError(list.remove(a, 2), error.OutOfBounds);
-    try expectError(list.removeFirst(a), error.OutOfBounds);
-    try expectError(list.removeLast(a), error.OutOfBounds);
+    try expect(isDoubleList(DoubleLinearList(u8)));
+    try expect(isDoubleList(DoubleLinearSentinelList(u8)));
+    try expect(isDoubleList(DoubleCircularList(u8)));
+    try expect(isDoubleList(DoubleCircularSentinelList(u8)));
 }
 
 pub const stack = @import("collection/stack.zig");

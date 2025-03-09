@@ -256,7 +256,9 @@ test SingleCircularSentinelList {
     defer list.deinit(a);
 
     try expect(@TypeOf(list) == SingleCircularSentinelList(u8));
-    try lib.collection.testList(List, &list, a);
+    try lib.collection.test_list.testList(List, &list, a);
+    try lib.collection.test_list.testRemoveToZero(List, &list, a);
+    try lib.collection.test_list.testIndexError(List, &list, a);
 }
 
 test "format" {

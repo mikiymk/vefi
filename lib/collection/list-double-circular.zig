@@ -131,6 +131,21 @@ pub fn DoubleCircularList(T: type) type {
             }
         }
 
+        /// リストの最後から指定した位置のノードを返す。
+        fn getNodeFromLast(self: List, index: usize) ?*Node {
+            assert(self.isValidList());
+
+            const tail = self.tail orelse return null;
+            var node = tail;
+            var count = index;
+
+            while (true) : (node = node.prev) {
+                if (count == 0) return node;
+                count -= 1;
+                if (node.prev == tail) return null;
+            }
+        }
+
         /// リストの先頭のノードを返す。
         fn getFirstNode(self: List) ?*Node {
             assert(self.isValidList());
@@ -148,6 +163,11 @@ pub fn DoubleCircularList(T: type) type {
         /// リストの指定した位置の要素を返す。
         pub fn get(self: List, index: usize) ?T {
             return if (self.getNode(index)) |n| n.value else null;
+        }
+
+        /// リストの最後から指定した位置の要素を返す。
+        pub fn getFromLast(self: List, index: usize) ?T {
+            return if (self.getNodeFromLast(index)) |n| n.value else null;
         }
 
         /// リストの先頭の要素を返す。
@@ -326,7 +346,10 @@ test DoubleCircularList {
     defer list.deinit(a);
 
     try expect(@TypeOf(list) == DoubleCircularList(u8));
-    try lib.collection.testList(List, &list, a);
+    try lib.collection.test_list.testList(List, &list, a);
+    try lib.collection.test_list.testRemoveToZero(List, &list, a);
+    try lib.collection.test_list.testIndexError(List, &list, a);
+    try lib.collection.test_list.testGetFromLast(List, &list, a);
 }
 
 test "format" {

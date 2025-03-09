@@ -107,6 +107,19 @@ pub fn DoubleLinearSentinelList(T: type) type {
             return generic_list.getNode(self.head, self.sentinel, index);
         }
 
+        /// リストの指定した位置のノードを返す。
+        fn getNodeFromLast(self: List, index: usize) *Node {
+            assert(self.isValidList());
+
+            var node = self.tail;
+            var count = index;
+
+            while (node != self.sentinel and count != 0) : (node = node.prev) {
+                count -= 1;
+            }
+            return node;
+        }
+
         /// リストの先頭のノードを返す。
         fn getFirstNode(self: List) *Node {
             assert(self.isValidList());
@@ -124,6 +137,11 @@ pub fn DoubleLinearSentinelList(T: type) type {
         /// リストの指定した位置の要素を返す。
         pub fn get(self: List, index: usize) ?T {
             return self.getNode(index).getValue(self.sentinel);
+        }
+
+        /// リストの最後から指定した位置の要素を返す。
+        pub fn getFromLast(self: List, index: usize) ?T {
+            return self.getNodeFromLast(index).getValue(self.sentinel);
         }
 
         /// リストの先頭の要素を返す。
@@ -273,7 +291,10 @@ test DoubleLinearSentinelList {
     defer list.deinit(a);
 
     try expect(@TypeOf(list) == DoubleLinearSentinelList(u8));
-    try lib.collection.testList(List, &list, a);
+    try lib.collection.test_list.testList(List, &list, a);
+    try lib.collection.test_list.testRemoveToZero(List, &list, a);
+    try lib.collection.test_list.testIndexError(List, &list, a);
+    try lib.collection.test_list.testGetFromLast(List, &list, a);
 }
 
 test "format" {
