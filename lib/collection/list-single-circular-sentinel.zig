@@ -30,7 +30,7 @@ pub fn SingleCircularSentinelList(T: type) type {
                 return node;
             }
 
-            pub fn deinit(node: *Node, a: Allocator) void {
+            pub fn deinit(node: *const Node, a: Allocator) void {
                 a.destroy(node);
             }
 
@@ -53,7 +53,9 @@ pub fn SingleCircularSentinelList(T: type) type {
 
         /// 空のリストを作成する。
         pub fn init(a: Allocator) Allocator.Error!List {
-            const sentinel = try Node.initSelf(a, undefined);
+            const sentinel = try a.create(Node);
+            sentinel.next = sentinel;
+
             return .{ .head = sentinel, .sentinel = sentinel };
         }
 
@@ -61,13 +63,11 @@ pub fn SingleCircularSentinelList(T: type) type {
         pub fn deinit(self: *List, a: Allocator) void {
             generic_list.clear(a, self.head, self.sentinel);
             self.sentinel.deinit(a);
+            self.* = undefined;
         }
 
         /// リストの構造が正しいか確認する。
         fn isValidList(self: List) bool {
-            var node = self.head;
-            while (node != self.sentinel) : (node = node.next) {}
-
             if (self.sentinel.next != self.head) return false;
             return true;
         }
@@ -135,10 +135,10 @@ pub fn SingleCircularSentinelList(T: type) type {
             }
 
             const prev = self.getNode(index - 1);
-            const node = prev.next;
-            if (node == self.sentinel) return error.OutOfBounds;
+            if (prev == self.sentinel) return error.OutOfBounds;
+            const next = prev.next;
 
-            prev.next = try Node.init(a, value, node);
+            prev.next = try Node.init(a, value, next);
         }
 
         /// リストの先頭に要素を追加する。
@@ -147,8 +147,9 @@ pub fn SingleCircularSentinelList(T: type) type {
             defer assert(self.isValidList());
 
             const node = try Node.init(a, value, self.head);
-            self.head = node;
+
             self.sentinel.next = node;
+            self.head = node;
         }
 
         /// リストの末尾に要素を追加する。
@@ -156,12 +157,13 @@ pub fn SingleCircularSentinelList(T: type) type {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
-            const new_node = try Node.init(a, value, self.sentinel);
+            const node = try Node.init(a, value, self.sentinel);
+            const prev = self.getLastNode();
 
-            const last = self.getLastNode();
-            last.next = new_node;
-            if (last == self.sentinel) {
-                self.head = new_node;
+            prev.next = node;
+
+            if (prev == self.sentinel) {
+                self.head = node;
             }
         }
 
@@ -173,6 +175,7 @@ pub fn SingleCircularSentinelList(T: type) type {
             if (index == 0) return self.removeFirst(a);
 
             const prev = self.getNode(index - 1);
+            if (prev == self.sentinel) return error.OutOfBounds;
             const node = prev.next;
             if (node == self.sentinel) return error.OutOfBounds;
 
@@ -186,12 +189,13 @@ pub fn SingleCircularSentinelList(T: type) type {
             defer assert(self.isValidList());
 
             const node = self.head;
-            const next = node.next;
             if (node == self.sentinel) return error.OutOfBounds;
+            const next = node.next;
 
-            node.deinit(a);
-            self.head = next;
             self.sentinel.next = next;
+            node.deinit(a);
+
+            self.head = next;
         }
 
         /// リストの末尾の要素を削除する。
@@ -209,12 +213,13 @@ pub fn SingleCircularSentinelList(T: type) type {
 
             if (prev == self.sentinel) return error.OutOfBounds;
 
+            prev_prev.next = self.sentinel;
+            prev.deinit(a);
+
             if (prev_prev == self.sentinel) {
                 self.head = self.sentinel;
                 self.sentinel.next = self.sentinel;
             }
-            prev_prev.next = self.sentinel;
-            prev.deinit(a);
         }
 
         /// リストを複製する。
@@ -234,6 +239,8 @@ pub fn SingleCircularSentinelList(T: type) type {
         }
 
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
+            assert(self.isValidList());
+
             const type_name = "SingleCircularSentinelList(" ++ @typeName(T) ++ ")";
             try generic_list.format(w, type_name, self.head, self.sentinel);
         }

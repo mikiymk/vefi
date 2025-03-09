@@ -27,11 +27,7 @@ pub fn DoubleCircularSentinelList(T: type) type {
             /// 自分自身をnextに指定する。
             pub fn initSelf(a: Allocator, value: T) Allocator.Error!*Node {
                 const node: *Node = try a.create(Node);
-                node.* = .{
-                    .value = value,
-                    .next = node,
-                    .prev = node,
-                };
+                node.* = .{ .value = value, .next = node, .prev = node };
                 return node;
             }
 
@@ -59,7 +55,10 @@ pub fn DoubleCircularSentinelList(T: type) type {
 
         /// 空のリストを作成する。
         pub fn init(a: Allocator) Allocator.Error!List {
-            const sentinel = try Node.initSelf(a, undefined);
+            const sentinel = try a.create(Node);
+            sentinel.next = sentinel;
+            sentinel.prev = sentinel;
+
             return .{
                 .head = sentinel,
                 .tail = sentinel,

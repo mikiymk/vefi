@@ -17,8 +17,16 @@ pub fn SingleLinearSentinelList(T: type) type {
 
             /// 値を持つノードのメモリを作成する。
             pub fn init(a: Allocator, value: T, next: *Node) Allocator.Error!*Node {
-                const node: *Node = try a.create(Node);
+                const node = try a.create(Node);
                 node.* = .{ .value = value, .next = next };
+                return node;
+            }
+
+            /// 値を持つノードのメモリを作成する。
+            /// 自分自身をnextに指定する。
+            fn initSelf(a: Allocator, value: T) Allocator.Error!*Node {
+                const node = try a.create(Node);
+                node.* = .{ .value = value, .next = node };
                 return node;
             }
 
@@ -32,7 +40,7 @@ pub fn SingleLinearSentinelList(T: type) type {
                 return if (node != sentinel) node.value else null;
             }
 
-            pub fn format(node: *const Node, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
+            pub fn format(node: Node, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
                 const writer = lib.io.writer(w);
                 try writer.print("{}", .{node.value});
             }
@@ -46,7 +54,7 @@ pub fn SingleLinearSentinelList(T: type) type {
 
         /// 空のリストを作成する。
         pub fn init(a: Allocator) Allocator.Error!List {
-            var sentinel = try Node.init(a, undefined, undefined);
+            var sentinel = try a.create(Node);
             sentinel.next = sentinel;
 
             return .{ .head = sentinel, .sentinel = sentinel };
@@ -54,22 +62,13 @@ pub fn SingleLinearSentinelList(T: type) type {
 
         /// リストに含まれる全てのノードを削除する。
         pub fn deinit(self: *List, a: Allocator) void {
-            var node = self.head;
-
-            while (node != self.sentinel) {
-                const next = node.next;
-                node.deinit(a);
-                node = next;
-            }
-
+            generic_list.clear(a, self.head, self.sentinel);
             self.sentinel.deinit(a);
+            self.* = undefined;
         }
 
         /// リストの構造が正しいか確認する。
         fn isValidList(self: List) bool {
-            var node = self.head;
-
-            while (node != self.sentinel) : (node = node.next) {}
             if (self.sentinel.next != self.sentinel) return false;
             return true;
         }
@@ -136,9 +135,7 @@ pub fn SingleLinearSentinelList(T: type) type {
             }
 
             const node = self.getNode(index - 1);
-            if (node == self.sentinel) {
-                return error.OutOfBounds;
-            }
+            if (node == self.sentinel) return error.OutOfBounds;
 
             node.next = try Node.init(a, value, node.next);
         }
@@ -156,13 +153,13 @@ pub fn SingleLinearSentinelList(T: type) type {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
-            const new_node = try Node.init(a, value, self.sentinel);
-            const last_node = self.getLastNode();
+            const node = try Node.init(a, value, self.sentinel);
+            const prev = self.getLastNode();
 
-            if (last_node != self.sentinel) {
-                last_node.next = new_node;
+            if (prev != self.sentinel) {
+                prev.next = node;
             } else {
-                self.head = new_node;
+                self.head = node;
             }
         }
 
@@ -171,7 +168,9 @@ pub fn SingleLinearSentinelList(T: type) type {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
-            if (index == 0) return self.removeFirst(a);
+            if (index == 0) {
+                return self.removeFirst(a);
+            }
 
             const prev = self.getNode(index - 1);
             const node = prev.next;
@@ -198,18 +197,19 @@ pub fn SingleLinearSentinelList(T: type) type {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
-            var prev_prev: *Node = self.sentinel;
-            var prev: *Node = self.sentinel;
-            var node: *Node = self.head;
+            var prev_prev = self.sentinel;
+            var prev = self.sentinel;
+            var node = self.head;
 
-            while (node != self.sentinel) : (node = node.next) {
+            while (node != self.sentinel) : ({
                 prev_prev = prev;
                 prev = node;
-            }
+                node = node.next;
+            }) {}
 
             if (prev == self.sentinel) return error.OutOfBounds;
-
             prev.deinit(a);
+
             if (prev_prev != self.sentinel) {
                 prev_prev.next = self.sentinel;
             } else {
@@ -234,6 +234,8 @@ pub fn SingleLinearSentinelList(T: type) type {
         }
 
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
+            assert(self.isValidList());
+
             const type_name = "SingleLinearSentinelList(" ++ @typeName(T) ++ ")";
             try generic_list.format(w, type_name, self.head, self.sentinel);
         }

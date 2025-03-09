@@ -13,12 +13,20 @@ pub fn SingleLinearList(T: type) type {
         pub const Item = T;
         pub const Node = struct {
             value: Item,
-            next: ?*Node = null,
+            next: ?*Node,
 
             /// 値を持つノードのメモリを作成する。
             pub fn init(a: Allocator, value: T, next: ?*Node) Allocator.Error!*Node {
-                const node: *Node = try a.create(Node);
+                const node = try a.create(Node);
                 node.* = .{ .value = value, .next = next };
+                return node;
+            }
+
+            /// 値を持つノードのメモリを作成する。
+            /// 自分自身をnextに指定する。
+            fn initSelf(a: Allocator, value: T) Allocator.Error!*Node {
+                const node = try a.create(Node);
+                node.* = .{ .value = value, .next = node };
                 return node;
             }
 
@@ -53,9 +61,7 @@ pub fn SingleLinearList(T: type) type {
 
         /// リストの構造が正しいか確認する。
         fn isValidList(self: List) bool {
-            var node = self.head;
-            while (node) |n| : (node = n.next) {}
-
+            _ = self;
             return true;
         }
 
@@ -96,9 +102,10 @@ pub fn SingleLinearList(T: type) type {
             var prev: ?*Node = null;
             var node = self.head;
 
-            while (node) |n| : (node = n.next) {
+            while (node) |n| : ({
                 prev = n;
-            }
+                node = n.next;
+            }) {}
 
             return prev;
         }
@@ -145,7 +152,6 @@ pub fn SingleLinearList(T: type) type {
             defer assert(self.isValidList());
 
             const node = try Node.init(a, value, null);
-
             if (self.getLastNode()) |prev| {
                 prev.next = node;
             } else {
@@ -158,7 +164,9 @@ pub fn SingleLinearList(T: type) type {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
-            if (index == 0) return self.removeFirst(a);
+            if (index == 0) {
+                return self.removeFirst(a);
+            }
 
             const prev = self.getNode(index - 1) orelse return error.OutOfBounds;
             const node = prev.next orelse return error.OutOfBounds;
@@ -186,15 +194,18 @@ pub fn SingleLinearList(T: type) type {
             var prev_prev: ?*Node = null;
             var prev: ?*Node = null;
             var node = self.head;
-
-            while (node) |n| : (node = n.next) {
+            while (node) |n| : ({
                 prev_prev = prev;
                 prev = n;
+                node = n.next;
+            }) {}
+
+            if (prev) |p| {
+                p.deinit(a);
+            } else {
+                return error.OutOfBounds;
             }
 
-            const p = prev orelse return error.OutOfBounds;
-
-            p.deinit(a);
             if (prev_prev) |n| {
                 n.next = null;
             } else {

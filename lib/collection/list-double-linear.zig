@@ -13,13 +13,21 @@ pub fn DoubleLinearList(T: type) type {
         pub const Item = T;
         pub const Node = struct {
             value: Item,
-            next: ?*Node = null,
-            prev: ?*Node = null,
+            next: ?*Node,
+            prev: ?*Node,
 
             /// 値を持つノードのメモリを作成する。
             pub fn init(a: Allocator, value: T, next: ?*Node, prev: ?*Node) Allocator.Error!*Node {
-                const node: *Node = try a.create(Node);
+                const node = try a.create(Node);
                 node.* = .{ .value = value, .next = next, .prev = prev };
+                return node;
+            }
+
+            /// 値を持つノードのメモリを作成する。
+            /// 自分自身をnextに指定する。
+            pub fn initSelf(a: Allocator, value: T) Allocator.Error!*Node {
+                const node = try a.create(Node);
+                node.* = .{ .value = value, .next = node, .prev = node };
                 return node;
             }
 
@@ -143,13 +151,13 @@ pub fn DoubleLinearList(T: type) type {
             defer assert(self.isValidList());
 
             const next = self.head;
-            const new_node = try Node.init(a, value, next, null);
+            const node = try Node.init(a, value, next, null);
 
-            self.head = new_node;
+            self.head = node;
             if (next) |n| {
-                n.prev = new_node;
+                n.prev = node;
             } else {
-                self.tail = new_node;
+                self.tail = node;
             }
         }
 
@@ -159,13 +167,13 @@ pub fn DoubleLinearList(T: type) type {
             defer assert(self.isValidList());
 
             const prev = self.tail;
-            const new_node = try Node.init(a, value, null, prev);
+            const node = try Node.init(a, value, null, prev);
 
-            self.tail = new_node;
-            if (prev) |n| {
-                n.next = new_node;
+            self.tail = node;
+            if (prev) |p| {
+                p.next = node;
             } else {
-                self.head = new_node;
+                self.head = node;
             }
         }
 
@@ -181,8 +189,8 @@ pub fn DoubleLinearList(T: type) type {
             const next = node.next;
 
             node.deinit(a);
-            if (prev) |n| {
-                n.next = next;
+            if (prev) |p| {
+                p.next = next;
             } else {
                 self.head = next;
             }
@@ -198,10 +206,10 @@ pub fn DoubleLinearList(T: type) type {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
-            const head = self.head orelse return error.OutOfBounds;
-            const next = head.next;
+            const node = self.head orelse return error.OutOfBounds;
+            const next = node.next;
 
-            head.deinit(a);
+            node.deinit(a);
             self.head = next;
             if (next) |n| {
                 n.prev = null;
@@ -244,6 +252,8 @@ pub fn DoubleLinearList(T: type) type {
         }
 
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
+            assert(self.isValidList());
+
             const type_name = "DoubleLinearList(" ++ @typeName(T) ++ ")";
             try generic_list.format(w, type_name, self.head);
         }

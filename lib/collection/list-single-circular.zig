@@ -60,6 +60,7 @@ pub fn SingleCircularList(T: type) type {
                 node = next;
                 if (node == head) break; // do-whileになる
             }
+            self.* = undefined;
         }
 
         /// リストの構造が正しいか確認する。
@@ -167,8 +168,8 @@ pub fn SingleCircularList(T: type) type {
                 return self.addFirst(a, value);
             }
 
-            const node = self.getNode(index - 1) orelse return error.OutOfBounds;
-            node.next = try Node.init(a, value, node.next);
+            const prev = self.getNode(index - 1) orelse return error.OutOfBounds;
+            prev.next = try Node.init(a, value, prev.next);
         }
 
         /// リストの先頭に要素を追加する。
@@ -178,8 +179,8 @@ pub fn SingleCircularList(T: type) type {
 
             if (self.getLastNode()) |prev| {
                 const node = try Node.init(a, value, prev.next);
-
                 prev.next = node;
+
                 self.head = node;
             } else {
                 self.head = try Node.initSelf(a, value);
@@ -209,8 +210,9 @@ pub fn SingleCircularList(T: type) type {
 
             const prev = self.getNode(index - 1) orelse return error.OutOfBounds;
             const node = prev.next;
+            const next = node.next;
 
-            prev.next = node.next;
+            prev.next = next;
             node.deinit(a);
         }
 
@@ -223,13 +225,14 @@ pub fn SingleCircularList(T: type) type {
             const node = self.head.?;
             const next = node.next;
 
-            self.head = next;
             prev.next = next;
+            node.deinit(a);
+
             if (node == next) {
                 self.head = null;
+            } else {
+                self.head = next;
             }
-
-            node.deinit(a);
         }
 
         /// リストの末尾の要素を削除する。
@@ -254,10 +257,11 @@ pub fn SingleCircularList(T: type) type {
             // node      ->  head  head       head
 
             prev_prev.next = node;
+            prev.deinit(a);
+
             if (node == prev) {
                 self.head = null;
             }
-            prev.deinit(a);
         }
 
         /// リストを複製する。
@@ -277,6 +281,8 @@ pub fn SingleCircularList(T: type) type {
         }
 
         pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
+            assert(self.isValidList());
+
             const type_name = "SingleCircularList(" ++ @typeName(T) ++ ")";
             const writer = lib.io.writer(w);
 
