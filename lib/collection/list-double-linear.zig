@@ -53,16 +53,28 @@ pub fn DoubleLinearList(T: type) type {
 
         /// リストの構造が正しいか確認する。
         fn isValidList(self: List) bool {
-            _ = self;
+            var prev: ?*Node = null;
+            var node = self.head;
+            while (node) |n| : (node = n.next) {
+                if (n.prev != prev) return false;
+                prev = node;
+            }
+
+            return true;
         }
 
         /// リストの要素数を数える
         pub fn size(self: List) usize {
+            assert(self.isValidList());
+
             return generic_list.size(self.head);
         }
 
         /// リストの全ての要素を削除する。
         pub fn clear(self: *List, a: Allocator) void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             generic_list.clear(a, self.head);
             self.head = null;
             self.tail = null;
@@ -70,16 +82,22 @@ pub fn DoubleLinearList(T: type) type {
 
         /// リストの指定した位置のノードを返す。
         fn getNode(self: List, index: usize) ?*Node {
+            assert(self.isValidList());
+
             return generic_list.getNode(self.head, index);
         }
 
         /// リストの先頭のノードを返す。
         fn getFirstNode(self: List) ?*Node {
+            assert(self.isValidList());
+
             return self.head;
         }
 
         /// リストの末尾のノードを返す。
         fn getLastNode(self: List) ?*Node {
+            assert(self.isValidList());
+
             return self.tail;
         }
 
@@ -100,7 +118,12 @@ pub fn DoubleLinearList(T: type) type {
 
         /// リストの指定した位置に要素を追加する。
         pub fn add(self: *List, a: Allocator, index: usize, value: T) AllocIndexError!void {
-            if (index == 0) return self.addFirst(a, value);
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
+            if (index == 0) {
+                return self.addFirst(a, value);
+            }
 
             const prev = self.getNode(index - 1) orelse return error.OutOfBounds;
             const next = prev.next;
@@ -116,6 +139,9 @@ pub fn DoubleLinearList(T: type) type {
 
         /// リストの先頭に要素を追加する。
         pub fn addFirst(self: *List, a: Allocator, value: T) Allocator.Error!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             const next = self.head;
             const new_node = try Node.init(a, value, next, null);
 
@@ -129,6 +155,9 @@ pub fn DoubleLinearList(T: type) type {
 
         /// リストの末尾に要素を追加する。
         pub fn addLast(self: *List, a: Allocator, value: T) Allocator.Error!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             const prev = self.tail;
             const new_node = try Node.init(a, value, null, prev);
 
@@ -142,6 +171,9 @@ pub fn DoubleLinearList(T: type) type {
 
         /// リストの指定した位置の要素を削除する。
         pub fn remove(self: *List, a: Allocator, index: usize) IndexError!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             if (index == 0) return self.removeFirst(a);
 
             const node = self.getNode(index) orelse return error.OutOfBounds;
@@ -163,6 +195,9 @@ pub fn DoubleLinearList(T: type) type {
 
         /// リストの先頭の要素を削除する。
         pub fn removeFirst(self: *List, a: Allocator) IndexError!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             const head = self.head orelse return error.OutOfBounds;
             const next = head.next;
 
@@ -177,6 +212,9 @@ pub fn DoubleLinearList(T: type) type {
 
         /// リストの末尾の要素を削除する。
         pub fn removeLast(self: *List, a: Allocator) IndexError!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             const node = self.tail orelse return error.OutOfBounds;
             const prev = node.prev;
 

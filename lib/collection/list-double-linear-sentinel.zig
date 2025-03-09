@@ -63,16 +63,30 @@ pub fn DoubleLinearSentinelList(T: type) type {
 
         /// リストの構造が正しいか確認する。
         fn isValidList(self: List) bool {
-            _ = self;
+            var prev = self.sentinel;
+            var node = self.head;
+            while (node != self.sentinel) : (node = node.next) {
+                if (node.prev != prev) return false;
+                prev = node;
+            }
+
+            if (self.sentinel.next != self.sentinel) return false;
+            if (self.sentinel.prev != self.sentinel) return false;
+            return true;
         }
 
         /// リストの要素数を数える
         pub fn size(self: List) usize {
+            assert(self.isValidList());
+
             return generic_list.size(self.head, self.sentinel);
         }
 
         /// リストの全ての要素を削除する。
         pub fn clear(self: *List, a: Allocator) void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             generic_list.clear(a, self.head, self.sentinel);
             self.head = self.sentinel;
             self.tail = self.sentinel;
@@ -80,16 +94,22 @@ pub fn DoubleLinearSentinelList(T: type) type {
 
         /// リストの指定した位置のノードを返す。
         fn getNode(self: List, index: usize) *Node {
+            assert(self.isValidList());
+
             return generic_list.getNode(self.head, self.sentinel, index);
         }
 
         /// リストの先頭のノードを返す。
         fn getFirstNode(self: List) *Node {
+            assert(self.isValidList());
+
             return self.head;
         }
 
         /// リストの末尾のノードを返す。
         fn getLastNode(self: List) *Node {
+            assert(self.isValidList());
+
             return self.tail;
         }
 
@@ -110,6 +130,9 @@ pub fn DoubleLinearSentinelList(T: type) type {
 
         /// リストの指定した位置に要素を追加する。
         pub fn add(self: *List, a: Allocator, index: usize, value: T) AllocIndexError!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             if (index == 0) {
                 return self.addFirst(a, value);
             }
@@ -129,32 +152,41 @@ pub fn DoubleLinearSentinelList(T: type) type {
 
         /// リストの先頭に要素を追加する。
         pub fn addFirst(self: *List, a: Allocator, value: T) Allocator.Error!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             const next = self.head;
             const node = try Node.init(a, value, next, self.sentinel);
-
-            next.prev = node;
 
             self.head = node;
             if (next == self.sentinel) {
                 self.tail = node;
+            } else {
+                next.prev = node;
             }
         }
 
         /// リストの末尾に要素を追加する。
         pub fn addLast(self: *List, a: Allocator, value: T) Allocator.Error!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             const prev = self.getLastNode();
             const node = try Node.init(a, value, self.sentinel, prev);
 
-            prev.next = node;
-
             if (prev == self.sentinel) {
                 self.head = node;
+            } else {
+                prev.next = node;
             }
             self.tail = node;
         }
 
         /// リストの指定した位置の要素を削除する。
         pub fn remove(self: *List, a: Allocator, index: usize) IndexError!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             const node = self.getNode(index);
             const prev = node.prev;
             const next = node.next;
@@ -175,6 +207,9 @@ pub fn DoubleLinearSentinelList(T: type) type {
 
         /// リストの先頭の要素を削除する。
         pub fn removeFirst(self: *List, a: Allocator) IndexError!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             const node = self.head;
             const next = node.next;
             if (node == self.sentinel) return error.OutOfBounds;
@@ -186,6 +221,9 @@ pub fn DoubleLinearSentinelList(T: type) type {
 
         /// リストの末尾の要素を削除する。
         pub fn removeLast(self: *List, a: Allocator) IndexError!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             const node = self.tail;
             const prev = node.prev;
             if (node == self.sentinel) return error.OutOfBounds;

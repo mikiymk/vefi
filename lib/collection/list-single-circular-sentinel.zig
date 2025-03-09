@@ -65,32 +65,48 @@ pub fn SingleCircularSentinelList(T: type) type {
 
         /// リストの構造が正しいか確認する。
         fn isValidList(self: List) bool {
-            _ = self;
+            var node = self.head;
+            while (node != self.sentinel) : (node = node.next) {}
+
+            if (self.sentinel.next != self.head) return false;
+            return true;
         }
 
         /// リストの要素数を数える
         pub fn size(self: List) usize {
+            assert(self.isValidList());
+
             return generic_list.size(self.head, self.sentinel);
         }
 
         /// リストの全ての要素を削除する。
         pub fn clear(self: *List, a: Allocator) void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             generic_list.clear(a, self.head, self.sentinel);
             self.head = self.sentinel;
+            self.sentinel.next = self.sentinel;
         }
 
         /// リストの指定した位置のノードを返す。
         fn getNode(self: List, index: usize) *Node {
+            assert(self.isValidList());
+
             return generic_list.getNode(self.head, self.sentinel, index);
         }
 
         /// リストの先頭のノードを返す。
         fn getFirstNode(self: List) *Node {
+            assert(self.isValidList());
+
             return self.head;
         }
 
         /// リストの末尾のノードを返す。
         fn getLastNode(self: List) *Node {
+            assert(self.isValidList());
+
             return generic_list.getLastNode(self.head, self.sentinel);
         }
 
@@ -111,6 +127,9 @@ pub fn SingleCircularSentinelList(T: type) type {
 
         /// リストの指定した位置に要素を追加する。
         pub fn add(self: *List, a: Allocator, index: usize, value: T) AllocIndexError!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             if (index == 0) {
                 return self.addFirst(a, value);
             }
@@ -124,11 +143,19 @@ pub fn SingleCircularSentinelList(T: type) type {
 
         /// リストの先頭に要素を追加する。
         pub fn addFirst(self: *List, a: Allocator, value: T) Allocator.Error!void {
-            self.head = try Node.init(a, value, self.head);
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
+            const node = try Node.init(a, value, self.head);
+            self.head = node;
+            self.sentinel.next = node;
         }
 
         /// リストの末尾に要素を追加する。
         pub fn addLast(self: *List, a: Allocator, value: T) Allocator.Error!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             const new_node = try Node.init(a, value, self.sentinel);
 
             const last = self.getLastNode();
@@ -140,6 +167,9 @@ pub fn SingleCircularSentinelList(T: type) type {
 
         /// リストの指定した位置の要素を削除する。
         pub fn remove(self: *List, a: Allocator, index: usize) IndexError!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             if (index == 0) return self.removeFirst(a);
 
             const prev = self.getNode(index - 1);
@@ -152,15 +182,23 @@ pub fn SingleCircularSentinelList(T: type) type {
 
         /// リストの先頭の要素を削除する。
         pub fn removeFirst(self: *List, a: Allocator) IndexError!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             const node = self.head;
+            const next = node.next;
             if (node == self.sentinel) return error.OutOfBounds;
 
-            self.head = node.next;
             node.deinit(a);
+            self.head = next;
+            self.sentinel.next = next;
         }
 
         /// リストの末尾の要素を削除する。
         pub fn removeLast(self: *List, a: Allocator) IndexError!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             var prev_prev = self.sentinel;
             var prev = self.sentinel;
             var node = self.head;
@@ -173,6 +211,7 @@ pub fn SingleCircularSentinelList(T: type) type {
 
             if (prev_prev == self.sentinel) {
                 self.head = self.sentinel;
+                self.sentinel.next = self.sentinel;
             }
             prev_prev.next = self.sentinel;
             prev.deinit(a);

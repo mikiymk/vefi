@@ -64,11 +64,22 @@ pub fn SingleCircularList(T: type) type {
 
         /// リストの構造が正しいか確認する。
         fn isValidList(self: List) bool {
-            _ = self;
+            const head = self.head orelse return true;
+            var prev = head;
+            var node = prev.next;
+
+            while (node != self.head) : (node = node.next) {
+                prev = node;
+            }
+
+            if (prev.next != head) return false;
+            return true;
         }
 
         /// リストの要素数を数える
         pub fn size(self: List) usize {
+            assert(self.isValidList());
+
             const head = self.head orelse return 0;
             var node = head;
             var count: usize = 0;
@@ -81,6 +92,9 @@ pub fn SingleCircularList(T: type) type {
 
         /// リストの全ての要素を削除する。
         pub fn clear(self: *List, a: Allocator) void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             const head = self.head orelse return;
             var node = head;
 
@@ -95,6 +109,8 @@ pub fn SingleCircularList(T: type) type {
 
         /// リストの指定した位置のノードを返す。
         fn getNode(self: List, index: usize) ?*Node {
+            assert(self.isValidList());
+
             const head = self.head orelse return null;
             var node = head;
             var count = index;
@@ -108,11 +124,15 @@ pub fn SingleCircularList(T: type) type {
 
         /// リストの先頭のノードを返す。
         fn getFirstNode(self: List) ?*Node {
+            assert(self.isValidList());
+
             return self.head;
         }
 
         /// リストの末尾のノードを返す。
         fn getLastNode(self: List) ?*Node {
+            assert(self.isValidList());
+
             var prev = self.head orelse return null;
             var node = prev.next;
 
@@ -140,6 +160,9 @@ pub fn SingleCircularList(T: type) type {
 
         /// リストの指定した位置に要素を追加する。
         pub fn add(self: *List, a: Allocator, index: usize, value: T) AllocIndexError!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             if (index == 0) {
                 return self.addFirst(a, value);
             }
@@ -150,6 +173,9 @@ pub fn SingleCircularList(T: type) type {
 
         /// リストの先頭に要素を追加する。
         pub fn addFirst(self: *List, a: Allocator, value: T) Allocator.Error!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             if (self.getLastNode()) |prev| {
                 const node = try Node.init(a, value, prev.next);
 
@@ -162,6 +188,9 @@ pub fn SingleCircularList(T: type) type {
 
         /// リストの末尾に要素を追加する。
         pub fn addLast(self: *List, a: Allocator, value: T) Allocator.Error!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             if (self.getLastNode()) |prev| {
                 prev.next = try Node.init(a, value, prev.next);
             } else {
@@ -171,6 +200,9 @@ pub fn SingleCircularList(T: type) type {
 
         /// リストの指定した位置の要素を削除する。
         pub fn remove(self: *List, a: Allocator, index: usize) IndexError!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             if (index == 0) {
                 return self.removeFirst(a);
             }
@@ -184,6 +216,9 @@ pub fn SingleCircularList(T: type) type {
 
         /// リストの先頭の要素を削除する。
         pub fn removeFirst(self: *List, a: Allocator) IndexError!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             const prev = self.getLastNode() orelse return error.OutOfBounds;
             const node = self.head.?;
             const next = node.next;
@@ -199,6 +234,9 @@ pub fn SingleCircularList(T: type) type {
 
         /// リストの末尾の要素を削除する。
         pub fn removeLast(self: *List, a: Allocator) IndexError!void {
+            assert(self.isValidList());
+            defer assert(self.isValidList());
+
             const head = self.head orelse return error.OutOfBounds;
 
             var prev_prev = head;
