@@ -12,6 +12,10 @@ const Range = lib.collection.array.Range;
 /// 動的配列 (Dynamic Array)
 pub fn DynamicArray(T: type) type {
     return struct {
+        pub const IndexError = error{OutOfBounds};
+        pub const AllocError = Allocator.Error;
+        pub const AllocIndexError = AllocError || IndexError;
+
         _values: []T,
         _size: usize,
 
@@ -27,7 +31,7 @@ pub fn DynamicArray(T: type) type {
         }
 
         /// インデックスが配列の範囲内かどうか判定する。
-        pub fn isInBoundIndex(self: @This(), index: usize) bool {
+        pub fn isInBound(self: @This(), index: usize) bool {
             return 0 <= index and index < self._size;
         }
 
@@ -39,7 +43,7 @@ pub fn DynamicArray(T: type) type {
         /// インデックスがが配列の範囲内かどうかチェックをする。
         /// 配列の範囲外の場合、未定義動作を起こす。
         pub fn assertBound(self: @This(), index: usize) void {
-            assert(self.isInBoundIndex(index));
+            assert(self.isInBound(index));
         }
 
         /// 配列の要素数を返す。
@@ -49,38 +53,37 @@ pub fn DynamicArray(T: type) type {
 
         /// 配列の`index`番目の要素を返す。
         /// 配列の範囲外の場合、未定義動作を起こす。
-        pub fn get(self: @This(), index: usize) T {
-            self.assertBound(index);
+        pub fn get(self: @This(), index: usize) ?T {
+            if (!self.isInBound(index)) return null;
             return self._values[index];
         }
 
         /// 配列の`index`番目の要素への参照を返す。
         /// 配列の範囲外の場合、未定義動作を起こす。
         pub fn getRef(self: @This(), index: usize) *T {
-            self.assertBound(index);
+            if (!self.isInBound(index)) return null;
             return @ptrCast(self._values.ptr + index);
         }
 
         /// 配列の`index`番目の要素の値を設定する。
         /// 配列の範囲外の場合、未定義動作を起こす。
-        pub fn set(self: *@This(), index: usize, value: T) void {
-            self.assertBound(index);
+        pub fn set(self: *@This(), index: usize, value: T) IndexError!void {
+            if (!self.isInBound(index)) return error.OutOfBounds;
             self._values[index] = value;
         }
 
         /// 配列の`begin`〜`end - 1`番目の要素の値をまとめて設定する。
         /// `begin >= end`や配列の範囲外の場合、未定義動作を起こす。
-        pub fn fill(self: *@This(), range: Range, value: T) void {
-            assert(self.isInBoundRange(range));
-
+        pub fn fill(self: *@This(), range: Range, value: T) IndexError!void {
+            if (!self.isInBoundRange(range)) return error.OutOfBounds;
             @memset(self._values[range.begin..range.end], value);
         }
 
         /// 配列の`left`番目と`right`番目の要素の値を交換する。
         /// 配列の範囲外の場合、未定義動作を起こす。
-        pub fn swap(self: *@This(), left: usize, right: usize) void {
-            self.assertBound(left);
-            self.assertBound(right);
+        pub fn swap(self: *@This(), left: usize, right: usize) IndexError!void {
+            if (!self.isInBound(left)) return error.OutOfBounds;
+            if (!self.isInBound(right)) return error.OutOfBounds;
 
             const tmp = self.get(left);
             self.set(left, self.get(right));
@@ -88,7 +91,7 @@ pub fn DynamicArray(T: type) type {
         }
 
         /// 配列の要素の並びを逆転する。
-        pub fn reverse(self: @This()) usize {
+        pub fn reverse(self: @This()) void {
             for (0..(self._size() / 2)) |i| {
                 self.swap(i, self._size - 1);
             }
@@ -153,10 +156,11 @@ pub fn DynamicArray(T: type) type {
             return value;
         }
 
-        pub fn clone(self: @This(), allocator: Allocator) @This() {
-            const new_array = init();
-            new_array._size = self._size;
-            new_array._values = self.copyToSlice(allocator);
+        pub fn copy(self: @This(), allocator: Allocator) AllocError!@This() {
+            const new_array: @This() = .{
+                ._size = self._size,
+                ._values = try self.copyToSlice(allocator),
+            };
 
             return new_array;
         }
@@ -172,6 +176,21 @@ pub fn DynamicArray(T: type) type {
             @memcpy(slice[0..self._size], self._values[0..self._size]);
 
             return slice;
+        }
+
+        /// 配列のキャパシティーを指定したサイズ以上に拡張する。
+        pub fn reserve(self: *@This(), allocator: Allocator, min_size: usize) Allocator.Error!void {
+            const allocate_size = blk: {
+                var s: usize = 8;
+                while (true) {
+                    if (min_size <= s) break :blk s;
+                    s <<= 1;
+                }
+            };
+            if (allocate_size < self._values.len)
+                return;
+
+            self._values = try allocator.realloc(self._values, allocate_size);
         }
 
         /// メモリを再確保して配列の長さを拡張する。
