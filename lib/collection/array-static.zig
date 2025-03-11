@@ -9,7 +9,7 @@ pub fn StaticArray(T: type, array_size: usize) type {
     const Array = [array_size]T;
 
     return struct {
-        _values: Array,
+        values: Array,
 
         pub fn init(initial_value: T) @This() {
             var array = @This(){ ._values = undefined };
@@ -56,7 +56,13 @@ pub fn StaticArray(T: type, array_size: usize) type {
             self._values[index] = value;
         }
 
-        pub fn fill(self: *@This(), begin: usize, end: usize, value: T) void {
+        pub fn setAll(self: *@This(), index: usize, values: []const T) void {
+            assert(self.isInBoundRange(.{ .begin = begin, .end = end }));
+
+            @memcpy(self._values[index..][0..values.len], values);
+        }
+
+        pub fn setFill(self: *@This(), begin: usize, end: usize, value: T) void {
             assert(self.isInBoundRange(.{ .begin = begin, .end = end }));
 
             @memset(self._values[begin..end], value);
