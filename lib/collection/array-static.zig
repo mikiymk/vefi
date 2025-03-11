@@ -29,8 +29,10 @@ pub fn StaticArray(T: type, array_size: usize) type {
         }
 
         /// インデックスが配列の範囲内かどうか判定する。
-        pub fn isInBoundIndex(self: @This(), index: usize) bool {
-            return 0 <= index and index < self.size();
+        pub fn isInBound(self: @This(), index: usize) bool {
+            const size_ = self.size();
+
+            return 0 <= index and index < size_;
         }
 
         /// インデックス範囲が配列の範囲内かどうか判定する。
@@ -51,7 +53,7 @@ pub fn StaticArray(T: type, array_size: usize) type {
         /// 配列の`index`番目の要素を返す。
         /// 配列の範囲外の場合、`null`を返す。
         pub fn get(self: @This(), index: usize) ?T {
-            if (!self.isInBoundIndex(index)) return null;
+            if (!self.isInBound(index)) return null;
 
             return self.values[index];
         }
@@ -59,24 +61,24 @@ pub fn StaticArray(T: type, array_size: usize) type {
         /// 配列の`index`番目の要素への参照を返す。
         /// 配列の範囲外の場合、`null`を返す。
         pub fn getRef(self: *@This(), index: usize) ?*T {
-            if (!self.isInBoundIndex(index)) return null;
+            if (!self.isInBound(index)) return null;
 
             return &self.values[index];
         }
 
         /// 配列の範囲の要素のスライスを返す。
-        /// `index`が配列の範囲外の場合、エラーを返す。
-        pub fn slice(self: @This(), range: Range) IndexError![]const T {
-            if (!self.isInBoundRange(range)) return error.OutOfBounds;
+        /// 配列の範囲外の場合、`null`を返す。
+        pub fn slice(self: @This(), range: Range) ?[]const T {
+            if (!self.isInBoundRange(range)) return null;
             const begin, const end = range;
 
-            return self._values[begin..end];
+            return self.values[begin..end];
         }
 
         /// 配列の`index`番目の要素の値を設定する。
         /// `index`が配列の範囲外の場合、エラーを返す。
         pub fn set(self: *@This(), index: usize, value: T) IndexError!void {
-            if (!self.isInBoundIndex(index)) return error.OutOfBounds;
+            if (!self.isInBound(index)) return error.OutOfBounds;
 
             self.values[index] = value;
         }
@@ -84,7 +86,7 @@ pub fn StaticArray(T: type, array_size: usize) type {
         /// 配列の`index`番目から先を新しい値のスライスで更新する。
         /// `index`からスライスの範囲が配列の範囲外の場合、エラーを返す。
         pub fn setAll(self: *@This(), index: usize, values: []const T) IndexError!void {
-            if (!self.isInBoundIndex(index)) return error.OutOfBounds;
+            if (!self.isInBound(index)) return error.OutOfBounds;
 
             @memcpy(self.values[index..][0..values.len], values);
         }
@@ -101,8 +103,8 @@ pub fn StaticArray(T: type, array_size: usize) type {
         /// 配列の`left`番目と`right`番目の要素の値を交換する。
         /// `left`か`right`が配列の範囲外の場合、エラーを返す。
         pub fn swap(self: *@This(), left: usize, right: usize) IndexError!void {
-            if (!self.isInBoundIndex(left)) return error.OutOfBounds;
-            if (!self.isInBoundIndex(right)) return error.OutOfBounds;
+            if (!self.isInBound(left)) return error.OutOfBounds;
+            if (!self.isInBound(right)) return error.OutOfBounds;
 
             const tmp = self.get(left).?;
             self.set(left, self.get(right).?) catch unreachable;
@@ -140,27 +142,37 @@ pub fn StaticArray(T: type, array_size: usize) type {
 
 test StaticArray {
     const Array = StaticArray(usize, 5);
-    const equals = lib.assert.expectEqualStruct;
+    const eq = lib.assert.expectEqualStruct;
+    const eqSlice = lib.assert.expectEqualSlice;
 
     var array = Array.init(.{ 1, 2, 3, 4, 5 });
-    try equals(array.values, .{ 1, 2, 3, 4, 5 });
+    try eq(array.values, .{ 1, 2, 3, 4, 5 });
 
-    try array.set(0, 6);
-    try equals(array.values, .{ 6, 2, 3, 4, 5 });
-    try equals(array.get(0), 6);
+    try eq(array.size(), 5);
+    try eq(array.get(0), 1);
+    try eq(array.get(5), null);
+    try eq(array.getRef(0).?.*, 1);
+    try eq(array.getRef(5), null);
+    try eqSlice(usize, array.slice(.{ 1, 3 }).?, &.{ 2, 3 });
 
-    const ptr = array.getRef(4).?;
-    ptr.* = 7;
-    try equals(array.values, .{ 6, 2, 3, 4, 7 });
+    const ptr = array.getRef(0).?;
+    ptr.* = 6;
+    try eq(array.values, .{ 6, 2, 3, 4, 5 });
+
+    try array.set(4, 7);
+    try eq(array.values, .{ 6, 2, 3, 4, 7 });
 
     try array.setFill(.{ 1, 3 }, 8);
-    try equals(array.values, .{ 6, 8, 8, 4, 7 });
+    try eq(array.values, .{ 6, 8, 8, 4, 7 });
+
+    try array.setAll(1, &.{ 9, 10, 11 });
+    try eq(array.values, .{ 6, 9, 10, 11, 7 });
 
     try array.swap(2, 4);
-    try equals(array.values, .{ 6, 8, 7, 4, 8 });
+    try eq(array.values, .{ 6, 9, 7, 11, 10 });
 
     array.reverse();
-    try equals(array.values, .{ 8, 4, 7, 8, 6 });
+    try eq(array.values, .{ 10, 11, 7, 9, 6 });
 }
 
 test "format" {

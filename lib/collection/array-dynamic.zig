@@ -32,14 +32,19 @@ pub fn DynamicArray(T: type) type {
 
         /// インデックスが配列の範囲内かどうか判定する。
         pub fn isInBound(self: @This(), index: usize) bool {
-            return 0 <= index and index < self._size;
+            const size_ = self.size();
+
+            return 0 <= index and index < size_;
         }
 
         /// インデックス範囲が配列の範囲内かどうか判定する。
         pub fn isInBoundRange(self: @This(), range: Range) bool {
-            return 0 <= range.begin and range.begin < self._size and
-                0 < range.end and range.end <= self._size and
-                range.begin < range.end;
+            const begin, const end = range;
+            const size_ = self.size();
+
+            return 0 <= begin and begin < size_ and
+                0 < end and end <= size_ and
+                begin < end;
         }
 
         /// 配列の要素数を返す。
@@ -62,9 +67,9 @@ pub fn DynamicArray(T: type) type {
         }
 
         /// 配列の範囲の要素のスライスを返す。
-        /// `index`が配列の範囲外の場合、エラーを返す。
-        pub fn slice(self: @This(), range: Range) IndexError![]const T {
-            if (!self.isInBoundRange(range)) return error.OutOfBounds;
+        /// 配列の範囲外の場合、`null`を返す。
+        pub fn slice(self: @This(), range: Range) ?[]const T {
+            if (!self.isInBoundRange(range)) return null;
             const begin, const end = range;
 
             return self._values[begin..end];
@@ -116,7 +121,9 @@ pub fn DynamicArray(T: type) type {
             try self.insert(allocator, 0, item);
         }
 
-        pub fn pushFrontAll() a {}
+        pub fn pushFrontAll(self: *@This(), allocator: Allocator, items: []const T) Allocator.Error!void {
+            try self.insertAll(allocator, items);
+        }
 
         /// 値を配列の最も後ろに追加する。
         /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
@@ -133,13 +140,13 @@ pub fn DynamicArray(T: type) type {
         /// 複数の値を配列の最も後ろに追加する。
         /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
         /// 再確保ができない場合はエラーを返す。
-        pub fn pushBackAll(self: *@This(), allocator: Allocator, item: []const T) Allocator.Error!void {
-            if (self._values.len <= self.size() + item.len - 1) {
+        pub fn pushBackAll(self: *@This(), allocator: Allocator, items: []const T) Allocator.Error!void {
+            if (self._values.len <= self.size() + items.len - 1) {
                 try self.extendSize(allocator);
             }
             const index = self.size();
-            self._size += item.len;
-            try self.setAll(index, item);
+            self._size += items.len;
+            try self.setAll(index, items);
         }
 
         /// 配列の最も後ろの要素を削除し、その値を返す。
@@ -174,7 +181,12 @@ pub fn DynamicArray(T: type) type {
             }
         }
 
-        pub fn insertAll() a {}
+        pub fn insertAll(self: *@This(), allocator: Allocator, index: usize, items: []const T) Allocator.Error!void {
+            _ = self;
+            _ = allocator;
+            _ = index;
+            _ = items;
+        }
 
         /// 配列の`index`番目の要素を削除する。
         /// 配列が要素を持たない場合、配列を変化させずにnullを返す。
@@ -187,6 +199,12 @@ pub fn DynamicArray(T: type) type {
             }
 
             return value;
+        }
+
+        pub fn deleteAll(self: *@This(), index: usize, length: usize) IndexError!void {
+            _ = self;
+            _ = index;
+            _ = length;
         }
 
         /// 同じ要素を持つ配列を複製する。
@@ -261,11 +279,18 @@ pub fn DynamicArray(T: type) type {
 
 test DynamicArray {
     const allocator = std.testing.allocator;
-    const DA = DynamicArray(u8);
+    const Array = DynamicArray(usize);
     const eq = lib.assert.expectEqualStruct;
+    const eqSlice = lib.assert.expectEqualSlice;
 
-    var array = DA.init();
+    var array = Array.init();
     defer array.deinit(allocator);
+
+    try eqSlice(usize, array.asSlice(), &.{});
+    try eq(array.size(), 0);
+    try eq(array.get(0), null);
+    try eq(array.getRef(0), null);
+    try eq(array.slice(.{ 0, 1 }), null);
 
     try array.pushBack(allocator, 5);
     try eq(array.asSlice(), &.{5});
