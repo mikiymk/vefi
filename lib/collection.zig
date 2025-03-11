@@ -111,14 +111,11 @@ test {
 
 const Allocator = std.mem.Allocator;
 
-pub const Range = struct {
-    begin: usize,
-    end: usize,
-};
+pub const Range = struct { usize, usize };
 
 pub const StaticArray = @import("./collection/array-static.zig").StaticArray;
 pub const DynamicArray = @import("./collection/array-dynamic.zig").DynamicArray;
-pub const static_multi_dimensional_array = @import("./collection/array-static-multi-dimensional.zig");
+pub const StaticMultiDimensionalArray = @import("./collection/array-static-multi-dimensional.zig").StaticMultiDimensionalArray;
 pub const StringArray = @import("./collection/array-string.zig");
 pub const bit_array = struct {};
 

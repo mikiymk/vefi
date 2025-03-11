@@ -2,22 +2,28 @@ const std = @import("std");
 const lib = @import("../root.zig");
 
 const assert = lib.assert.assert;
-const Range = lib.collection.Range;
 
 /// 静的配列 (Static Array)
 pub fn StaticArray(T: type, array_size: usize) type {
-    const Array = [array_size]T;
-
     return struct {
-        values: Array,
+        pub const Range = lib.collection.Range;
+        pub const IndexError = error{OutOfBounds};
 
-        pub fn init(initial_value: T) @This() {
-            var array = @This(){ ._values = undefined };
-            array.fill(0, array.size(), initial_value);
+        values: [array_size]T,
 
-            return array;
+        /// 配列を初期化する。
+        /// 与えた配列の値で初期化する。
+        pub fn init(initial_array: [array_size]T) @This() {
+            return .{ .values = initial_array };
         }
 
+        /// 配列を初期化する。
+        /// 配列をすべて同じ値に初期化する。
+        pub fn initWithValue(initial_value: T) @This() {
+            return init(.{initial_value} ** array_size);
+        }
+
+        /// 配列を解放する。
         pub fn deinit(self: @This()) void {
             _ = self;
         }
@@ -27,59 +33,61 @@ pub fn StaticArray(T: type, array_size: usize) type {
         }
 
         pub fn isInBoundRange(self: @This(), range: Range) bool {
-            return 0 <= range.begin and
-                range.begin < self.size() and
-                0 < range.end and
-                range.end <= self.size() and
-                range.begin < range.end;
+            const begin, const end = range;
+            const size_ = self.size();
+
+            return 0 <= begin and begin < size_ and
+                0 < end and end <= size_ and
+                begin < end;
         }
 
         pub fn size(self: @This()) usize {
-            return self._values.len;
+            return self.values.len;
         }
 
-        pub fn get(self: @This(), index: usize) T {
-            assert(self.isInBoundIndex(index));
+        pub fn get(self: @This(), index: usize) ?T {
+            if (!self.isInBoundIndex(index)) return null;
 
-            return self._values[index];
+            return self.values[index];
         }
 
-        pub fn getRef(self: *@This(), index: usize) *T {
-            assert(self.isInBoundIndex(index));
+        pub fn getRef(self: *@This(), index: usize) ?*T {
+            if (!self.isInBoundIndex(index)) return null;
 
-            return &self._values[index];
+            return &self.values[index];
         }
 
-        pub fn set(self: *@This(), index: usize, value: T) void {
-            assert(self.isInBoundIndex(index));
+        pub fn set(self: *@This(), index: usize, value: T) IndexError!void {
+            if (!self.isInBoundIndex(index)) return error.OutOfBounds;
 
-            self._values[index] = value;
+            self.values[index] = value;
         }
 
-        pub fn setAll(self: *@This(), index: usize, values: []const T) void {
-            assert(self.isInBoundRange(.{ .begin = begin, .end = end }));
+        pub fn setAll(self: *@This(), index: usize, values: []const T) IndexError!void {
+            if (!self.isInBoundIndex(index)) return error.OutOfBounds;
 
-            @memcpy(self._values[index..][0..values.len], values);
+            @memcpy(self.values[index..][0..values.len], values);
         }
 
-        pub fn setFill(self: *@This(), begin: usize, end: usize, value: T) void {
-            assert(self.isInBoundRange(.{ .begin = begin, .end = end }));
+        pub fn setFill(self: *@This(), range: Range, value: T) IndexError!void {
+            if (!self.isInBoundRange(range)) return error.OutOfBounds;
+            const begin, const end = range;
 
-            @memset(self._values[begin..end], value);
+            @memset(self.values[begin..end], value);
         }
 
-        pub fn swap(self: *@This(), left: usize, right: usize) void {
-            assert(self.isInBoundIndex(left));
-            assert(self.isInBoundIndex(right));
+        pub fn swap(self: *@This(), left: usize, right: usize) IndexError!void {
+            if (!self.isInBoundIndex(left)) return error.OutOfBounds;
+            if (!self.isInBoundIndex(right)) return error.OutOfBounds;
 
-            const tmp = self.get(left);
-            self.set(left, self.get(right));
-            self.set(right, tmp);
+            const tmp = self.get(left).?;
+            self.set(left, self.get(right).?) catch unreachable;
+            self.set(right, tmp) catch unreachable;
         }
 
         pub fn reverse(self: *@This()) void {
             for (0..(self.size() / 2)) |i| {
-                self.swap(i, self.size() - i - 1);
+                self.swap(i, self.size() - i - 1) catch unreachable;
             }
         }
 
@@ -88,7 +96,7 @@ pub fn StaticArray(T: type, array_size: usize) type {
             try writer.print("StaticArray({s}){{", .{@typeName(T)});
 
             var first = true;
-            for (self._values) |value| {
+            for (self.values) |value| {
                 if (first) {
                     try writer.print(" ", .{});
                     first = false;
@@ -108,39 +116,33 @@ test StaticArray {
     const Array = StaticArray(usize, 5);
     const equals = lib.assert.expectEqualStruct;
 
-    var array = Array.init(0);
-    try equals(array._values, .{ 0, 0, 0, 0, 0 });
+    var array = Array.init(.{ 1, 2, 3, 4, 5 });
+    try equals(array.values, .{ 1, 2, 3, 4, 5 });
 
-    array.set(0, 1);
-    try equals(array._values, .{ 1, 0, 0, 0, 0 });
-    try equals(array.get(0), 1);
+    try array.set(0, 6);
+    try equals(array.values, .{ 6, 2, 3, 4, 5 });
+    try equals(array.get(0), 6);
 
-    const ptr = array.getRef(4);
-    ptr.* = 2;
-    try equals(array._values, .{ 1, 0, 0, 0, 2 });
+    const ptr = array.getRef(4).?;
+    ptr.* = 7;
+    try equals(array.values, .{ 6, 2, 3, 4, 7 });
 
-    array.fill(1, 3, 4);
-    try equals(array._values, .{ 1, 4, 4, 0, 2 });
+    try array.setFill(.{ 1, 3 }, 8);
+    try equals(array.values, .{ 6, 8, 8, 4, 7 });
 
-    array.swap(2, 4);
-    try equals(array._values, .{ 1, 4, 2, 0, 4 });
+    try array.swap(2, 4);
+    try equals(array.values, .{ 6, 8, 7, 4, 8 });
 
     array.reverse();
-    try equals(array._values, .{ 4, 0, 2, 4, 1 });
+    try equals(array.values, .{ 8, 4, 7, 8, 6 });
 }
 
 test "format" {
     const Array = StaticArray(u8, 5);
     const a = std.testing.allocator;
 
-    var array = Array.init(0);
+    var array = Array.init(.{ 1, 2, 3, 4, 5 });
     defer array.deinit();
-
-    array.set(0, 1);
-    array.set(1, 2);
-    array.set(2, 3);
-    array.set(3, 4);
-    array.set(4, 5);
 
     const format = try std.fmt.allocPrint(a, "{}", .{array});
     defer a.free(format);

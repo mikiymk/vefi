@@ -9,13 +9,13 @@ test {
     _ = @import("bigint.zig");
 }
 
-const Array = lib.collection.static_array.StaticArray(u8, 5, .{});
+const Array = lib.collection.StaticArray(u8, 5);
 
 pub fn main() !void {
     const print = std.debug.print;
     const allocator = std.heap.page_allocator;
 
-    const array = Array.init(0);
+    const array = Array.init(.{ 1, 2, 3, 4, 5 });
     print("{}", .{array});
 
     if (config.is_enabled) {

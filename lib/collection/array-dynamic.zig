@@ -60,7 +60,7 @@ pub fn DynamicArray(T: type) type {
 
         /// 配列の`index`番目の要素への参照を返す。
         /// 配列の範囲外の場合、未定義動作を起こす。
-        pub fn getRef(self: @This(), index: usize) *T {
+        pub fn getRef(self: @This(), index: usize) ?*T {
             if (!self.isInBound(index)) return null;
             return @ptrCast(self._values.ptr + index);
         }
@@ -252,10 +252,10 @@ test DynamicArray {
     try eq(array.asSlice(), &.{ 5, 6, 7 });
 
     try eq(array.get(1), 6);
-    // try eq(array.get(3), null);
+    try eq(array.get(3), null);
 
-    try eq(array.getRef(1).*, 6);
-    // try eq(array.getRef(3), null);
+    try eq(array.getRef(1).?.*, 6);
+    try eq(array.getRef(3), null);
 
     try array.insert(allocator, 1, 10);
     try eq(array.asSlice(), &.{ 5, 10, 6, 7 });
