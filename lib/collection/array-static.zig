@@ -24,14 +24,16 @@ pub fn StaticArray(T: type, array_size: usize) type {
         }
 
         /// 配列を解放する。
-        pub fn deinit(self: @This()) void {
-            _ = self;
+        pub fn deinit(self: *@This()) void {
+            self.* = undefined;
         }
 
+        /// インデックスが配列の範囲内かどうか判定する。
         pub fn isInBoundIndex(self: @This(), index: usize) bool {
             return 0 <= index and index < self.size();
         }
 
+        /// インデックス範囲が配列の範囲内かどうか判定する。
         pub fn isInBoundRange(self: @This(), range: Range) bool {
             const begin, const end = range;
             const size_ = self.size();
@@ -41,34 +43,54 @@ pub fn StaticArray(T: type, array_size: usize) type {
                 begin < end;
         }
 
+        /// 配列の要素数を返す。
         pub fn size(self: @This()) usize {
             return self.values.len;
         }
 
+        /// 配列の`index`番目の要素を返す。
+        /// 配列の範囲外の場合、`null`を返す。
         pub fn get(self: @This(), index: usize) ?T {
             if (!self.isInBoundIndex(index)) return null;
 
             return self.values[index];
         }
 
+        /// 配列の`index`番目の要素への参照を返す。
+        /// 配列の範囲外の場合、`null`を返す。
         pub fn getRef(self: *@This(), index: usize) ?*T {
             if (!self.isInBoundIndex(index)) return null;
 
             return &self.values[index];
         }
 
+        /// 配列の範囲の要素のスライスを返す。
+        /// `index`が配列の範囲外の場合、エラーを返す。
+        pub fn slice(self: @This(), range: Range) IndexError![]const T {
+            if (!self.isInBoundRange(range)) return error.OutOfBounds;
+            const begin, const end = range;
+
+            return self._values[begin..end];
+        }
+
+        /// 配列の`index`番目の要素の値を設定する。
+        /// `index`が配列の範囲外の場合、エラーを返す。
         pub fn set(self: *@This(), index: usize, value: T) IndexError!void {
             if (!self.isInBoundIndex(index)) return error.OutOfBounds;
 
             self.values[index] = value;
         }
 
+        /// 配列の`index`番目から先を新しい値のスライスで更新する。
+        /// `index`からスライスの範囲が配列の範囲外の場合、エラーを返す。
         pub fn setAll(self: *@This(), index: usize, values: []const T) IndexError!void {
             if (!self.isInBoundIndex(index)) return error.OutOfBounds;
 
             @memcpy(self.values[index..][0..values.len], values);
         }
 
+        /// 配列の`begin`番目(含む)から`end`番目(含まない)の要素の値をまとめて設定する。
+        /// `index`が配列の範囲外の場合、エラーを返す。
         pub fn setFill(self: *@This(), range: Range, value: T) IndexError!void {
             if (!self.isInBoundRange(range)) return error.OutOfBounds;
             const begin, const end = range;
@@ -76,6 +98,8 @@ pub fn StaticArray(T: type, array_size: usize) type {
             @memset(self.values[begin..end], value);
         }
 
+        /// 配列の`left`番目と`right`番目の要素の値を交換する。
+        /// `left`か`right`が配列の範囲外の場合、エラーを返す。
         pub fn swap(self: *@This(), left: usize, right: usize) IndexError!void {
             if (!self.isInBoundIndex(left)) return error.OutOfBounds;
             if (!self.isInBoundIndex(right)) return error.OutOfBounds;
@@ -85,12 +109,14 @@ pub fn StaticArray(T: type, array_size: usize) type {
             self.set(right, tmp) catch unreachable;
         }
 
+        /// 配列の要素の並びを逆転する。
         pub fn reverse(self: *@This()) void {
             for (0..(self.size() / 2)) |i| {
                 self.swap(i, self.size() - i - 1) catch unreachable;
             }
         }
 
+        /// 配列を文字列にする。
         pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
             const writer = lib.io.writer(w);
             try writer.print("StaticArray({s}){{", .{@typeName(T)});
