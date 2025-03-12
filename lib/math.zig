@@ -36,6 +36,10 @@ pub fn absDiff(left: anytype, right: @TypeOf(left)) lib.types.Integer.Unsigned(@
     }
 }
 
+// https://cpprefjp.github.io/reference/cmath.html
+// https://docs.oracle.com/javase/jp/23/docs/api/java.base/java/lang/Math.html
+// https://docs.python.org/ja/3.13/library/math.html
+
 pub fn sin() void {}
 pub fn cos() void {}
 pub fn tan() void {}
