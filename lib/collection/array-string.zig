@@ -64,13 +64,8 @@ pub fn pushFront(self: *@This(), allocator: Allocator, item: []u8) Allocator.Err
 /// 値を配列の最も後ろに追加する。
 /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
 pub fn pushBack(self: *@This(), allocator: Allocator, item: []const u8) Allocator.Error!void {
-    const length = item.len;
-    const begin = self.values.size();
-    const end = begin + length;
-    try self.values.reserve(allocator, end);
-    @memcpy(self.values._values[begin..end], item);
-    self.values._size += length;
-    try self.indexes.pushBack(allocator, end);
+    try self.values.pushBackAll(allocator, item);
+    try self.indexes.pushBack(allocator, self.values.size());
 }
 
 /// 配列の最も後ろの要素を削除し、その値を返す。
@@ -115,6 +110,10 @@ pub fn delete(self: *@This(), index: usize) ?[]u8 {
     return value;
 }
 
+pub fn asSlice(self: @This()) []const []const u8 {
+    return &.{self.values.asSlice()};
+}
+
 pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
     const writer = lib.io.writer(w);
     try writer.print("StringArray{{", .{});
@@ -137,6 +136,18 @@ pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, w
     }
 
     try writer.print(" }}", .{});
+}
+
+test StringArray {
+    const allocator = std.testing.allocator;
+    const expect = lib.testing.expect;
+
+    var array = StringArray.init();
+    defer array.deinit(allocator);
+
+    try expect(array.asSlice()).isSlice([]const u8, &.{});
+
+    try array.pushBack(allocator, "hello");
 }
 
 test "format" {
