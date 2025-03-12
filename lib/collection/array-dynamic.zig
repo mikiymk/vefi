@@ -52,6 +52,11 @@ pub fn DynamicArray(T: type) type {
             return self._size;
         }
 
+        /// 配列の要素を全てなくす。
+        pub fn clear(self: *@This()) void {
+            self._size = 0;
+        }
+
         /// 配列の`index`番目の要素を返す。
         /// 配列の範囲外の場合、`null`を返す。
         pub fn get(self: @This(), index: usize) ?T {
@@ -97,21 +102,45 @@ pub fn DynamicArray(T: type) type {
             @memset(self._values[begin..end], value);
         }
 
+        fn copyInArray(self: *@This(), src: usize, dst: usize, length: usize) IndexError!void {
+            const src_end = src + length;
+            const dst_end = dst + length;
+
+            if (!self.isInBoundRange(.{ src, src_end })) return error.OutOfBounds;
+            if (!self.isInBoundRange(.{ dst, dst_end })) return error.OutOfBounds;
+
+            const dst_slice = self._values[dst..dst_end];
+            const src_slice = self._values[src..src_end];
+
+            if (src_end < dst or dst_end < src) {
+                @memcpy(dst_slice, src_slice);
+            } else if (src < dst) {
+                var i = dst_slice.len;
+                while (i != 0) : (i -= 1) {
+                    dst_slice[i - 1] = src_slice[i - 1];
+                }
+            } else {
+                for (dst_slice, src_slice) |*d, s| {
+                    d.* = s;
+                }
+            }
+        }
+
         /// 配列の`left`番目と`right`番目の要素の値を交換する。
         /// `left`か`right`が配列の範囲外の場合、エラーを返す。
         pub fn swap(self: *@This(), left: usize, right: usize) IndexError!void {
             if (!self.isInBound(left)) return error.OutOfBounds;
             if (!self.isInBound(right)) return error.OutOfBounds;
 
-            const tmp = self.get(left);
-            self.set(left, self.get(right));
-            self.set(right, tmp);
+            const tmp = self.get(left).?;
+            self.set(left, self.get(right).?) catch unreachable;
+            self.set(right, tmp) catch unreachable;
         }
 
         /// 配列の要素の並びを逆転する。
-        pub fn reverse(self: @This()) void {
-            for (0..(self._size() / 2)) |i| {
-                self.swap(i, self._size - 1);
+        pub fn reverse(self: *@This()) void {
+            for (0..(self.size() / 2)) |i| {
+                self.swap(i, self.size() - i - 1) catch unreachable;
             }
         }
 
@@ -123,7 +152,10 @@ pub fn DynamicArray(T: type) type {
         }
 
         pub fn pushFrontAll(self: *@This(), allocator: Allocator, items: []const T) Allocator.Error!void {
-            try self.insertAll(allocator, items);
+            self.insertAll(allocator, 0, items) catch |err| switch (err) {
+                error.OutOfBounds => unreachable,
+                else => |e| return e,
+            };
         }
 
         /// 値を配列の最も後ろに追加する。
@@ -147,7 +179,7 @@ pub fn DynamicArray(T: type) type {
             }
             const index = self.size();
             self._size += items.len;
-            try self.setAll(index, items);
+            self.setAll(index, items) catch unreachable;
         }
 
         /// 配列の最も後ろの要素を削除し、その値を返す。
@@ -182,14 +214,19 @@ pub fn DynamicArray(T: type) type {
             }
         }
 
-        pub fn insertAll(self: *@This(), allocator: Allocator, index: usize, items: []const T) Allocator.Error!void {
+        pub fn insertAll(self: *@This(), allocator: Allocator, index: usize, items: []const T) AllocIndexError!void {
             if (self._values.len <= self.size() + items.len - 1) {
                 try self.extendSize(allocator);
             }
 
-            const length = items.len;
-            try self.setAll(index + length, self.slice(.{ index, self._size }));
-            self._size += length;
+            // 0       i     size
+            // v       v     v
+            //  a b c d e f g . .
+            //  a b c d e f e f g
+            //  a b c d 1 2 e f g
+
+            self._size += items.len;
+            try self.copyInArray(index, index + items.len, self.size() - index - items.len);
             try self.setAll(index, items);
         }
 
@@ -207,7 +244,8 @@ pub fn DynamicArray(T: type) type {
         }
 
         pub fn deleteAll(self: *@This(), index: usize, length: usize) IndexError!void {
-            try self.setAll(index, self.slice(index + length, self._size));
+            const src_begin = index + length;
+            try self.copyInArray(src_begin, index, self.size() - src_begin);
             self._size -= length;
         }
 
@@ -332,9 +370,24 @@ test DynamicArray {
     try expect(array.setFill(.{ 5, 100 }, 21)).isError(error.OutOfBounds);
     try expect(array.asSlice()).isSlice(usize, &.{ 10, 7, 20, 20, 3, 14, 15, 16 });
 
+    try array.swap(5, 7);
+    try expect(array.asSlice()).isSlice(usize, &.{ 10, 7, 20, 20, 3, 16, 15, 14 });
+
+    array.reverse();
+    try expect(array.asSlice()).isSlice(usize, &.{ 14, 15, 16, 3, 20, 20, 7, 10 });
+
+    try array.pushFrontAll(allocator, &.{ 22, 23, 24 });
+    try expect(array.asSlice()).isSlice(usize, &.{ 22, 23, 24, 14, 15, 16, 3, 20, 20, 7, 10 });
+
+    try array.pushBackAll(allocator, &.{ 25, 26, 27 });
+    try expect(array.asSlice()).isSlice(usize, &.{ 22, 23, 24, 14, 15, 16, 3, 20, 20, 7, 10, 25, 26, 27 });
+
+    try array.deleteAll(3, 10);
+    try expect(array.asSlice()).isSlice(usize, &.{ 22, 23, 24, 27 });
+
     const slice = try array.copyToSlice(allocator);
     defer allocator.free(slice);
-    try expect(slice).isSlice(usize, &.{});
+    try expect(slice).isSlice(usize, &.{ 22, 23, 24, 27 });
 }
 
 test "format" {
