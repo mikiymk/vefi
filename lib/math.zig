@@ -35,3 +35,11 @@ pub fn absDiff(left: anytype, right: @TypeOf(left)) lib.types.Integer.Unsigned(@
         return right - left;
     }
 }
+
+pub fn sin() void {}
+pub fn cos() void {}
+pub fn tan() void {}
+pub fn asin() void {}
+pub fn acos() void {}
+pub fn atan() void {}
+pub fn atan2() void {}
