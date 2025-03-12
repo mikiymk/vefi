@@ -187,7 +187,7 @@ pub fn DynamicArray(T: type) type {
             }
 
             const length = items.len;
-            try self.setAll(index + length, self.slice(.{index, self._size}));
+            try self.setAll(index + length, self.slice(.{ index, self._size }));
             self._size += length;
             try self.setAll(index, items);
         }

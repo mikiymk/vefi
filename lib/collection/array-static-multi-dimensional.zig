@@ -6,23 +6,26 @@ pub fn StaticMultiDimensionalArray(T: type, comptime dimension: usize, sizes: [d
         pub const Indexes = [dimension]usize;
         const length: usize = blk: {
             var l: usize = 1;
-            for (sizes) |size| {
-                l *= size;
+            for (sizes) |s| {
+                l *= s;
             }
             break :blk l;
         };
         value: [length]T,
 
-         fn getRawIndex(indexes: Indexes) usize {
+        fn getRawIndex(indexes: Indexes) usize {
             var index: usize = 0;
 
-            for (sizes, indexes) |size, i| {
-                 index = index * size + i;
+            for (sizes, indexes) |s, i| {
+                index = index * s + i;
             }
 
-             return index; 
+            return index;
         }
 
-        pub fn size (self: @This())usize { return length; }
+        pub fn size(self: @This()) usize {
+            _ = self;
+            return length;
+        }
     };
 }
