@@ -182,10 +182,14 @@ pub fn DynamicArray(T: type) type {
         }
 
         pub fn insertAll(self: *@This(), allocator: Allocator, index: usize, items: []const T) Allocator.Error!void {
-            _ = self;
-            _ = allocator;
-            _ = index;
-            _ = items;
+            if (self._values.len <= self.size() + items.len - 1) {
+                try self.extendSize(allocator);
+            }
+
+            const length = items.len;
+            try self.setAll(index + length, self.slice(.{index, self._size}));
+            self._size += length;
+            try self.setAll(index, items);
         }
 
         /// 配列の`index`番目の要素を削除する。
@@ -202,9 +206,8 @@ pub fn DynamicArray(T: type) type {
         }
 
         pub fn deleteAll(self: *@This(), index: usize, length: usize) IndexError!void {
-            _ = self;
-            _ = index;
-            _ = length;
+            try self.setAll(index, self.slice(index + length, self._size));
+            self._size -= length;
         }
 
         /// 同じ要素を持つ配列を複製する。
