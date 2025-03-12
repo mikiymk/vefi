@@ -43,3 +43,10 @@ pub fn asin() void {}
 pub fn acos() void {}
 pub fn atan() void {}
 pub fn atan2() void {}
+
+pub fn sinh() void {}
+pub fn cosh() void {}
+pub fn tanh() void {}
+pub fn asinh() void {}
+pub fn acosh() void {}
+pub fn atanh() void {}
