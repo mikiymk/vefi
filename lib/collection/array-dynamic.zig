@@ -93,7 +93,8 @@ pub fn DynamicArray(T: type) type {
         /// `index`が配列の範囲外の場合、エラーを返す。
         pub fn setFill(self: *@This(), range: Range, value: T) IndexError!void {
             if (!self.isInBoundRange(range)) return error.OutOfBounds;
-            @memset(self._values[range.begin..range.end], value);
+            const begin, const end = range;
+            @memset(self._values[begin..end], value);
         }
 
         /// 配列の`left`番目と`right`番目の要素の値を交換する。
@@ -283,51 +284,57 @@ pub fn DynamicArray(T: type) type {
 test DynamicArray {
     const allocator = std.testing.allocator;
     const Array = DynamicArray(usize);
-    const eq = lib.assert.expectEqualStruct;
-    const eqSlice = lib.assert.expectEqualSlice;
+    const expect = lib.testing.expect;
 
     var array = Array.init();
     defer array.deinit(allocator);
 
-    try eqSlice(usize, array.asSlice(), &.{});
-    try eq(array.size(), 0);
-    try eq(array.get(0), null);
-    try eq(array.getRef(0), null);
-    try eq(array.slice(.{ 0, 1 }), null);
+    try expect(array.asSlice()).isSlice(usize, &.{});
+    try expect(array.size()).is(0);
+    try expect(array.get(0)).isNull();
+    try expect(array.getRef(0)).isNull();
+    try expect(array.slice(.{ 0, 1 })).isNull();
 
+    try array.pushBack(allocator, 1);
+    try array.pushBack(allocator, 2);
+    try array.pushBack(allocator, 3);
+    try array.pushBack(allocator, 4);
     try array.pushBack(allocator, 5);
-    try eq(array.asSlice(), &.{5});
+    try expect(array.asSlice()).isSlice(usize, &.{ 1, 2, 3, 4, 5 });
 
-    try array.pushBack(allocator, 6);
-    try array.pushBack(allocator, 7);
-    try eq(array.asSlice(), &.{ 5, 6, 7 });
+    try array.pushFront(allocator, 6);
+    try array.pushFront(allocator, 7);
+    try array.pushFront(allocator, 8);
+    try expect(array.asSlice()).isSlice(usize, &.{ 8, 7, 6, 1, 2, 3, 4, 5 });
 
-    try eq(array.popBack(), 7);
-    try eq(array.popBack(), 6);
-    try eq(array.popBack(), 5);
-    try eq(array.popBack(), null);
-    try eq(array.asSlice(), &.{});
+    try expect(array.popBack()).is(5);
+    try expect(array.popFront()).is(8);
+    try expect(array.asSlice()).isSlice(usize, &.{ 7, 6, 1, 2, 3, 4 });
 
-    try array.pushBack(allocator, 5);
-    try array.pushBack(allocator, 6);
-    try array.pushBack(allocator, 7);
-    try eq(array.asSlice(), &.{ 5, 6, 7 });
+    try array.insert(allocator, 5, 9);
+    try array.insert(allocator, 0, 10);
+    try array.insert(allocator, 8, 11);
+    try expect(array.asSlice()).isSlice(usize, &.{ 10, 7, 6, 1, 2, 3, 9, 4, 11 });
 
-    try eq(array.get(1), 6);
-    try eq(array.get(3), null);
+    try expect(array.delete(4)).is(2);
+    try expect(array.delete(100)).isNull();
+    try expect(array.asSlice()).isSlice(usize, &.{ 10, 7, 6, 1, 3, 9, 4, 11 });
 
-    try eq(array.getRef(1).?.*, 6);
-    try eq(array.getRef(3), null);
+    try array.set(3, 12);
+    try expect(array.set(100, 13)).isError(error.OutOfBounds);
+    try expect(array.asSlice()).isSlice(usize, &.{ 10, 7, 6, 12, 3, 9, 4, 11 });
 
-    try array.insert(allocator, 1, 10);
-    try eq(array.asSlice(), &.{ 5, 10, 6, 7 });
+    try array.setAll(5, &.{ 14, 15, 16 });
+    try expect(array.setAll(6, &.{ 17, 18, 19 })).isError(error.OutOfBounds);
+    try expect(array.asSlice()).isSlice(usize, &.{ 10, 7, 6, 12, 3, 14, 15, 16 });
 
-    try eq(array.delete(1), 10);
-    try eq(array.asSlice(), &.{ 5, 6, 7 });
+    try array.setFill(.{ 2, 4 }, 20);
+    try expect(array.setFill(.{ 5, 100 }, 21)).isError(error.OutOfBounds);
+    try expect(array.asSlice()).isSlice(usize, &.{ 10, 7, 20, 20, 3, 14, 15, 16 });
 
     const slice = try array.copyToSlice(allocator);
     defer allocator.free(slice);
-    try eq(slice, &.{ 5, 6, 7 });
+    try expect(slice).isSlice(usize, &.{});
 }
 
 test "format" {

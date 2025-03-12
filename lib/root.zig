@@ -41,3 +41,4 @@ pub const language = struct {
 };
 
 pub const assert = @import("assert.zig");
+pub const testing = @import("testing.zig");

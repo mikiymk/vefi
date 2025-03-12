@@ -14,6 +14,7 @@ pub fn isSlice(value: type) bool {
 test isSlice {
     try lib.assert.expect(isSlice([]u8));
     try lib.assert.expect(isSlice([]const u8));
+
     try lib.assert.expect(!isSlice(*[3]u8));
     try lib.assert.expect(!isSlice(*const [3]u8));
     try lib.assert.expect(!isSlice([*]u8));
