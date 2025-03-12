@@ -106,6 +106,7 @@ pub fn DynamicArray(T: type) type {
             const src_end = src + length;
             const dst_end = dst + length;
 
+            if (src == dst or length == 0) return; // 何もしない場合
             if (!self.isInBoundRange(.{ src, src_end })) return error.OutOfBounds;
             if (!self.isInBoundRange(.{ dst, dst_end })) return error.OutOfBounds;
 
@@ -148,7 +149,10 @@ pub fn DynamicArray(T: type) type {
         /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
         /// 再確保ができない場合はエラーを返す。
         pub fn pushFront(self: *@This(), allocator: Allocator, item: T) Allocator.Error!void {
-            try self.insert(allocator, 0, item);
+            self.insert(allocator, 0, item) catch |err| switch (err) {
+                error.OutOfBounds => unreachable,
+                else => |e| return e,
+            };
         }
 
         pub fn pushFrontAll(self: *@This(), allocator: Allocator, items: []const T) Allocator.Error!void {
@@ -174,9 +178,10 @@ pub fn DynamicArray(T: type) type {
         /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
         /// 再確保ができない場合はエラーを返す。
         pub fn pushBackAll(self: *@This(), allocator: Allocator, items: []const T) Allocator.Error!void {
-            if (self._values.len <= self.size() + items.len - 1) {
-                try self.extendSize(allocator);
+            if (self._values.len < self.size() + items.len) {
+                try self.reserve(allocator, self.size() + items.len);
             }
+
             const index = self.size();
             self._size += items.len;
             self.setAll(index, items) catch unreachable;
@@ -199,34 +204,24 @@ pub fn DynamicArray(T: type) type {
         /// 配列の`index`番目に新しい要素を追加する。
         /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
         /// 再確保ができない場合はエラーを返す。
-        pub fn insert(self: *@This(), allocator: Allocator, index: usize, item: T) Allocator.Error!void {
+        pub fn insert(self: *@This(), allocator: Allocator, index: usize, item: T) AllocIndexError!void {
             if (self._values.len <= self._size) {
                 try self.extendSize(allocator);
             }
 
             self._size += 1;
-
-            var value = item;
-            for (self._values[index..self._size]) |*e| {
-                const tmp = value;
-                value = e.*;
-                e.* = tmp;
-            }
+            try self.copyInArray(index, index + 1, self.size() - index - 1);
+            self._values[index] = item;
         }
 
         pub fn insertAll(self: *@This(), allocator: Allocator, index: usize, items: []const T) AllocIndexError!void {
-            if (self._values.len <= self.size() + items.len - 1) {
-                try self.extendSize(allocator);
+            if (self._values.len < self.size() + items.len) {
+                try self.reserve(allocator, self.size() + items.len);
             }
 
-            // 0       i     size
-            // v       v     v
-            //  a b c d e f g . .
-            //  a b c d e f e f g
-            //  a b c d 1 2 e f g
-
+            const index_end = index + items.len;
             self._size += items.len;
-            try self.copyInArray(index, index + items.len, self.size() - index - items.len);
+            try self.copyInArray(index, index_end, self.size() - index_end);
             try self.setAll(index, items);
         }
 
