@@ -50,3 +50,31 @@ pub fn tanh() void {}
 pub fn asinh() void {}
 pub fn acosh() void {}
 pub fn atanh() void {}
+
+pub fn exp() void {}
+pub fn exp2() void {}
+pub fn expm1() void {}
+
+pub fn log() void {}
+pub fn log2() void {}
+pub fn log10() void {}
+pub fn log1p() void {}
+
+pub fn ldexp() void {}
+pub fn frexp() void {}
+pub fn logb() void {}
+pub fn ilogb() void {}
+pub fn modf() void {}
+pub fn scalb() void {}
+
+pub fn pow() void {}
+pub fn sqrt() void {}
+pub fn cbrt() void {}
+pub fn hypot() void {}
+
+pub fn abs() void {}
+
+pub fn erf() void {}
+pub fn erfc() void {}
+pub fn tgamma() void {}
+pub fn lgamma() void {}
