@@ -40,9 +40,9 @@ pub fn absDiff(left: anytype, right: @TypeOf(left)) lib.types.Integer.Unsigned(@
 // https://docs.oracle.com/javase/jp/23/docs/api/java.base/java/lang/Math.html
 // https://docs.python.org/ja/3.13/library/math.html
 
-pub const e: comptime_float = 0.0;
-pub const pi: comptime_float = 0.0;
-pub const tau: comptime_float = 0.0;
+pub const e: comptime_float = 2.718281828459045235360287471352662497757;
+pub const pi: comptime_float = 3.141592653589793238462643383279502884197;
+pub const tau: comptime_float = 6.283185307179586476925286766559005768394;
 
 pub fn sin() void {}
 pub fn cos() void {}
