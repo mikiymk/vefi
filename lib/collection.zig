@@ -113,6 +113,10 @@ const Allocator = std.mem.Allocator;
 
 pub const Range = struct { usize, usize };
 
+pub const array = @import("./collection/array.zig");
+pub const list = @import("./collection/list.zig");
+pub const stack = @import("./collection/stack.zig");
+
 pub const StaticArray = @import("./collection/array-static.zig").StaticArray;
 pub const DynamicArray = @import("./collection/array-dynamic.zig").DynamicArray;
 pub const StaticMultiDimensionalArray = @import("./collection/array-static-multi-dimensional.zig").StaticMultiDimensionalArray;
