@@ -34,10 +34,10 @@ pub const CompileResult = enum {
 const allocator = std.testing.allocator;
 
 pub fn compileZig(code: []const u8) !CompileResult {
-    const path = "./tmp/main.zig";
+    const path = createPath();
+    defer allocator.free(path);
 
     const file = try createFile(path);
-    try file.writeAll("pub fn main() void {}\n");
     try file.writeAll(code);
     defer deleteFile(path);
 
@@ -47,6 +47,13 @@ pub fn compileZig(code: []const u8) !CompileResult {
         .Exited => |n| if (n == 0) .success else .fail,
         else => .fail,
     };
+}
+
+var rng = std.Random.Xoshiro256.init(5);
+const random = rng.random();
+fn createPath() []const u8 {
+    const r = random.int(u64);
+    return std.fmt.allocPrint(allocator, "./tmp/{x:0>16}.zig", .{r}) catch unreachable;
 }
 
 fn deleteFile(name: []const u8) void {
@@ -87,7 +94,7 @@ fn build(name: []const u8) !Term {
         "-fno-emit-docs",
         "-fno-emit-implib",
     }, allocator);
-    // process.stdout_behavior = .Ignore;
-    // process.stderr_behavior = .Ignore;
+    process.stdout_behavior = .Ignore;
+    process.stderr_behavior = .Ignore;
     return process.spawnAndWait();
 }

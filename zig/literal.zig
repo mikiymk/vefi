@@ -2,11 +2,19 @@ const utils = @import("./utils.zig");
 const assert = utils.assert;
 const equalSlices = utils.equalSlices;
 
-const compileZig = utils.compileZig;
-
+fn compileZig(comptime code: []const u8) !utils.CompileResult {
+    return utils.compileZig(
+        \\pub fn main() void {
+    ++ code ++
+        \\    _ = foo;
+        \\}
+    );
+}
+const foo: u8 = null;
 test "nullリテラル" {
     try assert(try compileZig("const foo: ?u8 = null;") == .success);
     try assert(try compileZig("const foo = null;") == .success);
+    try assert(try compileZig("const foo: u8 = null;") == .fail);
     try assert(@TypeOf(null) == @TypeOf(null));
 }
 
