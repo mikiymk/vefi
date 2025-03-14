@@ -63,16 +63,26 @@ pub fn atan(x: anytype) @TypeOf(x) {}
 /// `atan(y / x)`
 pub fn atan2(y: anytype, x: @TypeOf(y)) @TypeOf(y) {}
 
-pub fn sinh() void {}
-pub fn cosh() void {}
-pub fn tanh() void {}
-pub fn asinh() void {}
-pub fn acosh() void {}
-pub fn atanh() void {}
+/// 双曲線正弦関数
+pub fn sinh(x: anytype) @TypeOf(x) {}
+/// 双曲線余弦関数
+pub fn cosh(x: anytype) @TypeOf(x) {}
+/// 双曲線正接関数
+pub fn tanh(x: anytype) @TypeOf(x) {}
+/// 双曲線正弦関数の逆関数
+pub fn asinh(x: anytype) @TypeOf(x) {}
+/// 双曲線余弦関数の逆関数
+pub fn acosh(x: anytype) @TypeOf(x) {}
+/// 双曲線正接関数の逆関数
+pub fn atanh(x: anytype) @TypeOf(x) {}
 
-pub fn exp() void {}
-pub fn exp2() void {}
-pub fn expm1() void {}
+/// eを底とする指数関数
+pub fn exp(x: anytype) @TypeOf(x) {}
+/// 2を底とする指数関数
+pub fn exp2(x: anytype) @TypeOf(x) {}
+/// eを底とする指数関数から1を引く
+/// `e^x - 1`
+pub fn expm1(x: anytype) @TypeOf(x) {}
 
 pub fn log() void {}
 pub fn log2() void {}
