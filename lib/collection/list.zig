@@ -1,5 +1,8 @@
-pub const generic_list = @import("./generic-list.zig");
-pub const generic_list_sentinel = @import("./generic-list-sentinel.zig");
+const std = @import("std");
+const lib = @import("../root.zig");
+
+pub const generic_list = @import("list/generic.zig");
+pub const generic_list_sentinel = @import("list/generic-sentinel.zig");
 
 pub const SingleLinearList = @import("list/single-linear.zig").SingleLinearList;
 pub const SingleLinearSentinelList = @import("list/single-linear-sentinel.zig").SingleLinearSentinelList;
@@ -10,7 +13,7 @@ pub const DoubleLinearSentinelList = @import("list/double-linear-sentinel.zig").
 pub const DoubleCircularList = @import("list/double-circular.zig").DoubleCircularList;
 pub const DoubleCircularSentinelList = @import("list/double-circular-sentinel.zig").DoubleCircularSentinelList;
 
-pub const test_list = @import("./collection/test-list.zig");
+pub const test_list = @import("list/test.zig");
 
 pub fn isList(T: type) bool {
     const match = lib.interface.match(T);

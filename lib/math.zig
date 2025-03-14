@@ -61,7 +61,9 @@ pub fn acos(x: anytype) @TypeOf(x) {}
 pub fn atan(x: anytype) @TypeOf(x) {}
 /// 2変数の正接関数の逆関数
 /// `atan(y / x)`
-pub fn atan2(y: anytype, x: @TypeOf(y)) @TypeOf(y) {}
+pub fn atan2(y: anytype, x: @TypeOf(y)) @TypeOf(y) {
+    _ = x;
+}
 
 /// 双曲線正弦関数
 pub fn sinh(x: anytype) @TypeOf(x) {}

@@ -1,4 +1,5 @@
-pub const StaticMultiDimensionalArrayOptions = struct {};
+const std = @import("std");
+const lib = @import("../../root.zig");
 
 /// 静的多次元配列 (Static Multi-Dimensional Array)
 pub fn StaticMultiDimensionalArray(T: type, comptime dimension: usize, sizes: [dimension]usize) type {

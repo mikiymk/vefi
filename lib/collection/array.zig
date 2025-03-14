@@ -1,8 +1,10 @@
+const std = @import("std");
+const lib = @import("../root.zig");
 
-pub const StaticArray = @import("./array/static.zig").StaticArray;
-pub const DynamicArray = @import("./array/dynamic.zig").DynamicArray;
-pub const StaticMultiDimensionalArray = @import("./array/static-multi-dimensional.zig").StaticMultiDimensionalArray;
-pub const StringArray = @import("./array/string.zig");
+pub const StaticArray = @import("array/static.zig").StaticArray;
+pub const DynamicArray = @import("array/dynamic.zig").DynamicArray;
+pub const StaticMultiDimensionalArray = @import("array/static-multi-dimensional.zig").StaticMultiDimensionalArray;
+pub const StringArray = @import("array/string.zig");
 pub const bit_array = struct {};
 
 pub fn isArray(T: type) bool {

@@ -1,5 +1,5 @@
 const std = @import("std");
-const lib = @import("../root.zig");
+const lib = @import("../../root.zig");
 
 const Allocator = std.mem.Allocator;
 const expectEq = lib.assert.expectEqualP;

@@ -113,94 +113,9 @@ const Allocator = std.mem.Allocator;
 
 pub const Range = struct { usize, usize };
 
-pub const array = @import("./collection/array.zig");
-pub const list = @import("./collection/list.zig");
-pub const stack = @import("./collection/stack.zig");
-
-pub const StaticArray = @import("./collection/array-static.zig").StaticArray;
-pub const DynamicArray = @import("./collection/array-dynamic.zig").DynamicArray;
-pub const StaticMultiDimensionalArray = @import("./collection/array-static-multi-dimensional.zig").StaticMultiDimensionalArray;
-pub const StringArray = @import("./collection/array-string.zig");
-pub const bit_array = struct {};
-
-pub fn isArray(T: type) bool {
-    const match = lib.interface.match(T);
-
-    return match.hasFn("get") and
-        match.hasFn("set") and
-        match.hasFn("size");
-}
-
-pub fn isDynamicArray(T: type) bool {
-    const match = lib.interface.match(T);
-
-    return isArray(T) and
-        match.hasFn("pushFront") and
-        match.hasFn("pushBack") and
-        match.hasFn("popFront") and
-        match.hasFn("popBack");
-}
-
-test "array is array" {
-    const expect = lib.assert.expect;
-
-    try expect(isArray(StaticArray(u8, 5)));
-    try expect(isDynamicArray(DynamicArray(u8)));
-    try expect(isDynamicArray(StringArray));
-}
-
-pub const generic_list = @import("./collection/generic-list.zig");
-pub const generic_list_sentinel = @import("./collection/generic-list-sentinel.zig");
-
-pub const SingleLinearList = @import("./collection/list-single-linear.zig").SingleLinearList;
-pub const SingleLinearSentinelList = @import("./collection/list-single-linear-sentinel.zig").SingleLinearSentinelList;
-pub const SingleCircularList = @import("./collection/list-single-circular.zig").SingleCircularList;
-pub const SingleCircularSentinelList = @import("./collection/list-single-circular-sentinel.zig").SingleCircularSentinelList;
-pub const DoubleLinearList = @import("./collection/list-double-linear.zig").DoubleLinearList;
-pub const DoubleLinearSentinelList = @import("./collection/list-double-linear-sentinel.zig").DoubleLinearSentinelList;
-pub const DoubleCircularList = @import("./collection/list-double-circular.zig").DoubleCircularList;
-pub const DoubleCircularSentinelList = @import("./collection/list-double-circular-sentinel.zig").DoubleCircularSentinelList;
-
-pub const test_list = @import("./collection/test-list.zig");
-
-pub fn isList(T: type) bool {
-    const match = lib.interface.match(T);
-
-    return match.hasFn("size") and
-        match.hasFn("clear") and
-        match.hasFn("get") and
-        match.hasFn("getFirst") and
-        match.hasFn("getLast") and
-        match.hasFn("add") and
-        match.hasFn("addFirst") and
-        match.hasFn("addLast") and
-        match.hasFn("remove") and
-        match.hasFn("removeFirst") and
-        match.hasFn("removeLast");
-}
-
-pub fn isDoubleList(T: type) bool {
-    const match = lib.interface.match(T);
-
-    return isList(T) and
-        match.hasFn("getFromLast");
-}
-
-test "list is list" {
-    const expect = lib.assert.expect;
-
-    try expect(isList(SingleLinearList(u8)));
-    try expect(isList(SingleLinearSentinelList(u8)));
-    try expect(isList(SingleCircularList(u8)));
-    try expect(isList(SingleCircularSentinelList(u8)));
-    try expect(isDoubleList(DoubleLinearList(u8)));
-    try expect(isDoubleList(DoubleLinearSentinelList(u8)));
-    try expect(isDoubleList(DoubleCircularList(u8)));
-    try expect(isDoubleList(DoubleCircularSentinelList(u8)));
-}
-
+pub const array = @import("collection/array.zig");
+pub const list = @import("collection/list.zig");
 pub const stack = @import("collection/stack.zig");
-pub const array_stack = @import("./collection/stack-array.zig");
 
 pub const queue = @import("collection/queue.zig");
 pub const tree = @import("collection/tree.zig");

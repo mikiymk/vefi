@@ -3,6 +3,9 @@ const lib = @import("../root.zig");
 
 const Allocator = std.mem.Allocator;
 
+pub const ArrayStack = @import("stack/array.zig").ArrayStack;
+pub const ListStack = @import("stack/list.zig").ListStack;
+
 /// データを先入れ後出し(FILO)で保持するコレクションです。
 pub fn Stack(T: type) type {
     return struct {

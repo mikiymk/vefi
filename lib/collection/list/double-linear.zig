@@ -1,6 +1,6 @@
 const std = @import("std");
-const lib = @import("../root.zig");
-const generic_list = lib.collection.generic_list;
+const lib = @import("../../root.zig");
+const generic_list = lib.collection.list.generic_list;
 
 const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
@@ -287,10 +287,10 @@ test DoubleLinearList {
     defer list.deinit(a);
 
     try expect(@TypeOf(list) == DoubleLinearList(u8));
-    try lib.collection.test_list.testList(List, &list, a);
-    try lib.collection.test_list.testRemoveToZero(List, &list, a);
-    try lib.collection.test_list.testIndexError(List, &list, a);
-    try lib.collection.test_list.testGetFromLast(List, &list, a);
+    try lib.collection.list.test_list.testList(List, &list, a);
+    try lib.collection.list.test_list.testRemoveToZero(List, &list, a);
+    try lib.collection.list.test_list.testIndexError(List, &list, a);
+    try lib.collection.list.test_list.testGetFromLast(List, &list, a);
 }
 
 test "format" {

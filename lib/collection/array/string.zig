@@ -1,8 +1,8 @@
 const std = @import("std");
-const lib = @import("../root.zig");
+const lib = @import("../../root.zig");
 
 const Allocator = std.mem.Allocator;
-const Array = lib.collection.DynamicArray;
+const Array = lib.collection.array.DynamicArray;
 pub const Range = lib.collection.Range;
 const StringArray = @This();
 
