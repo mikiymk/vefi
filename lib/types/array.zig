@@ -8,7 +8,7 @@ test {
 pub fn isArray(value: type) bool {
     const Type = @typeInfo(value);
 
-    return Type == .Array;
+    return Type == .array;
 }
 
 test isArray {

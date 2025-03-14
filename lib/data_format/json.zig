@@ -8,7 +8,7 @@ test {
     std.testing.refAllDecls(@This());
 }
 
-const hash_map = lib.collection.hash_map;
+const hash_map = lib.collection.table;
 
 pub const JsonType = union(enum) {
     null: void,
@@ -17,5 +17,5 @@ pub const JsonType = union(enum) {
     string: []u8,
 
     array: []JsonType,
-    object: hash_map.Map([]u8, JsonType),
+    object: hash_map.HashTable([]u8, JsonType),
 };

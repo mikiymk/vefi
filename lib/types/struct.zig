@@ -8,7 +8,7 @@ test {
 pub const Field = struct {
     type: type,
     name: [:0]const u8,
-    default_value: ?*const anyopaque = null,
+    default_value_ptr: ?*const anyopaque = null,
     is_comptime: bool = false,
     alignment: comptime_int = 0,
 
@@ -17,7 +17,7 @@ pub const Field = struct {
             return .{
                 .type = Type,
                 .name = name,
-                .default_value = null,
+                .default_value_ptr = null,
                 .is_comptime = is_comptime orelse false,
                 .alignment = alignment orelse 0,
             };
@@ -26,7 +26,7 @@ pub const Field = struct {
         return .{
             .type = ?Type,
             .name = name,
-            .default_value = @as(*const anyopaque, @ptrCast(&default_value)),
+            .default_value_ptr = @as(*const anyopaque, @ptrCast(&default_value)),
             .is_comptime = is_comptime orelse false,
             .alignment = alignment orelse 0,
         };
@@ -36,7 +36,7 @@ pub const Field = struct {
         return .{
             .type = self.type,
             .name = self.name,
-            .default_value = self.default_value,
+            .default_value_ptr = self.default_value_ptr,
             .is_comptime = self.is_comptime,
             .alignment = self.alignment,
         };
@@ -85,7 +85,7 @@ pub fn Struct(comptime fields: []const Field, comptime options: StructOptions) t
         db.* = d.toBuiltin();
     }
 
-    return @Type(.{ .Struct = .{
+    return @Type(.{ .@"struct" = .{
         .layout = options.layout.toBuiltin(),
         .backing_integer = options.backing_integer,
         .fields = &fields_builtin,
@@ -104,7 +104,7 @@ test Struct {
 pub fn isTuple(value: type) bool {
     const Type = @typeInfo(value);
 
-    return Type == .Struct and Type.Struct.is_tuple;
+    return Type == .@"struct" and Type.@"struct".is_tuple;
 }
 
 test isTuple {
@@ -117,7 +117,7 @@ test isTuple {
 pub fn ItemOf(value: type, index: usize) type {
     const Type = @typeInfo(value);
 
-    return Type.Struct.fields[index].type;
+    return Type.@"struct".fields[index].type;
 }
 
 test ItemOf {

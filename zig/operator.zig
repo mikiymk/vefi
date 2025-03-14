@@ -137,8 +137,8 @@ const add = struct {
 
     test "二項 + (複数要素ポインターベクトル + 整数ベクトル)" {
         // TODO: 0.13.0
-        // try assert((vec_multi_ptr + vec_usize)[0] == 2);
-        // try assert(@TypeOf(vec_multi_ptr + vec_usize) == [*]const u8);
+        // try assert((vec_multi_ptr_01 + vec_usize)[0] == 2);
+        // try assert(@TypeOf(vec_multi_ptr_01 + vec_usize) == [*]const u8);
     }
 
     test "二項 + (Cポインターベクトル + 整数ベクトル)" {

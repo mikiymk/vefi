@@ -8,7 +8,7 @@ test {
 pub fn isVector(value: type) bool {
     const Type = @typeInfo(value);
 
-    return Type == .Vector;
+    return Type == .vector;
 }
 
 test isVector {

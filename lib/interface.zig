@@ -14,19 +14,19 @@ pub const Match = struct {
     }
 
     pub fn isInt(self: Match) bool {
-        return self.info() == .Int or self.info() == .ComptimeInt;
+        return self.info() == .int or self.info() == .comptime_int;
     }
 
     pub fn isSigned(self: Match) bool {
-        return self.info() == .Int and self.info().Int.signedness == .signed;
+        return self.info() == .int and self.info().int.signedness == .signed;
     }
 
     pub fn isUnsigned(self: Match) bool {
-        return self.info() == .Int and self.info().Int.signedness == .unsigned;
+        return self.info() == .int and self.info().int.signedness == .unsigned;
     }
 
     pub fn isFloat(self: Match) bool {
-        return self.info() == .Float or self.info() == .ComptimeFloat;
+        return self.info() == .float or self.info() == .comptime_float;
     }
 
     pub fn isNum(self: Match) bool {
@@ -49,32 +49,32 @@ pub const Match = struct {
         return self.isInt() or
             self.isFloat() or
             (self.isVec() and
-            (self.item().isInt() or
-            self.item().isFloat()));
+                (self.item().isInt() or
+                    self.item().isFloat()));
     }
 
     pub fn item(self: Match) Match {
         return switch (self.info()) {
-            inline .Pointer, .Array, .Vector, .Optional => |a| match(a.child),
-            .ErrorUnion => |e| match(e.payload),
+            inline .pointer, .array, .vector, .optional => |a| match(a.child),
+            .error_union => |e| match(e.payload),
             else => @panic(@typeName(self.type) ++ " have no items."),
         };
     }
 
     pub fn isArray(self: Match) bool {
-        return self.info() == .Array;
+        return self.info() == .array;
     }
 
     pub fn isVec(self: Match) bool {
-        return self.info() == .Vector;
+        return self.info() == .vector;
     }
 
     pub fn isPtr(self: Match) bool {
-        return self.info() == .Pointer and self.info().Pointer.size != .Slice;
+        return self.info() == .pointer and self.info().pointer.size != .slice;
     }
 
     pub fn isSlice(self: Match) bool {
-        return self.info() == .Pointer and self.info().Pointer.size == .Slice;
+        return self.info() == .pointer and self.info().pointer.size == .slice;
     }
 
     pub fn isUserDefined(self: Match) bool {
@@ -83,55 +83,55 @@ pub const Match = struct {
 
     pub fn isPacked(self: Match) bool {
         return switch (self.info()) {
-            inline .Struct, .Union => |s| s.layout == .@"packed",
+            inline .@"struct", .@"union" => |s| s.layout == .@"packed",
             else => unreachable,
         };
     }
 
     pub fn isExtern(self: Match) bool {
         return switch (self.info()) {
-            inline .Struct, .Union => |s| s.layout == .@"extern",
+            inline .@"struct", .@"union" => |s| s.layout == .@"extern",
             else => unreachable,
         };
     }
 
     pub fn isStruct(self: Match) bool {
-        return self.info() == .Struct;
+        return self.info() == .@"struct";
     }
 
     pub fn isEnum(self: Match) bool {
-        return self.info() == .Enum;
+        return self.info() == .@"enum";
     }
 
     pub fn isUnion(self: Match) bool {
-        return self.info() == .Union;
+        return self.info() == .@"union";
     }
 
     pub fn isOpaque(self: Match) bool {
-        return self.info() == .Opaque;
+        return self.info() == .@"opaque";
     }
 
     pub fn isOptional(self: Match) bool {
-        return self.info() == .Optional;
+        return self.info() == .optional;
     }
 
     pub fn isErrorUnion(self: Match) bool {
-        return self.info() == .ErrorUnion;
+        return self.info() == .error_union;
     }
 
     pub fn errorSet(self: Match) Match {
-        return match(self.info().ErrorUnion.error_set);
+        return match(self.info().error_union.error_set);
     }
 
     pub fn isErrorSet(self: Match) bool {
-        return self.info() == .ErrorSet;
+        return self.info() == .error_set;
     }
 
     pub fn hasError(self: Match, comptime name: []const u8) bool {
         if (comptime self.isErrorUnion())
             return self.errorSet().hasError(name);
 
-        if (self.info().ErrorSet) |set| {
+        if (self.info().error_set) |set| {
             for (set) |err| {
                 if (err.name.len != name.len) continue;
                 for (err.name, name) |en, n| {
@@ -144,19 +144,19 @@ pub const Match = struct {
     }
 
     pub fn isFn(self: Match) bool {
-        return self.info() == .Fn;
+        return self.info() == .@"fn";
     }
 
     pub fn argAt(self: Match, index: usize) Match {
-        return match(self.info().Fn.params[index].type.?);
+        return match(self.info().@"fn".params[index].type.?);
     }
 
     pub fn isAnyTypeAt(self: Match, index: usize) bool {
-        return match(self.info().Fn.params[index].is_generic);
+        return match(self.info().@"fn".params[index].is_generic);
     }
 
     pub fn returns(self: Match) Match {
-        return match(self.info().Fn.return_type.?);
+        return match(self.info().@"fn".return_type.?);
     }
 
     pub fn decl(self: Match, comptime name: []const u8) Match {
@@ -173,8 +173,8 @@ pub const Match = struct {
         return @hasDecl(self.type, name) and
             self.decl(name).isFn() and
             (self.decl(name).argAt(0).is(self.type) or
-            ((comptime self.decl(name).argAt(0).isPtr()) and // comptimeでないと下の.item()でコンパイルエラー
-            self.decl(name).argAt(0).item().is(self.type)));
+                ((comptime self.decl(name).argAt(0).isPtr()) and // comptimeでないと下の.item()でコンパイルエラー
+                    self.decl(name).argAt(0).item().is(self.type)));
     }
 
     pub fn hasDecl(self: Match, comptime name: []const u8) bool {

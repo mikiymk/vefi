@@ -101,7 +101,7 @@ const struct_02: Struct_01 = .{ .value = 1 };
 const struct_03 = .{ .value = 1 };
 
 test "構造体リテラルの型" {
-    try assert(@TypeOf(.{ .value = 1 }) == @TypeOf(.{ .value = 1 }));
+    try assert(@TypeOf(.{ .value = 1 }) != @TypeOf(.{ .value = 1 }));
     try assert(@TypeOf(.{ .value = 1 }) != @TypeOf(.{ .value_2 = 1 }));
 }
 

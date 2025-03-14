@@ -1,15 +1,15 @@
 pub fn Optional(T: type) type {
-    return @Type(.{ .Optional = .{ .child = T } });
+    return @Type(.{ .optional = .{ .child = T } });
 }
 
 pub fn NonOptional(T: type) type {
-    return @typeInfo(T).Optional.child;
+    return @typeInfo(T).optional.child;
 }
 
 pub fn Deref(T: type) type {
-    const Child = @typeInfo(@typeInfo(T).Optional.child).Pointer.child;
+    const Child = @typeInfo(@typeInfo(T).optional.child).Pointer.child;
 
-    return @Type(.{ .Optional = .{ .child = Child } });
+    return @Type(.{ .optional = .{ .child = Child } });
 }
 
 /// `?*T` -> `?T`

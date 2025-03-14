@@ -8,7 +8,7 @@ test {
 pub fn isSlice(value: type) bool {
     const Type = @typeInfo(value);
 
-    return Type == .Pointer and Type.Pointer.size == .Slice;
+    return Type == .pointer and Type.pointer.size == .slice;
 }
 
 test isSlice {

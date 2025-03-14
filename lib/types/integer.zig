@@ -16,7 +16,7 @@ pub const Sign = enum(u1) {
 
 /// 符号とビット数から整数型を返します。
 pub fn Integer(sign: Sign, bits: u16) type {
-    return @Type(.{ .Int = .{
+    return @Type(.{ .int = .{
         .signedness = sign.toBuiltin(),
         .bits = bits,
     } });
@@ -51,7 +51,7 @@ test "📖Unsigned" {
 pub fn isInteger(T: type) bool {
     const info = @typeInfo(T);
 
-    return info == .Int or info == .ComptimeInt;
+    return info == .int or info == .comptime_int;
 }
 
 fn digitCount(comptime int: anytype, comptime radix: u6) usize {

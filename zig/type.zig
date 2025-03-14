@@ -8,7 +8,6 @@ const Struct_03 = extern struct { x: u32, y: u32, z: u32 };
 const Struct_04 = packed struct { x: u32, y: u32, z: u32 };
 
 const Tuple_01 = struct { u32, u32, u32 };
-const Tuple_02 = struct { u32, u32, u32 = 0 };
 
 const Enum_01 = enum { first, second, third };
 const Enum_02 = enum(u8) { first = 1, second = 2, third = 3 };
@@ -223,11 +222,9 @@ test "構造体型" {
 test "タプル型" {
     const tuple_01 = Tuple_01{ 5, 10, 15 };
     const tuple_02: Tuple_01 = .{ 5, 10, 15 };
-    const tuple_03: Tuple_02 = .{ 5, 10 };
 
     consume(tuple_01);
     consume(tuple_02);
-    consume(tuple_03);
 }
 
 test "列挙型" {

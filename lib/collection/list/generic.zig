@@ -22,7 +22,7 @@ pub fn clear(a: Allocator, head: anytype) void {
 }
 
 fn Option(T: type) type {
-    return if (@typeInfo(T) == .Optional) T else ?T;
+    return if (@typeInfo(T) == .optional) T else ?T;
 }
 
 pub fn getNode(head: anytype, index: usize) Option(@TypeOf(head)) {
