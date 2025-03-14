@@ -14,19 +14,19 @@ pub const Match = struct {
     }
 
     pub fn isInt(self: Match) bool {
-        return self.info() == .Int;
+        return self.info() == .Int or self.info() == .ComptimeInt;
     }
 
     pub fn isSigned(self: Match) bool {
-        return self.info().Int.signedness == .signed;
+        return self.info() == .Int and self.info().Int.signedness == .signed;
     }
 
     pub fn isUnsigned(self: Match) bool {
-        return self.info().Int.signedness == .unsigned;
+        return self.info() == .Int and self.info().Int.signedness == .unsigned;
     }
 
     pub fn isFloat(self: Match) bool {
-        return self.info() == .Float;
+        return self.info() == .Float or self.info() == .ComptimeFloat;
     }
 
     pub fn isNum(self: Match) bool {
@@ -57,7 +57,7 @@ pub const Match = struct {
         return switch (self.info()) {
             inline .Pointer, .Array, .Vector, .Optional => |a| match(a.child),
             .ErrorUnion => |e| match(e.payload),
-            else => unreachable,
+            else => @panic(@typeName(self.type) ++ " have no items."),
         };
     }
 
