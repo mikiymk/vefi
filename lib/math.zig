@@ -40,17 +40,28 @@ pub fn absDiff(left: anytype, right: @TypeOf(left)) lib.types.Integer.Unsigned(@
 // https://docs.oracle.com/javase/jp/23/docs/api/java.base/java/lang/Math.html
 // https://docs.python.org/ja/3.13/library/math.html
 
+/// 自然対数の底
 pub const e: comptime_float = 2.718281828459045235360287471352662497757;
+/// 円の直径に対する円周の比
 pub const pi: comptime_float = 3.141592653589793238462643383279502884197;
+/// 円の半径に対する円周の比
 pub const tau: comptime_float = 6.283185307179586476925286766559005768394;
 
-pub fn sin() void {}
-pub fn cos() void {}
-pub fn tan() void {}
-pub fn asin() void {}
-pub fn acos() void {}
-pub fn atan() void {}
-pub fn atan2() void {}
+/// 正弦関数
+pub fn sin(x: anytype) @TypeOf(x) {}
+/// 余弦関数
+pub fn cos(x: anytype) @TypeOf(x) {}
+/// 正接関数
+pub fn tan(x: anytype) @TypeOf(x) {}
+/// 正弦関数の逆関数
+pub fn asin(x: anytype) @TypeOf(x) {}
+/// 余弦関数の逆関数
+pub fn acos(x: anytype) @TypeOf(x) {}
+/// 正接関数の逆関数
+pub fn atan(x: anytype) @TypeOf(x) {}
+/// 2変数の正接関数の逆関数
+/// `atan(y / x)`
+pub fn atan2(y: anytype, x: @TypeOf(y)) @TypeOf(y) {}
 
 pub fn sinh() void {}
 pub fn cosh() void {}
