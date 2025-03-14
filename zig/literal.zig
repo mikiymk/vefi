@@ -2,10 +2,11 @@ const utils = @import("./utils.zig");
 const assert = utils.assert;
 const equalSlices = utils.equalSlices;
 
-const null_01: ?u8 = null;
-const null_02 = null;
+const compileZig = utils.compileZig;
 
-test "nullリテラルの型" {
+test "nullリテラル" {
+    try assert(try compileZig("const foo: ?u8 = null;") == .success);
+    try assert(try compileZig("const foo = null;") == .success);
     try assert(@TypeOf(null) == @TypeOf(null));
 }
 
