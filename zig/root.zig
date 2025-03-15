@@ -9,11 +9,12 @@ const builtin_function = @import("./builtin-function.zig");
 
 test {
     _ = .{
-        literal,
+        @import("./literal.zig"),
         types,
         operator,
         statement,
         type_coercion,
         // builtin_function,
+        @import("compile-zig.zig"),
     };
 }

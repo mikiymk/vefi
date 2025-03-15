@@ -4,11 +4,11 @@ const lib = @import("../root.zig");
 pub const StaticArray = @import("array/static.zig").StaticArray;
 pub const DynamicArray = @import("array/dynamic.zig").DynamicArray;
 pub const StaticMultiDimensionalArray = @import("array/static-multi-dimensional.zig").StaticMultiDimensionalArray;
-pub const StringArray = @import("array/string.zig");
+pub const StringArray = @import("array/StringArray.zig");
 pub const bit_array = struct {};
 
 pub fn isArray(T: type) bool {
-    const match = lib.interface.match(T);
+    const match = lib.concept.Match.init(T);
 
     return match.hasDecl("Item") and
         match.hasFn("size") and
@@ -18,12 +18,11 @@ pub fn isArray(T: type) bool {
         match.hasFn("getLast") and
         match.hasFn("set") and
         match.hasFn("setFirst") and
-        match.hasFn("setLast") and
-;
+        match.hasFn("setLast");
 }
 
 pub fn isDynamicArray(T: type) bool {
-    const match = lib.interface.match(T);
+    const match = lib.concept.Match.init(T);
 
     return isArray(T) and
         match.hasFn("add") and
@@ -31,8 +30,7 @@ pub fn isDynamicArray(T: type) bool {
         match.hasFn("addLast") and
         match.hasFn("remove") and
         match.hasFn("removeFirst") and
-        match.hasFn("removeLast") 
-;
+        match.hasFn("removeLast");
 }
 
 test "array is array" {

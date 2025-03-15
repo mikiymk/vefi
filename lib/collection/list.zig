@@ -16,7 +16,7 @@ pub const DoubleCircularSentinelList = @import("list/double-circular-sentinel.zi
 pub const test_list = @import("list/test.zig");
 
 pub fn isList(T: type) bool {
-    const match = lib.interface.match(T);
+    const match = lib.concept.Match.init(T);
 
     return match.hasFn("size") and
         match.hasFn("clear") and
@@ -32,7 +32,7 @@ pub fn isList(T: type) bool {
 }
 
 pub fn isDoubleList(T: type) bool {
-    const match = lib.interface.match(T);
+    const match = lib.concept.Match.init(T);
 
     return isList(T) and
         match.hasFn("getFromLast");
