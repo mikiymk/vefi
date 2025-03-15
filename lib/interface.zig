@@ -84,14 +84,14 @@ pub const Match = struct {
     pub fn isPacked(self: Match) bool {
         return switch (self.info()) {
             inline .@"struct", .@"union" => |s| s.layout == .@"packed",
-            else => unreachable,
+            else => false,
         };
     }
 
     pub fn isExtern(self: Match) bool {
         return switch (self.info()) {
             inline .@"struct", .@"union" => |s| s.layout == .@"extern",
-            else => unreachable,
+            else => false,
         };
     }
 
@@ -120,7 +120,10 @@ pub const Match = struct {
     }
 
     pub fn errorSet(self: Match) Match {
-        return match(self.info().error_union.error_set);
+        return switch (self.info()) {
+            .error_union => |e| match(e.error_set),
+            else => @panic(@typeName(self.type) ++ " is not error union."),
+        };
     }
 
     pub fn isErrorSet(self: Match) bool {
@@ -170,8 +173,7 @@ pub const Match = struct {
 
     /// その型の値がa.b()として呼びだせるもの
     pub fn hasMethod(self: Match, comptime name: []const u8) bool {
-        return @hasDecl(self.type, name) and
-            self.decl(name).isFn() and
+        return self.hasFn(name) and
             (self.decl(name).argAt(0).is(self.type) or
                 ((comptime self.decl(name).argAt(0).isPtr()) and // comptimeでないと下の.item()でコンパイルエラー
                     self.decl(name).argAt(0).item().is(self.type)));
