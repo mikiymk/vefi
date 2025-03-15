@@ -1,9 +1,14 @@
 const std = @import("std");
 const lib = @import("root.zig");
 
-/// 型の確認をする
-pub const Match = struct {
+const Match = @This();
+
     type: type,
+
+pub fn match(T: type) Match {
+    return .{ .type = T };
+}
+
 
     fn info(self: Match) std.builtin.Type {
         return @typeInfo(self.type);
@@ -192,11 +197,6 @@ pub const Match = struct {
     pub fn hasField(self: Match, comptime name: []const u8) bool {
         return @hasField(self.type, name);
     }
-};
-
-pub fn match(T: type) Match {
-    return .{ .type = T };
-}
 
 test match {
     const expect = lib.assert.expect;
