@@ -10,19 +10,29 @@ pub const bit_array = struct {};
 pub fn isArray(T: type) bool {
     const match = lib.interface.match(T);
 
-    return match.hasFn("get") and
+    return match.hasDecl("Item") and
+        match.hasFn("size") and
+        match.hasFn("clear") and
+        match.hasFn("get") and
+        match.hasFn("getFirst") and
+        match.hasFn("getLast") and
         match.hasFn("set") and
-        match.hasFn("size");
+        match.hasFn("setFirst") and
+        match.hasFn("setLast") and
+;
 }
 
 pub fn isDynamicArray(T: type) bool {
     const match = lib.interface.match(T);
 
     return isArray(T) and
-        match.hasFn("pushFront") and
-        match.hasFn("pushBack") and
-        match.hasFn("popFront") and
-        match.hasFn("popBack");
+        match.hasFn("add") and
+        match.hasFn("addFirst") and
+        match.hasFn("addLast") and
+        match.hasFn("remove") and
+        match.hasFn("removeFirst") and
+        match.hasFn("removeLast") 
+;
 }
 
 test "array is array" {
