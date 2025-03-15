@@ -48,7 +48,9 @@ pub const pi: comptime_float = 3.141592653589793238462643383279502884197;
 pub const tau: comptime_float = 6.283185307179586476925286766559005768394;
 
 /// 正弦関数
-pub fn sin(x: anytype) @TypeOf(x) {}
+pub fn sin(x: anytype) @TypeOf(x) {
+    
+}
 /// 余弦関数
 pub fn cos(x: anytype) @TypeOf(x) {}
 /// 正接関数
@@ -145,6 +147,8 @@ pub fn max() void {}
 pub fn min() void {}
 pub fn dim() void {}
 
+/// `x * y + z`を1回の丸めで計算する
+/// https://github.com/bminor/glibc/blob/10af00f7a135c85796a9c4c75228358b8898da5c/sysdeps/ieee754/dbl-64/s_fma.c
 pub fn fma() void {}
 
 pub fn lerp() void {}
