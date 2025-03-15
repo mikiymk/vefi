@@ -13,13 +13,13 @@ pub const float_point = @import("math/float_point.zig");
 pub const big_float_point = struct {};
 pub const complex = struct {};
 
-pub const Order = enum {
+pub const Order = enum (i2) {
     /// left == right
-    equal,
+    equal = 0,
     /// left > right
-    greater_than,
+    greater_than = 1,
     /// left < right
-    less_than,
+    less_than = -1,
 };
 
 pub fn compare(left: anytype, right: @TypeOf(left)) Order {
@@ -55,6 +55,9 @@ pub fn sin(x: anytype) @TypeOf(x) {
 pub fn cos(x: anytype) @TypeOf(x) {}
 /// 正接関数
 pub fn tan(x: anytype) @TypeOf(x) {}
+pub fn cot(x: anytype) @TypeOf(x) {}
+pub fn sec(x: anytype) @TypeOf(x) {}
+pub fn csc(x: anytype) @TypeOf(x) {}
 /// 正弦関数の逆関数
 pub fn asin(x: anytype) @TypeOf(x) {}
 /// 余弦関数の逆関数
@@ -88,10 +91,15 @@ pub fn exp2(x: anytype) @TypeOf(x) {}
 /// `e^x - 1`
 pub fn expm1(x: anytype) @TypeOf(x) {}
 
-pub fn log() void {}
-pub fn log2() void {}
-pub fn log10() void {}
-pub fn log1p() void {}
+/// eを底とする対数関数
+pub fn log(x: anytype) @TypeOf(x) {}
+/// 2を底とする対数関数
+pub fn log2(x: anytype) @TypeOf(x) {}
+/// 10を底とする対数関数
+pub fn log10(x: anytype) @TypeOf(x) {}
+/// 1を加えてeを底とする対数関数
+/// `log(1 + x)`
+pub fn log1p(x: anytype) @TypeOf(x) {}
 
 pub fn ldexp() void {}
 pub fn frexp() void {}
