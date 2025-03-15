@@ -4,7 +4,9 @@ const lib = @import("../../root.zig");
 const Allocator = std.mem.Allocator;
 const Array = lib.collection.array.DynamicArray;
 pub const Range = lib.collection.Range;
+
 const StringArray = @This();
+pub const Item = []const u8;
 
 pub const IndexError = error{OutOfBounds};
 pub const AllocError = Allocator.Error;
@@ -38,6 +40,11 @@ pub fn size(self: @This()) usize {
     return self.indexes.size();
 }
 
+pub fn clear(self: *@This(), a: Allocator) void {
+    self.values.clear(a);
+    self.indexes.clear(a);
+}
+
 /// 配列の`index`番目の要素を返す。
 pub fn get(self: @This(), index: usize) ?[]const u8 {
     const begin, const end = self.getRange(index) orelse return null;
@@ -58,10 +65,20 @@ pub fn set(self: *@This(), a: Allocator, index: usize, value: []u8) void {
     @memcpy(self.values.asSlice()[begin..][0..new_length], value);
 }
 
+/// 配列の`index`番目に新しい要素を追加する。
+pub fn add(self: *@This(), allocator: Allocator, index: usize, item: []const u8) AllocIndexError!void {
+    const prev_index = if (index == 0) 0 else self.indexes.get(index - 1) orelse return error.OutOfBounds;
+    try self.indexes.add(allocator, index, prev_index);
+    try self.values.addAll(allocator, prev_index, item);
+    for (self.indexes.values[index..self.indexes.size()]) |*i| {
+        i.* += item.len;
+    }
+}
+
 /// 値を配列の最も後ろに追加する。
 /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
-pub fn pushFront(self: *@This(), allocator: Allocator, item: []const u8) AllocError!void {
-    self.insert(allocator, 0, item) catch |err| switch (err) {
+pub fn addFirst(self: *@This(), allocator: Allocator, item: []const u8) AllocError!void {
+    self.add(allocator, 0, item) catch |err| switch (err) {
         error.OutOfBounds => unreachable,
         else => |e| return e,
     };
@@ -69,45 +86,35 @@ pub fn pushFront(self: *@This(), allocator: Allocator, item: []const u8) AllocEr
 
 /// 値を配列の最も後ろに追加する。
 /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
-pub fn pushBack(self: *@This(), allocator: Allocator, item: []const u8) Allocator.Error!void {
-    try self.values.pushBackAll(allocator, item);
-    try self.indexes.pushBack(allocator, self.values.size());
-}
-
-/// 配列の最も後ろの要素を削除し、その値を返す。
-/// 配列が要素を持たない場合、配列を変化させずにnullを返す。
-pub fn popFront(self: *@This()) ?[]u8 {
-    return self.delete(0);
-}
-
-/// 配列の最も後ろの要素を削除し、その値を返す。
-/// 配列が要素を持たない場合、配列を変化させずにnullを返す。
-pub fn popBack(self: *@This()) ?[]u8 {
-    if (self._size == 0) return null;
-    self._size -= 1;
-    return self._values[self._size];
-}
-
-/// 配列の`index`番目に新しい要素を追加する。
-pub fn insert(self: *@This(), allocator: Allocator, index: usize, item: []const u8) AllocIndexError!void {
-    const prev_index = if (index == 0) 0 else self.indexes.get(index - 1) orelse return error.OutOfBounds;
-    try self.indexes.insert(allocator, index, prev_index);
-    try self.values.insertAll(allocator, prev_index, item);
-    for (self.indexes._values[index..self.indexes.size()]) |*i| {
-        i.* += item.len;
-    }
+pub fn addLast(self: *@This(), allocator: Allocator, item: []const u8) Allocator.Error!void {
+    try self.values.addLastAll(allocator, item);
+    try self.indexes.addLast(allocator, self.values.size());
 }
 
 /// 配列の`index`番目の要素を削除する。
-pub fn delete(self: *@This(), index: usize) ?[]u8 {
-    const value = self.get(index);
-
-    self._size -= 1;
-    for (self._values[index..self._size], self._values[(index + 1)..(self._size + 1)]) |*e, f| {
-        e.* = f;
+pub fn remove(self: *@This(), index: usize) IndexError!void {
+    const begin, const end = self.getRange(index) orelse return error.OutOfBounds;
+    const length = end - begin;
+    _ = self.indexes.remove(index) orelse unreachable;
+    self.values.removeAll(begin, length) catch unreachable;
+    for (self.indexes.values[index..self.indexes.size()]) |*i| {
+        i.* -= length;
     }
+}
 
-    return value;
+/// 配列の最も後ろの要素を削除し、その値を返す。
+/// 配列が要素を持たない場合、配列を変化させずにnullを返す。
+pub fn removeFirst(self: *@This()) IndexError!void {
+    return self.remove(0);
+}
+
+/// 配列の最も後ろの要素を削除し、その値を返す。
+/// 配列が要素を持たない場合、配列を変化させずにnullを返す。
+pub fn removeLast(self: *@This()) IndexError!void {
+    _ = self.indexes.removeLast() orelse return error.OutOfBounds;
+    const index = self.indexes.size();
+    const begin = if (index == 0) 0 else self.indexes.get(index - 1) orelse unreachable;
+    self.values.removeAll(begin, self.values.size() - begin) catch unreachable;
 }
 
 pub fn copyToSlice(self: @This(), allocator: Allocator) AllocError![]const []const u8 {
@@ -118,7 +125,7 @@ pub fn copyToSlice(self: @This(), allocator: Allocator) AllocError![]const []con
     for (self.indexes.asSlice()) |index| {
         begin = end;
         end = index;
-        const str = self.values._values[begin..end];
+        const str = self.values.values[begin..end];
         try array.pushBack(allocator, str);
     }
 
@@ -143,7 +150,7 @@ pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, w
             try writer.print(", ", .{});
         }
 
-        const str = self.values._values[begin..end];
+        const str = self.values.values[begin..end];
         try writer.print("\"{s}\"", .{str});
     }
 
@@ -160,23 +167,45 @@ test StringArray {
     try expect(array.values.asSlice()).isString("");
     try expect(array.indexes.asSlice()).isSlice(usize, &.{});
 
-    try array.pushBack(allocator, "hello");
+    try array.addLast(allocator, "hello");
     try expect(array.size()).is(1);
     try expect(array.get(0)).opt().isString("hello");
     try expect(array.get(1)).isNull();
 
-    try array.pushFront(allocator, "world");
+    try array.addFirst(allocator, "world");
     try expect(array.size()).is(2);
     try expect(array.get(0)).opt().isString("world");
     try expect(array.get(1)).opt().isString("hello");
     try expect(array.get(2)).isNull();
 
-    try array.insert(allocator, 1, "zig");
+    try array.add(allocator, 1, "zig");
     try expect(array.size()).is(3);
     try expect(array.get(0)).opt().isString("world");
     try expect(array.get(1)).opt().isString("zig");
     try expect(array.get(2)).opt().isString("hello");
     try expect(array.get(3)).isNull();
+
+    try array.remove(1);
+    try expect(array.size()).is(2);
+    try expect(array.get(0)).opt().isString("world");
+    try expect(array.get(1)).opt().isString("hello");
+    try expect(array.get(2)).isNull();
+
+    try array.removeFirst();
+    try expect(array.size()).is(1);
+    try expect(array.get(0)).opt().isString("hello");
+    try expect(array.get(1)).isNull();
+
+    try array.removeLast();
+    try expect(array.size()).is(0);
+    try expect(array.get(1)).isNull();
+
+    try array.add(allocator, 0, "hello");
+    try array.remove(0);
+    try array.addFirst(allocator, "hello");
+    try array.removeFirst();
+    try array.addLast(allocator, "hello");
+    try array.removeLast();
 }
 
 test "format" {
@@ -186,11 +215,11 @@ test "format" {
     var array = Array_.init();
     defer array.deinit(a);
 
-    try array.pushBack(a, "hello");
-    try array.pushBack(a, "world");
-    try array.pushBack(a, "zig");
-    try array.pushBack(a, "array");
-    try array.pushBack(a, "list");
+    try array.addLast(a, "hello");
+    try array.addLast(a, "world");
+    try array.addLast(a, "zig");
+    try array.addLast(a, "array");
+    try array.addLast(a, "list");
 
     const formatted = try std.fmt.allocPrint(a, "{}", .{array});
     defer a.free(formatted);

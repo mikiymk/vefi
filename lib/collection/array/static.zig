@@ -6,6 +6,7 @@ const assert = lib.assert.assert;
 /// 静的配列 (Static Array)
 pub fn StaticArray(T: type, array_size: usize) type {
     return struct {
+        pub const Item = T;
         pub const Range = lib.collection.Range;
         pub const IndexError = error{OutOfBounds};
 

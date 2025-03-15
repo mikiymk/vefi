@@ -39,7 +39,7 @@ pub const NondeterministicFiniteAutomaton = struct {
         var states = DynamicArray.init();
         defer states.deinit(a);
 
-        try states.pushBack(a, initial_state);
+        try states.addLast(a, initial_state);
 
         for (string) |c| {
             var next_states = DynamicArray.init();
@@ -47,11 +47,11 @@ pub const NondeterministicFiniteAutomaton = struct {
             for (states.asSlice()) |state| {
                 const state_next_states = self.getTransition(state, c) orelse continue;
                 for (state_next_states) |state_next_state| {
-                    try next_states.pushBack(a, state_next_state);
+                    try next_states.addLast(a, state_next_state);
                 }
             }
 
-            if (next_states._size == 0) {
+            if (next_states.length == 0) {
                 return false;
             }
 

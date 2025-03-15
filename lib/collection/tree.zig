@@ -238,7 +238,7 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
                     try left.copyToSliceNode(allocator, array);
                 }
 
-                try array.pushBack(allocator, node.item);
+                try array.addLast(allocator, node.item);
 
                 if (node.right) |right| {
                     try right.copyToSliceNode(allocator, array);

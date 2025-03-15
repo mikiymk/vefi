@@ -12,19 +12,15 @@ pub fn isArray(T: type) bool {
 
     return match.hasDecl("Item") and
         match.hasFn("size") and
-        match.hasFn("clear") and
         match.hasFn("get") and
-        match.hasFn("getFirst") and
-        match.hasFn("getLast") and
-        match.hasFn("set") and
-        match.hasFn("setFirst") and
-        match.hasFn("setLast");
+        match.hasFn("set");
 }
 
 pub fn isDynamicArray(T: type) bool {
     const match = lib.concept.Match.init(T);
 
     return isArray(T) and
+        match.hasFn("clear") and
         match.hasFn("add") and
         match.hasFn("addFirst") and
         match.hasFn("addLast") and
