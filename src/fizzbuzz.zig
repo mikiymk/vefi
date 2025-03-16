@@ -17,7 +17,7 @@ const FizzOptions = struct {
     };
     fizzes: []const Fizz = &default_fizz,
 
-    separator: []const u8 = "\n",
+    separator: []const u8 = " ",
 };
 
 /// 1からnまでのfizzbuzzを1行ずつ標準出力に書き込みます。

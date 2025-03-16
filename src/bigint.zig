@@ -46,17 +46,17 @@ pub const BigInteger = struct {
 
     pub fn fromInt(comptime T: type, allocator: std.mem.Allocator, value: T) !Self {
         const typeinfo = @typeInfo(@TypeOf(value));
-        std.debug.assert(typeinfo == .Int);
+        std.debug.assert(typeinfo == .int);
 
         const bits = l: {
-            if (typeinfo != .Int) {
+            if (typeinfo != .int) {
                 @compileError("compile error");
             }
 
-            if (typeinfo.Int.bits % 8 == 0) {
-                break :l typeinfo.Int.bits / 8 + 0;
+            if (typeinfo.int.bits % 8 == 0) {
+                break :l typeinfo.int.bits / 8 + 0;
             } else {
-                break :l typeinfo.Int.bits / 8 + 1;
+                break :l typeinfo.int.bits / 8 + 1;
             }
         };
 
@@ -66,7 +66,7 @@ pub const BigInteger = struct {
         while (var_value != 0) {
             try array.append(allocator, @truncate(var_value));
 
-            if (typeinfo.Int.bits > 8) {
+            if (typeinfo.int.bits > 8) {
                 var_value >>= 8;
             }
         }

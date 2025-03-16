@@ -9,22 +9,23 @@ test {
     _ = @import("bigint.zig");
 }
 
-const Array = lib.collection.StaticArray(u8, 5);
+const Array = lib.collection.array.StaticArray(u8, 5);
 
 pub fn main() !void {
     const print = std.debug.print;
     const allocator = std.heap.page_allocator;
 
     const array = Array.init(.{ 1, 2, 3, 4, 5 });
-    print("{}", .{array});
+    print("{}\n", .{array});
 
     if (config.is_enabled) {
-        print("enabled\n", .{});
+        print("enabled!\n", .{});
     } else {
-        @panic("disabled! add -Dis_enabled=true flag on compile!");
+        print("disabled! add -Dis_enabled=true flag on compile!\n", .{});
     }
 
     try fizz_buzz.fizz(100, std.io.getStdOut().writer(), .{});
+    print("\n", .{});
 
     const stdin = std.io.getStdIn().reader();
 
