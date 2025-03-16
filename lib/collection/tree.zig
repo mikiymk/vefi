@@ -199,7 +199,7 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
                 const bf = node.balanceFactor();
 
                 if (1 < bf) { // 左が2以上高い
-                    const left = node.left orelse unreachable;
+                    const left = node.left.?;
 
                     if (left.balanceFactor() < 0) {
                         left.rotateLeft();
@@ -208,7 +208,7 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
 
                     return true;
                 } else if (bf < -1) { // 右が2以上高い
-                    const right = node.right orelse unreachable;
+                    const right = node.right.?;
 
                     if (right.balanceFactor() > 0) {
                         right.rotateRight();
@@ -273,7 +273,7 @@ pub fn AvlTree(T: type, compare_fn: fn (left: T, right: T) Order) type {
 
         pub fn count(self: @This(), allocator: Allocator) Allocator.Error!usize {
             var c: usize = 0;
-            var stack = lib.collection.stack.Stack(*Node).init();
+            var stack = lib.collection.stack.ArrayStack(*Node).init();
             defer stack.deinit(allocator);
 
             var node = self.root;

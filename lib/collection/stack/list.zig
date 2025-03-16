@@ -3,7 +3,7 @@ const lib = @import("../../root.zig");
 
 const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
-const List = lib.collection.List;
+const List = lib.collection.list.SingleLinearList;
 
 pub fn ListStack(T: type) type {
     return struct {
@@ -16,7 +16,7 @@ pub fn ListStack(T: type) type {
             return .{ .values = List(Item).init() };
         }
 
-        pub fn deinit(self: Stack, a: Allocator) void {
+        pub fn deinit(self: *Stack, a: Allocator) void {
             self.values.deinit(a);
         }
 
@@ -28,13 +28,13 @@ pub fn ListStack(T: type) type {
             try self.values.addFirst(a, item);
         }
 
-        pub fn pop(self: *Stack) ?Item {
-            const value = self.values.getFirst();
-            self.values.removeFirst();
+        pub fn pop(self: *Stack, a: Allocator) ?Item {
+            const value = self.values.getFirst() orelse return null;
+            self.values.removeFirst(a) catch unreachable;
             return value;
         }
 
-        pub fn peek(self: Stack) ?*Item {
+        pub fn peek(self: Stack) ?Item {
             return self.values.getFirst();
         }
 
@@ -52,4 +52,26 @@ pub fn ListStack(T: type) type {
             try writer.print("}}", .{});
         }
     };
+}
+
+test ListStack {
+    const Stack = ListStack(usize);
+    const a = std.testing.allocator;
+    const expect = lib.testing.expect;
+
+    var stack = Stack.init();
+    defer stack.deinit(a);
+
+    try stack.push(a, 3);
+    try stack.push(a, 4);
+    try stack.push(a, 5);
+
+    try expect(stack.size()).is(3);
+    try expect(stack.pop(a)).is(5);
+    try expect(stack.peek()).is(4);
+    try expect(stack.pop(a)).is(4);
+    try expect(stack.pop(a)).is(3);
+    try expect(stack.peek()).is(null);
+    try expect(stack.pop(a)).is(null);
+    try expect(stack.size()).is(0);
 }

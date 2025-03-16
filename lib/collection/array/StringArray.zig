@@ -95,7 +95,7 @@ pub fn addLast(self: *@This(), allocator: Allocator, item: []const u8) Allocator
 pub fn remove(self: *@This(), index: usize) IndexError!void {
     const begin, const end = self.getRange(index) orelse return error.OutOfBounds;
     const length = end - begin;
-    _ = self.indexes.remove(index) orelse unreachable;
+    _ = self.indexes.remove(index).?;
     self.values.removeAll(begin, length) catch unreachable;
     for (self.indexes.values[index..self.indexes.size()]) |*i| {
         i.* -= length;
@@ -113,7 +113,7 @@ pub fn removeFirst(self: *@This()) IndexError!void {
 pub fn removeLast(self: *@This()) IndexError!void {
     _ = self.indexes.removeLast() orelse return error.OutOfBounds;
     const index = self.indexes.size();
-    const begin = if (index == 0) 0 else self.indexes.get(index - 1) orelse unreachable;
+    const begin = if (index == 0) 0 else self.indexes.get(index - 1).?;
     self.values.removeAll(begin, self.values.size() - begin) catch unreachable;
 }
 

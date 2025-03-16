@@ -13,8 +13,10 @@ pub const Tuple = @import("types/tuple.zig");
 pub const Struct = @import("types/struct.zig");
 
 pub const Array = @import("types/array.zig");
-pub const Slice = @import("types/slice.zig");
 pub const Vector = @import("types/vector.zig");
+
+pub const Pointer = @import("types/pointer.zig");
+pub const Slice = @import("types/slice.zig");
 
 pub const Optional = @import("types/optional.zig");
 pub const error_union = @import("types/error-union.zig");

@@ -2,6 +2,7 @@ const std = @import("std");
 const lib = @import("root.zig");
 const NotError = lib.types.error_union.Value;
 const NotOptional = lib.types.Optional.NonOptional;
+const Deref = lib.types.Pointer.Deref;
 
 fn print(comptime fmt: []const u8, args: anytype) void {
     std.debug.print(fmt ++ "\n", args);
@@ -17,12 +18,8 @@ pub fn Expect(T: type) type {
             if (self.error_stain) |e| return e;
         }
 
-        pub fn err(self: E) Expect(NotError(T)) {
-            if (self.value) |v| {
-                return .{ .value = v };
-            } else |e| {
-                return .{ .value = undefined, .error_stain = e };
-            }
+        pub fn ptr(self: E) Expect(Deref(T)) {
+            return .{ .value = self.value.* };
         }
 
         pub fn opt(self: E) Expect(NotOptional(T)) {
@@ -30,6 +27,14 @@ pub fn Expect(T: type) type {
                 return .{ .value = v };
             } else {
                 return .{ .value = undefined, .error_stain = error.OptionalIsNull };
+            }
+        }
+
+        pub fn err(self: E) Expect(NotError(T)) {
+            if (self.value) |v| {
+                return .{ .value = v };
+            } else |e| {
+                return .{ .value = undefined, .error_stain = e };
             }
         }
 
