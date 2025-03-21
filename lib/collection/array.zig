@@ -1,11 +1,11 @@
 const std = @import("std");
 const lib = @import("../root.zig");
 
-pub const StaticArray = @import("array/static.zig").StaticArray;
-pub const DynamicArray = @import("array/dynamic.zig").DynamicArray;
-pub const StaticMultiDimensionalArray = @import("array/static-multi-dimensional.zig").StaticMultiDimensionalArray;
+pub const StaticArray = @import("array/StaticArray.zig").StaticArray;
+pub const DynamicArray = @import("array/DynamicArray.zig").DynamicArray;
+pub const StaticMultiDimensionalArray = @import("array/StaticMultiDimensionalArray.zig").StaticMultiDimensionalArray;
 pub const StringArray = @import("array/StringArray.zig");
-pub const bit_array = struct {};
+pub const BitArray = @import("array/BitArray.zig");
 
 pub fn isArray(T: type) bool {
     const match = lib.concept.Match.init(T);
