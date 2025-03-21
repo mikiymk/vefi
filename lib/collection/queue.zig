@@ -3,6 +3,11 @@ const lib = @import("../root.zig");
 
 const Allocator = std.mem.Allocator;
 
+pub const ListQueue = @import("queue/ListQueue.zig").ListQueue;
+
+pub const CircularArrayDeque = @import("queue/CircularArrayDeque.zig").CircularArrayDeque;
+pub const ListDeque = @import("queue/ListDeque.zig").ListDeque;
+
 /// データを先入れ先出し(FIFO)で保持するコレクションです。
 /// リングバッファを使用した実装
 pub fn Queue(T: type) type {
