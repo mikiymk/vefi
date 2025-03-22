@@ -42,12 +42,14 @@ pub fn format(w: anytype, type_name: []const u8, head: anytype) !void {
     var node = head;
     var first = true;
     while (node) |n| : (node = n.next) {
-        const sep = if (first) b: {
+        if (first) {
+            try writer.print(" ", .{});
             first = false;
-            break :b " ";
-        } else ", ";
+       } else {
+           try writer.print(", ", .{});
+       }
 
-        try writer.print("{s}{}", .{ sep, n });
+        try writer.print("{}", .{n});
     }
     try writer.print(" }}", .{});
 }
