@@ -1,10 +1,12 @@
 pub fn CircularArrayDeque(T: type) type {
     return struct {
+        const Queue = @This();
         pub const Item = T;
 
         value: []Item,
         head: usize,
         tail: usize,
+        filled: bool,
 
         /// 空のキューを作成します。
         pub fn init() @This() {
@@ -12,22 +14,21 @@ pub fn CircularArrayDeque(T: type) type {
                 .value = &[_]Item{},
                 .head = 0,
                 .tail = 0,
+                .filled = true,
             };
         }
 
         /// メモリを破棄し、キューを終了します。
-        pub fn deinit(self: *@This(), allocator: Allocator) void {
-            allocator.free(self.value);
+        pub fn deinit(self: *@This(), a: Allocator) void {
+            a.free(self.value);
             self.* = undefined;
         }
 
-        fn isFull(self: @This()) bool {
-            return self.value.len <= self.count() + 1;
-        }
-
         /// キューの要素数を数えます。
-        pub fn count(self: @This()) usize {
-            return self.head - self.tail;
+        pub fn size(self: @This()) usize {
+            return if (self.filled) self.values.len
+            else if (self.head < self.tail) self.head + self.values.len - self.tail
+            else head - self.tail;
         }
 
         /// キューの先頭に要素を追加します。
