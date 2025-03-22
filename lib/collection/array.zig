@@ -22,11 +22,7 @@ pub fn isDynamicArray(T: type) bool {
     return isArray(T) and
         match.hasFn("clear") and
         match.hasFn("add") and
-        match.hasFn("addFirst") and
-        match.hasFn("addLast") and
-        match.hasFn("remove") and
-        match.hasFn("removeFirst") and
-        match.hasFn("removeLast");
+        match.hasFn("remove");
 }
 
 test "array is array" {
