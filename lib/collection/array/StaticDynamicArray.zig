@@ -174,7 +174,7 @@ pub fn StaticDynamicArray(T: type, max_length:usize) type {
             };
         }
 
-        pub fn addFirstAll(self: *@This(), 
+        pub fn addFirstAll(self: *@This(), items: []const T) OverflowError!void {
             self.addAll(allocator, 0, items) catch |err| switch (err) {
                 error.OutOfBounds => unreachable,
                 else => |e| return e,
@@ -186,7 +186,7 @@ pub fn StaticDynamicArray(T: type, max_length:usize) type {
         /// 再確保ができない場合はエラーを返す。
         pub fn addLast(self: *@This(), allocator: Allocator, item: T) OverflowError!void {
             if (self.values.len <= self.length) {
-                try self.extendSize(allocator);
+                return error.Overflow;
             }
 
             self.values[self.length] = item;
@@ -198,7 +198,7 @@ pub fn StaticDynamicArray(T: type, max_length:usize) type {
         /// 再確保ができない場合はエラーを返す。
         pub fn addLastAll(self: *@This(), allocator: Allocator, items: []const T) OverflowError!void {
             if (self.values.len < self.size() + items.len) {
-                try self.reserve(allocator, self.size() + items.len);
+                return error.Overflow;
             }
 
             const index = self.size();
@@ -211,11 +211,8 @@ pub fn StaticDynamicArray(T: type, max_length:usize) type {
         pub fn remove(self: *@This(), index: usize) ?T {
             const value = self.get(index) orelse return null;
 
+            try self.copyInArray(index + 1, index, self.size() - index - 1);
             self.length -= 1;
-            for (self.values[index..self.length], self.values[(index + 1)..(self.length + 1)]) |*e, f| {
-                e.* = f;
-            }
-
             return value;
         }
 
@@ -241,12 +238,7 @@ pub fn StaticDynamicArray(T: type, max_length:usize) type {
 
         /// 同じ要素を持つ配列を複製する。
         pub fn copy(self: @This()) @This() {
-            const new_array: @This() = .{
-                ._size = self.length,
-                ._values = try self.copyToSlice(allocator),
-            };
-
-            return new_array;
+            return self;
         }
 
         /// 配列をスライスとして取得する。
@@ -255,7 +247,7 @@ pub fn StaticDynamicArray(T: type, max_length:usize) type {
         }
 
         /// 配列をコピーした新しいスライスを作成する。
-        pub fn copyToSlice(self: @This()) []const T {
+        pub fn copyToSlice(self: @This(), allocator: Allocator) Allocator.Error![]const T {
             var new_slice = try allocator.alloc(T, self.length);
             @memcpy(new_slice[0..], self.asSlice());
 
@@ -285,7 +277,7 @@ pub fn StaticDynamicArray(T: type, max_length:usize) type {
 
 test DynamicArray {
     const allocator = std.testing.allocator;
-    const Array = DynamicArray(usize);
+    const Array = StaticDynamicArray(usize, 20);
     const expect = lib.testing.expect;
 
     var array = Array.init();
@@ -355,20 +347,20 @@ test DynamicArray {
 }
 
 test "format" {
-    const Array = DynamicArray(u8);
-    const a = std.testing.allocator;
+    const Array = StaticDynamicArray(u8, 10);
+    const allocator = std.testing.allocator;
 
     var array = Array.init();
-    defer array.deinit(a);
+    defer array.deinit();
 
-    try array.addLast(a, 1);
-    try array.addLast(a, 2);
-    try array.addLast(a, 3);
-    try array.addLast(a, 4);
-    try array.addLast(a, 5);
+    try array.addLast(1);
+    try array.addLast(2);
+    try array.addLast(3);
+    try array.addLast(4);
+    try array.addLast(5);
 
     const format = try std.fmt.allocPrint(a, "{}", .{array});
     defer a.free(format);
 
-    try lib.assert.expectEqualString("DynamicArray(u8){ 1, 2, 3, 4, 5 }", format);
+    try lib.assert.expectEqualString("StaticDynamicArray(u8){ 1, 2, 3, 4, 5 }", format);
 }
