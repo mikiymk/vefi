@@ -20,21 +20,18 @@ pub fn isList(T: type) bool {
 
     return match.hasFn("size") and
         match.hasFn("clear") and
+        match.hasFn("getNode") and
         match.hasFn("get") and
-        match.hasFn("getFirst") and
-        match.hasFn("getLast") and
+        match.hasFn("set") and
         match.hasFn("add") and
-        match.hasFn("addFirst") and
-        match.hasFn("addLast") and
-        match.hasFn("remove") and
-        match.hasFn("removeFirst") and
-        match.hasFn("removeLast");
+        match.hasFn("remove");
 }
 
 pub fn isDoubleList(T: type) bool {
     const match = lib.concept.Match.init(T);
 
     return isList(T) and
+        match.hasFn("getNodeFromLast") and
         match.hasFn("getFromLast");
 }
 
