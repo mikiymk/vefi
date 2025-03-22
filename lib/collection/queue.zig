@@ -8,6 +8,23 @@ pub const ListQueue = @import("queue/ListQueue.zig").ListQueue;
 pub const CircularArrayDeque = @import("queue/CircularArrayDeque.zig").CircularArrayDeque;
 pub const ListDeque = @import("queue/ListDeque.zig").ListDeque;
 
+pub fn isQueue(T: type) bool {
+    const match = lib.concept.Match.init(T);
+
+    return match.hasDecl("Item") and
+        match.hasFn("size") and
+        match.hasFn("pushBack") and
+        match.hasFn("popFront");
+}
+
+pub fn isDeque(T: type) bool {
+    const match = lib.concept.Match.init(T);
+
+    return isQueue(T) and
+        match.hasFn("pushFront") and
+        match.hasFn("popBack");
+}
+
 /// データを先入れ先出し(FIFO)で保持するコレクションです。
 /// リングバッファを使用した実装
 pub fn Queue(T: type) type {
