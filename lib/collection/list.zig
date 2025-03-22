@@ -1,17 +1,18 @@
 const std = @import("std");
 const lib = @import("../root.zig");
 
-pub const generic_list = @import("list/generic.zig");
-pub const generic_list_sentinel = @import("list/generic-sentinel.zig");
+pub const LinearNode = @import("list/node/LinearNode.zig");
+pub const CircularNode = @import("list/node/CircularNode.zig");
+pub const SentinelNode = @import("list/node/SentinelNode.zig");
 
-pub const SingleLinearList = @import("list/single-linear.zig").SingleLinearList;
-pub const SingleLinearSentinelList = @import("list/single-linear-sentinel.zig").SingleLinearSentinelList;
-pub const SingleCircularList = @import("list/single-circular.zig").SingleCircularList;
-pub const SingleCircularSentinelList = @import("list/single-circular-sentinel.zig").SingleCircularSentinelList;
-pub const DoubleLinearList = @import("list/double-linear.zig").DoubleLinearList;
-pub const DoubleLinearSentinelList = @import("list/double-linear-sentinel.zig").DoubleLinearSentinelList;
-pub const DoubleCircularList = @import("list/double-circular.zig").DoubleCircularList;
-pub const DoubleCircularSentinelList = @import("list/double-circular-sentinel.zig").DoubleCircularSentinelList;
+pub const SingleLinearList = @import("list/SingleLinearList.zig").SingleLinearList;
+pub const SingleLinearSentinelList = @import("list/SingleLinearSentinelList.zig").SingleLinearSentinelList;
+pub const SingleCircularList = @import("list/SingleCircularList.zig").SingleCircularList;
+pub const SingleCircularSentinelList = @import("list/SingleCircularSentinelList.zig").SingleCircularSentinelList;
+pub const DoubleLinearList = @import("list/DoubleLinearList.zig").DoubleLinearList;
+pub const DoubleLinearSentinelList = @import("list/DoubleLinearSentinelList.zig").DoubleLinearSentinelList;
+pub const DoubleCircularList = @import("list/DoubleCircularList.zig").DoubleCircularList;
+pub const DoubleCircularSentinelList = @import("list/DoubleCircularSentinelList.zig").DoubleCircularSentinelList;
 
 pub const test_list = @import("list/test.zig");
 
