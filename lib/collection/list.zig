@@ -1,9 +1,11 @@
 const std = @import("std");
 const lib = @import("../root.zig");
 
-pub const LinearNode = @import("list/node/LinearNode.zig");
-pub const CircularNode = @import("list/node/CircularNode.zig");
-pub const SentinelNode = @import("list/node/SentinelNode.zig");
+pub const node = struct {
+    pub const linear = @import("list/node/linear.zig");
+    pub const circular = @import("list/node/circular.zig");
+    pub const sentinel = @import("list/node/sentinel.zig");
+};
 
 pub const SingleLinearList = @import("list/SingleLinearList.zig").SingleLinearList;
 pub const SingleLinearSentinelList = @import("list/SingleLinearSentinelList.zig").SingleLinearSentinelList;
