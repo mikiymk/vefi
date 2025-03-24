@@ -76,3 +76,27 @@ pub fn getLastNode2(head: anytype) Option(@TypeOf(head)) {
 
     return prev_prev;
 }
+
+pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
+    const type_name = "SingleCircularList(" ++ @typeName(T) ++ ")";
+    const writer = lib.io.writer(w);
+
+    try writer.print("{s}{{", .{type_name});
+    if (self.head) |head| {
+        var node = head;
+        var first = true;
+        while (true) : (node = node.next) {
+            if (first) {
+                try writer.print(" ", .{});
+                first = false;
+            } else {
+                try writer.print(", ", .{});
+           }
+
+           try writer.print("{}", .{node});
+
+            if (node.next == head) break;
+       }
+    }
+   try writer.print(" }}", .{});
+}
