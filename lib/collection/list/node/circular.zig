@@ -58,3 +58,16 @@ fn getLastNode(head: anytype) ?*Node {
 
     return prev;
 }
+
+pub fn getLastNode2(head: anytype, a: Allocator) ?*Node {
+    var prev_prev: ?*Node = null;
+    var prev: ?*Node = null;
+    var node = head;
+
+    while (node) |n| : (node = n.next) {
+        prev_prev = prev;
+        prev = n;
+    }
+
+    return prev_prev;
+}
