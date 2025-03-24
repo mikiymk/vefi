@@ -4,6 +4,10 @@ const lib = @import("../../root.zig");
 const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
 
+fn Option(T: type) type {
+    return if (@typeInfo(T) == .optional) T else ?T;
+}
+
 pub fn size(head: anytype) usize {
     var node = head;
     var count: usize = 0;
@@ -21,15 +25,21 @@ pub fn clear(a: Allocator, head: anytype) void {
     }
 }
 
-fn Option(T: type) type {
-    return if (@typeInfo(T) == .optional) T else ?T;
-}
-
 pub fn getNode(head: anytype, index: usize) Option(@TypeOf(head)) {
     var node = head;
     var count = index;
 
     return while (node) |n| : (node = n.next) {
+        if (count == 0) break n;
+        count -= 1;
+    } else null;
+}
+
+pub fn getNodeFromLast(tail: anytype, index: usize) Option(@TypeOf(head)) {
+    var node = tail;
+    var count = index;
+
+    return while (node) |n| : (node = n.prev) {
         if (count == 0) break n;
         count -= 1;
     } else null;
