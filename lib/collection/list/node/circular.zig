@@ -77,8 +77,7 @@ pub fn getLastNode2(head: anytype) Option(@TypeOf(head)) {
     return prev_prev;
 }
 
-pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
-    const type_name = "SingleCircularList(" ++ @typeName(T) ++ ")";
+pub fn format(w: anytype, type_name: []const u8, head: anytype) !void {
     const writer = lib.io.writer(w);
 
     try writer.print("{s}{{", .{type_name});
