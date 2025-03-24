@@ -1,4 +1,9 @@
 
+
+fn Option(T: type) type {
+    return if (@typeInfo(T) == .optional) T else ?T;
+}
+
 pub fn size(head: anytype) usize {
     const head_ = head orelse return 0;
     var node = head_.next;
@@ -24,7 +29,7 @@ pub fn clear(head: anytype, a: Allocator) void {
    }
 }
 
-pub fn getNode(head: anytype, index: usize) ?*Node {
+pub fn getNode(head: anytype, index: usize) Option(@TypeOf(head)) {
    const head = head orelse return null;
     var node = head;
     var count = index;
@@ -36,7 +41,7 @@ pub fn getNode(head: anytype, index: usize) ?*Node {
     }
 }
 
-pub fn getNodeFromLast(tail: anytype, index: usize) ?*Node {
+pub fn getNodeFromLast(tail: anytype, index: usize) Option(@TypeOf(head)) {
     const tail = tail orelse return null;
     var node = tail;
     var count = index;
@@ -48,7 +53,7 @@ pub fn getNodeFromLast(tail: anytype, index: usize) ?*Node {
     }
 }
 
-fn getLastNode(head: anytype) ?*Node {
+fn getLastNode(head: anytype) Option(@TypeOf(head)) {
     var prev = head orelse return null;
     var node = prev.next;
 
@@ -59,9 +64,9 @@ fn getLastNode(head: anytype) ?*Node {
     return prev;
 }
 
-pub fn getLastNode2(head: anytype, a: Allocator) ?*Node {
-    var prev_prev: ?*Node = null;
-    var prev: ?*Node = null;
+pub fn getLastNode2(head: anytype) Option(@TypeOf(head)) {
+    var prev_prev: Option(@TypeOf(head)) = null;
+    var prev: Option(@TypeOf(head)) = null;
     var node = head;
 
     while (node) |n| : (node = n.next) {
