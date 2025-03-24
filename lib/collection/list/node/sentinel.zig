@@ -32,6 +32,16 @@ pub fn getNode(head: anytype, sentinel: @TypeOf(head), index: usize) @TypeOf(hea
     return node;
 }
 
+pub fn getNodeFromLast(tail: anytype, sentinel: @TypeOf(head), index: usize) @TypeOf(head) {
+    var node = tail;
+    var count = index;
+
+   while (node != sentinel and count != 0) : (node = node.prev) {
+        count -= 1;
+   }
+    return node;
+}
+
 pub fn getLastNode(head: anytype, sentinel: @TypeOf(head)) @TypeOf(head) {
     var prev = sentinel;
     var node = head;
@@ -48,11 +58,10 @@ pub fn getLastNode2(head: anytype, sentinel: @TypeOf(head)) @TypeOf(head) {
     var prev = sentinel;
     var node = head;
 
-    while (node != sentinel) : ({
+    while (node != sentinel) : (node = node.next) {
         prev_prev = prev;
         prev = node;
-        node = node.next;
-    }) {}
+    }
 
     return prev_prev;
 }
