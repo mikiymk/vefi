@@ -47,3 +47,14 @@ pub fn getNodeFromLast(tail: anytype, index: usize) ?*Node {
         if (node.prev == tail) return null;
     }
 }
+
+fn getLastNode(head: anytype) ?*Node {
+    var prev = head orelse return null;
+    var node = prev.next;
+
+   while (node != self.head) : (node = node.next) {
+        prev = node;
+    }
+
+    return prev;
+}
