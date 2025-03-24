@@ -23,3 +23,27 @@ pub fn clear(head: anytype, a: Allocator) void {
         if (node == head) break; // do-whileになる
    }
 }
+
+pub fn getNode(head: anytype, index: usize) ?*Node {
+   const head = head orelse return null;
+    var node = head;
+    var count = index;
+
+    while (true) : (node = node.next) {
+        if (count == 0) return node;
+        count -= 1;
+        if (node.next == head) return null;
+    }
+}
+
+pub fn getNodeFromLast(tail: anytype, index: usize) ?*Node {
+    const tail = tail orelse return null;
+    var node = tail;
+    var count = index;
+
+    while (true) : (node = node.prev) {
+        if (count == 0) return node;
+        count -= 1;
+        if (node.prev == tail) return null;
+    }
+}
