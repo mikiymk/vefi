@@ -1,4 +1,4 @@
-/// それぞれの値を変更して出力するイテレーター
+/// 値と型を変更するイテレーター
 pub fn Map(Iterator: type, NewType: type) type {
     lib.assert.assert(isIterator(Iterator));
     lib.assert.assert(!lib.types.Optional.isOptional(NewType));
@@ -16,8 +16,19 @@ pub fn Map(Iterator: type, NewType: type) type {
     };
 }
 
-/// それぞれの値を変更して出力するイテレーター
+/// 値を変更したイテレーターを作成する
 pub fn map(
+    iterator: anytype,
+    map_fn: *const fn (value: ItemOf(@TypeOf(iterator))) ItemOf(@TypeOf(iterator)),
+) Map(@TypeOf(iterator), ItemOf(@TypeOf(iterator))) {
+    return .{
+        .iterator = iterator,
+        .map_fn = map_fn,
+    };
+}
+
+/// 値と型を変更したイテレーターを作成する
+pub fn mapT(
     NewType: type,
     iterator: anytype,
     map_fn: *const fn (value: ItemOf(@TypeOf(iterator))) NewType,
