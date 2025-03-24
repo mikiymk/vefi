@@ -11,3 +11,15 @@ pub fn size(head: anytype) usize {
 
     return count;
 }
+
+pub fn clear(head: anytype, a: Allocator) void {
+    const head = head orelse return;
+    var node = head;
+
+    while (true) {
+        const next = node.next;
+        node.deinit(a);
+        node = next;
+        if (node == head) break; // do-whileになる
+   }
+}
