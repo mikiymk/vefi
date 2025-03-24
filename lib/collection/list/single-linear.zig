@@ -1,6 +1,6 @@
 const std = @import("std");
 const lib = @import("../../root.zig");
-const generic_list = lib.collection.list.generic_list;
+const node_utils = lib.collection.list.node.linear;
 
 const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
@@ -55,7 +55,7 @@ pub fn SingleLinearList(T: type) type {
         /// 全てのノードを削除します。
         /// リストが持つ値の解放は行いません。
         pub fn deinit(self: *List, a: Allocator) void {
-            generic_list.clear(a, self.head);
+            node_utils.clear(a, self.head);
             self.* = undefined;
         }
 
@@ -69,7 +69,7 @@ pub fn SingleLinearList(T: type) type {
         pub fn size(self: List) usize {
             assert(self.isValidList());
 
-            return generic_list.size(self.head);
+            return node_utils.size(self.head);
         }
 
         /// リストの全ての要素を削除する。
@@ -77,7 +77,7 @@ pub fn SingleLinearList(T: type) type {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
-            generic_list.clear(a, self.head);
+            node_utils.clear(a, self.head);
             self.head = null;
         }
 
@@ -85,7 +85,7 @@ pub fn SingleLinearList(T: type) type {
         fn getNode(self: List, index: usize) ?*Node {
             assert(self.isValidList());
 
-            return generic_list.getNode(self.head, index);
+            return node_utils.getNode(self.head, index);
         }
 
         /// リストの先頭のノードを返す。
@@ -99,15 +99,7 @@ pub fn SingleLinearList(T: type) type {
         fn getLastNode(self: List) ?*Node {
             assert(self.isValidList());
 
-            var prev: ?*Node = null;
-            var node = self.head;
-
-            while (node) |n| : ({
-                prev = n;
-                node = n.next;
-            }) {}
-
-            return prev;
+            return node_utils.getLastNode(self.head);
         }
 
         /// リストの指定した位置の要素を返す。
@@ -191,23 +183,17 @@ pub fn SingleLinearList(T: type) type {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
-            var prev_prev: ?*Node = null;
-            var prev: ?*Node = null;
-            var node = self.head;
-            while (node) |n| : ({
-                prev_prev = prev;
-                prev = n;
-                node = n.next;
-            }) {}
-
-            if (prev) |p| {
-                p.deinit(a);
+            const prev_last = node_utils.getLastNode2(self.head);
+            const last = if (prev_last) |pl| pl.next else self.head;
+            
+            if (last) |l| {
+                l.deinit(a);
             } else {
                 return error.OutOfBounds;
             }
 
-            if (prev_prev) |n| {
-                n.next = null;
+            if (prev_last) |pl| {
+                pl.next = null;
             } else {
                 self.head = null;
             }
@@ -233,7 +219,7 @@ pub fn SingleLinearList(T: type) type {
             assert(self.isValidList());
 
             const type_name = "SingleLinearList(" ++ @typeName(T) ++ ")";
-            try generic_list.format(w, type_name, self.head);
+            try node_utils.format(w, type_name, self.head);
         }
     };
 }
