@@ -57,6 +57,20 @@ pub fn getLastNode(head: anytype) Option(@TypeOf(head)) {
     return prev;
 }
 
+pub fn getLastNode2(head: anytype) Option(@TypeOf(head)) {
+    var prev_prev: Option(@TypeOf(head)) = null;
+    var prev: Option(@TypeOf(head)) = null;
+    var node = head;
+
+    while (node) |n| : ({
+        prev_prev = prev;
+        prev = n;
+        node = n.next;
+   }) {}
+
+   return prev_prev;
+}
+
 pub fn format(w: anytype, type_name: []const u8, head: anytype) !void {
     const writer = lib.io.writer(w);
 
