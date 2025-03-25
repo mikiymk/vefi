@@ -12,41 +12,50 @@ pub const ListOption = struct {
     has_tail: bool = false,
 };
 
+pub fn GeneralListNode(T: type, options: ListOption) type {
+    return struct {
+        const Node = @This();
+        const NodeRef = ?*Node;
+        pub const Item = T;
+
+        value: Item,
+        next: ?*Node,
+        prev: ?*Node,
+
+        /// 値を持つノードのメモリを作成する。
+        pub fn init(a: Allocator, value: T, next: ?*Node) Allocator.Error!*Node {
+            const node = try a.create(Node);
+            node.* = .{ .value = value, .next = next };
+            return node;
+        }
+
+        /// 値を持つノードのメモリを作成する。
+        /// 自分自身をnextに指定する。
+        fn initSelf(a: Allocator, value: T) Allocator.Error!*Node {
+            const node = try a.create(Node);
+            node.* = .{ .value = value, .next = node };
+            return node;
+        }
+
+        /// このノードを削除してメモリを解放する。
+        pub fn deinit(node: *Node, a: Allocator) void {
+            a.destroy(node);
+        }
+
+        pub fn format(node: Node, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
+            const writer = lib.io.writer(w);
+            try writer.print("{}", .{node.value});
+        }
+    };
+}
+
 pub fn GeneralList(T: type, options: ListOption) type {
     return struct {
         const List = @This();
 
         /// リストが持つ値の型
         pub const Item = T;
-        pub const Node = struct {
-            value: Item,
-            next: ?*Node,
-
-            /// 値を持つノードのメモリを作成する。
-            pub fn init(a: Allocator, value: T, next: ?*Node) Allocator.Error!*Node {
-                const node = try a.create(Node);
-                node.* = .{ .value = value, .next = next };
-                return node;
-            }
-
-            /// 値を持つノードのメモリを作成する。
-            /// 自分自身をnextに指定する。
-            fn initSelf(a: Allocator, value: T) Allocator.Error!*Node {
-                const node = try a.create(Node);
-                node.* = .{ .value = value, .next = node };
-                return node;
-            }
-
-            /// このノードを削除してメモリを解放する。
-            pub fn deinit(node: *Node, a: Allocator) void {
-                a.destroy(node);
-            }
-
-            pub fn format(node: Node, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
-                const writer = lib.io.writer(w);
-                try writer.print("{}", .{node.value});
-            }
-        };
+        pub const Node = GeneralListNode(T, options);
 
         pub const IndexError = error{OutOfBounds};
         pub const AllocIndexError = Allocator.Error || IndexError;
