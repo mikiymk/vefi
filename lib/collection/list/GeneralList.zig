@@ -6,8 +6,8 @@ const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
 
 pub const ListOption = struct {
-    linear: enum {linear, circular} = .linear,
-    doubly: enum {singly, doubly} = .singly,
+    circular: bool = false,
+    doubly: bool = false,
     has_sentinel: bool = false,
     has_tail: bool = false,
 };
@@ -15,17 +15,17 @@ pub const ListOption = struct {
 pub fn GeneralListNode(T: type, options: ListOption) type {
     return struct {
         const Node = @This();
-        const NodeRef = ?*Node;
+        const NodeRef = if (options.circular or options.has_sentinel) ?*Node else *Node;
         pub const Item = T;
 
         value: Item,
-        next: ?*Node,
-        prev: ?*Node,
+        next: NodeRef,
+        prev: if (options.doubly) NodeRef else void,
 
         /// 値を持つノードのメモリを作成する。
-        pub fn init(a: Allocator, value: T, next: ?*Node) Allocator.Error!*Node {
+        pub fn init(a: Allocator, value: T) Allocator.Error!*Node {
             const node = try a.create(Node);
-            node.* = .{ .value = value, .next = next };
+            node.value = value;
             return node;
         }
 
