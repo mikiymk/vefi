@@ -44,6 +44,21 @@ pub fn GeneralListNode(T: type, options: ListOption) type {
             a.destroy(node);
         }
 
+        pub fn size(node: Node) *Node {}
+
+        pub fn getAfter(node: Node, index: usize) usize {}
+        pub fn getBefore(node: Node, index: usize) usize {}
+        pub fn getFirst(node: Node) *Node {}
+        pub fn getLast(node: Node) *Node {
+            if (options.has_sentinel) {
+                return node_utils.sentinel.getLastNode(node);
+            } else if (options.circular) {
+                return node_utils.circular.getLastNode(node);
+            } else {
+                return node_utils.linear.getLastNode(node);
+            }
+        }
+
         pub fn format(node: Node, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
             const writer = lib.io.writer(w);
             try writer.print("{}", .{node.value});
