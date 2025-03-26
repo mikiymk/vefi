@@ -32,7 +32,7 @@ pub fn CircularArrayDeque(T: type) type {
         }
 
         /// キューの先頭に要素を追加します。
-        pub fn enqueue(self: *@This(), allocator: Allocator, item: Value) Allocator.Error!void {
+        pub fn pushFront(self: *@This(), allocator: Allocator, item: Value) Allocator.Error!void {
             if (self.isFull()) {
                 try self.extendSize(allocator);
             }
@@ -41,8 +41,11 @@ pub fn CircularArrayDeque(T: type) type {
             self.head += 1;
         }
 
+        pub fn pushLast(self: *@This(), allocator: Allocator, item: Value) Allocator.Error!void {}
+        pub fn popFront(self: *@This()) ?Value {}
+
         /// キューの末尾から要素を取り出します。
-        pub fn dequeue(self: *@This()) ?Value {
+        pub fn popLast(self: *@This()) ?Value {
             if (self.count() == 0) {
                 return null;
             }
@@ -52,8 +55,11 @@ pub fn CircularArrayDeque(T: type) type {
             return item;
         }
 
+
+        pub fn peekFirst(self: @This()) ?Value {}
+
         /// キューの末尾の要素を取得します。
-        pub fn peek(self: @This()) ?Value {
+        pub fn peekLast(self: @This()) ?Value {
             if (self.count() == 0) {
                 return null;
             } else {
