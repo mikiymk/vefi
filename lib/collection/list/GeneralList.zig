@@ -33,7 +33,9 @@ pub fn GeneralListNode(T: type, options: ListOption) type {
         /// 自分自身をnextに指定する。
         fn initSelf(a: Allocator, value: T) Allocator.Error!*Node {
             const node = try a.create(Node);
-            node.* = .{ .value = value, .next = node };
+            node.value = value;
+            node.next = node;
+            if (options.doubly) node.prev = node;
             return node;
         }
 
