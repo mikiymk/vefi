@@ -3,7 +3,7 @@ pub fn CircularArrayDeque(T: type) type {
         const Queue = @This();
         pub const Item = T;
 
-        value: []Item,
+        values: []Item,
         head: usize,
         tail: usize,
         filled: bool,
@@ -11,7 +11,7 @@ pub fn CircularArrayDeque(T: type) type {
         /// 空のキューを作成します。
         pub fn init() @This() {
             return .{
-                .value = &[_]Item{},
+                .values = &[_]Item{},
                 .head = 0,
                 .tail = 0,
                 .filled = true,
@@ -20,7 +20,7 @@ pub fn CircularArrayDeque(T: type) type {
 
         /// メモリを破棄し、キューを終了します。
         pub fn deinit(self: *@This(), a: Allocator) void {
-            a.free(self.value);
+            a.free(self.values);
             self.* = undefined;
         }
 
@@ -28,42 +28,68 @@ pub fn CircularArrayDeque(T: type) type {
         pub fn size(self: @This()) usize {
             return if (self.filled) self.values.len
             else if (self.head < self.tail) self.head + self.values.len - self.tail
-            else head - self.tail;
+            else self.head - self.tail;
         }
 
         /// キューの先頭に要素を追加します。
         pub fn pushFront(self: *@This(), allocator: Allocator, item: Value) Allocator.Error!void {
-            if (self.isFull()) {
+            if (self.filled) {
                 try self.extendSize(allocator);
             }
 
-            self.value[self.head % self.value.len] = item;
+            self.values[self.head] = item;
             self.head += 1;
+            if (self.head == self.values.len)
+                self.head = 0;
+            self.filled = self.head == self.tail;
         }
 
-        pub fn pushLast(self: *@This(), allocator: Allocator, item: Value) Allocator.Error!void {}
-        pub fn popFront(self: *@This()) ?Value {}
+        pub fn pushLast(self: *@This(), allocator: Allocator, item: Value) Allocator.Error!void {
+            if (self.filled) {
+                try self.extendSize(allocator);
+            }
+
+            self.values[self.tail] = item;
+            self.tail = if (self.tail == 0) self.values.len else self.tail;
+            self.tail -= 1;
+            self.filled = self.head == self.tail;
+        }
+
+        pub fn popFront(self: *@This()) ?Value {
+            if (self.size() == 0) return null;
+            
+            const item = self.value[self.head];
+            self.head = if (self.head == 0) self.values.len else self.head;
+            self.head -= 1;
+            return item;
+        }
 
         /// キューの末尾から要素を取り出します。
         pub fn popLast(self: *@This()) ?Value {
-            if (self.count() == 0) {
-                return null;
-            }
-
-            const item = self.value[self.tail % self.value.len];
+            if (self.size() == 0) return null;
+            
+            const item = self.value[self.tail];
             self.tail += 1;
+            if (self.tail == self.values.len)
+                self.tail = 0;
             return item;
         }
 
 
-        pub fn peekFirst(self: @This()) ?Value {}
+        pub fn peekFirst(self: @This()) ?Value {
+            if (self.size() == 0) {
+                return null;
+            } else {
+                return self.value[self.head];
+            }
+        }
 
         /// キューの末尾の要素を取得します。
         pub fn peekLast(self: @This()) ?Value {
-            if (self.count() == 0) {
+            if (self.size() == 0) {
                 return null;
             } else {
-                return self.value[self.tail % self.value.len];
+                return self.value[self.tail];
             }
         }
 
