@@ -3,7 +3,8 @@ const lib = @import("../../root.zig");
 
 const assert = lib.assert.assert;
 
-/// 静的配列 (Static Array)
+/// # 静的配列 (Static Array)
+/// - サイズがコンパイル時に決まる。
 pub fn StaticArray(T: type, array_size: usize) type {
     return struct {
         pub const Item = T;
