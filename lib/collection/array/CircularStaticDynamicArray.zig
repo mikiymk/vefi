@@ -27,17 +27,6 @@ pub fn CircularStaticDynamicArray(T: type, max_length:usize) type {
             };
         }
 
-        /// 内部配列のインデックスに変換する
-        pub fn internalIndex(self: @This(), index: usize) usize {
-            if (self.size() <= index) {
-                return error.OutOfBounds;
-            } else if (self.tail <= index) {
-                return index - self.tail;
-            } else {
-                 return self.values.len + index - self.tail;
-            }
-        }
-
         /// インデックスが配列の範囲内かどうか判定する。
         pub fn isInBound(self: @This(), index: usize) bool {
             return 0 <= index and index < self.size();
@@ -55,8 +44,11 @@ pub fn CircularStaticDynamicArray(T: type, max_length:usize) type {
 
         /// 配列の要素数を返す。
         pub fn size(self: @This()) usize {
-            if (self.head < self.tail) {} else {}
-            return self.head - self.tail;
+            if (self.head < self.tail) {
+return self.values.len + self.head - self.tail;
+            } else {
+return self.head - self.tail;
+            }            
         }
 
         /// 配列の要素を全てなくす。
@@ -65,41 +57,53 @@ pub fn CircularStaticDynamicArray(T: type, max_length:usize) type {
             self.tail = 0;
         }
 
+        /// 内部配列のインデックスに変換する
+        pub fn internalIndex(self: @This(), index: usize) usize {
+            if (self.tail <= index) {
+                return index - self.tail;
+            } else {
+                return self.values.len + index - self.tail;
+            }
+        }
+
         /// 配列の`index`番目の要素を返す。
         /// 配列の範囲外の場合、`null`を返す。
         pub fn get(self: @This(), index: usize) ?T {
             if (!self.isInBound(index)) return null;
-            return self.values[index];
+            const internal_index = self.internalIndex(index);
+            return self.values[internal_index];
         }
 
         /// 配列の`index`番目の要素への参照を返す。
         /// 配列の範囲外の場合、`null`を返す。
         pub fn getRef(self: @This(), index: usize) ?*T {
             if (!self.isInBound(index)) return null;
-            return @ptrCast(self.values.ptr + index);
-        }
-
-        /// 配列の範囲の要素のスライスを返す。
-        /// 配列の範囲外の場合、`null`を返す。
-        pub fn slice(self: @This(), range: Range) ?[]const T {
-            if (!self.isInBoundRange(range)) return null;
-            const begin, const end = range;
-
-            return self.values[begin..end];
+            const internal_index = self.internalIndex(index);
+            return @ptrCast(self.values.ptr + internal_index);
         }
 
         /// 配列の`index`番目の要素の値を設定する。
         /// `index`が配列の範囲外の場合、エラーを返す。
         pub fn set(self: *@This(), index: usize, value: T) IndexError!void {
             if (!self.isInBound(index)) return error.OutOfBounds;
-            self.values[index] = value;
+            const internal_index = self.internalIndex(index);
+            self.values[internal_index] = value;
         }
 
         /// 配列の`index`番目から先を新しい値のスライスで更新する。
         /// `index`からスライスの範囲が配列の範囲外の場合、エラーを返す。
         pub fn setAll(self: *@This(), index: usize, values: []const T) IndexError!void {
             if (!self.isInBoundRange(.{ index, index + values.len })) return error.OutOfBounds;
-            @memcpy(self.values[index..][0..values.len], values);
+            const internal_begin = self.internalIndex(index);
+            const internal_end = self.internalIndex(index + values.len);
+            if (internal_end < internal_begin) {
+                const trimmed_length = self.values.len - internal_begin;
+                const remain_length = values.len - trimmed_length;
+                @memcpy(self.values[internal_begin..], values[0..trimmed_length]);
+                @memcpy(self.values[0..remain_length], values[trimmed_length..]);
+            } else {
+                @memcpy(self.values[internal_begin..][0..values.len], values);
+            }
         }
 
         /// 配列の`begin`番目(含む)から`end`番目(含まない)の要素の値をまとめて設定する。
@@ -107,7 +111,17 @@ pub fn CircularStaticDynamicArray(T: type, max_length:usize) type {
         pub fn setFill(self: *@This(), range: Range, value: T) IndexError!void {
             if (!self.isInBoundRange(range)) return error.OutOfBounds;
             const begin, const end = range;
-            @memset(self.values[begin..end], value);
+            const internal_begin = self.internalIndex(begin);
+            const internal_end = self.internalIndex(end);
+            const length = end - begin;
+            if (internal_end < internal_begin) {
+                const trimmed_length = self.values.len - internal_begin;
+                const remain_length = length - trimmed_length;
+                @memset(self.values[internal_begin..], value);
+                @memset(self.values[0..remain_length], value);
+            } else {
+                @memset(self.values[internal_begin..internal_end], value);
+            }
         }
 
         fn copyInArray(self: *@This(), src: usize, dst: usize, length: usize) IndexError!void {
