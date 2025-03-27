@@ -5,7 +5,8 @@ const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
 const Range = lib.collection.Range;
 
-/// ヒープを使わない動的配列
+/// - アロケーターを使わない動的配列
+/// - 静的配列と長さを持つ
 pub fn StaticDynamicArray(T: type, max_length:usize) type {
     return struct {
         pub const Item = T;
