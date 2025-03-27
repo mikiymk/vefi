@@ -5,7 +5,9 @@ const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
 const Range = lib.collection.Range;
 
-/// 動的配列 (Dynamic Array)
+/// # 動的配列 (Dynamic Array)
+/// - アロケーターを使ってメモリーを確保する
+/// - 追加のたびに再アロケーションをしない
 pub fn DynamicArray(T: type) type {
     return struct {
         pub const Item = T;
