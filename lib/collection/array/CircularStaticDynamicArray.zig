@@ -5,7 +5,7 @@ const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
 const Range = lib.collection.Range;
 
-/// ヒープを使わない動的配列
+/// アロケーターを使わない環状配列
 pub fn CircularStaticDynamicArray(T: type, max_length:usize) type {
     return struct {
         pub const Item = T;
