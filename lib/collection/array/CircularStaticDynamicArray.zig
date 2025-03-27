@@ -15,18 +15,32 @@ pub fn CircularStaticDynamicArray(T: type, max_length:usize) type {
         pub const OverIndexError = OverflowError || IndexError;
 
         values: [max_length]T,
-        length: usize,
+        head: usize,
+        tail: usize,
 
         /// 配列を空の状態で初期化する。
         pub fn init() @This() {
-            return .{ .values = undefined, .length = 0 };
+            return .{
+                .values = undefined,
+                .head = 0,
+                .tail = 0,
+            };
+        }
+
+        /// 内部配列のインデックスに変換する
+        pub fn internalIndex(self: @This(), index: usize) usize {
+            if (self.size() <= index) {
+                return error.OutOfBounds;
+            } else if (self.tail <= index) {
+                return index - self.tail;
+            } else {
+                 return self.values.len + index - self.tail;
+            }
         }
 
         /// インデックスが配列の範囲内かどうか判定する。
         pub fn isInBound(self: @This(), index: usize) bool {
-            const size_ = self.size();
-
-            return 0 <= index and index < size_;
+            return 0 <= index and index < self.size();
         }
 
         /// インデックス範囲が配列の範囲内かどうか判定する。
@@ -41,12 +55,14 @@ pub fn CircularStaticDynamicArray(T: type, max_length:usize) type {
 
         /// 配列の要素数を返す。
         pub fn size(self: @This()) usize {
-            return self.length;
+            if (self.head < self.tail) {} else {}
+            return self.head - self.tail;
         }
 
         /// 配列の要素を全てなくす。
         pub fn clear(self: *@This()) void {
-            self.length = 0;
+            self.head = 0;
+            self.tail = 0;
         }
 
         /// 配列の`index`番目の要素を返す。
