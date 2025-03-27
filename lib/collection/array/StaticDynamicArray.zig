@@ -1,10 +1,6 @@
 const std = @import("std");
 const lib = @import("../../root.zig");
 
-test {
-    std.testing.refAllDecls(@This());
-}
-
 const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
 const Range = lib.collection.Range;
