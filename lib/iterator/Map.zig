@@ -29,10 +29,10 @@ pub fn map(
 
 /// 値と型を変更したイテレーターを作成する
 pub fn mapT(
-    NewType: type,
+    T: type,
     iterator: anytype,
-    map_fn: *const fn (value: ItemOf(@TypeOf(iterator))) NewType,
-) Map(@TypeOf(iterator), NewType) {
+    map_fn: *const fn (value: ItemOf(@TypeOf(iterator))) T,
+) Map(@TypeOf(iterator), T) {
     return .{
         .iterator = iterator,
         .map_fn = map_fn,
