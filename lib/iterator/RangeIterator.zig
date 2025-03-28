@@ -4,13 +4,6 @@ pub fn RangeIterator(T: type) type {return struct {
     current: Item,
     end: Item,
     step: Item,
-    pub fn init(start: Item, end: Item) @This() {
-        return .{
-            .current = start,
-            .end = end,
-            .step = 1;
-        };
-    }
 
     pub fn next(self: @This()) ?Item {
         if (self.step < 0 and self.current < self.end) {
@@ -23,3 +16,11 @@ pub fn RangeIterator(T: type) type {return struct {
         }
     }
 };}
+
+pub fn range(T: type, start: T, end: T, step: T) RangeIterator(T) {
+    return .{
+        .current = start,
+        .end = end,
+        .step = step,
+    };
+}
