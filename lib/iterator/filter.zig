@@ -29,15 +29,3 @@ pub fn filter(
         .filter_fn = filter_fn,
     };
 }
-
-/// 値と型を変更したイテレーターを作成する
-pub fn mapT(
-    T: type,
-    iterator: anytype,
-    map_fn: *const fn (value: ItemOf(@TypeOf(iterator))) T,
-) Map(@TypeOf(iterator), T) {
-    return .{
-        .iterator = iterator,
-        .map_fn = map_fn,
-    };
-}
