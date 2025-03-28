@@ -13,7 +13,9 @@ pub fn RangeIterator(T: type) type {return struct {
     }
 
     pub fn next(self: @This()) ?Item {
-        if (self.end < self.current) {
+        if (self.step < 0 and self.current < self.end) {
+            return null;
+        } else if (self.end < self.current) {
             return null;
         } else {
             defer self.current += self.step;
