@@ -26,10 +26,10 @@ pub fn SliceIterator(T: type, options: Options) type {return struct {
     }
 };}
 
-pub fn sliceIterator(slice: []const T) SliceIterator(T, .{}) {
+pub fn slice(slice: []const T) SliceIterator(T, .{}) {
     return .{ .slice = slice, .index = 0, };
 }
 
-pub fn reversedSliceIterator(slice: []const T) SliceIterator(T, .{ .direction = .reverse }) {
+pub fn sliceReversed(slice: []const T) SliceIterator(T, .{ .direction = .reverse }) {
     return .{ .slice = slice, .index = slice.len, };
 }
