@@ -10,7 +10,7 @@ pub fn reduce(
   return acc;
 }
 
-pub fn every(iterator: anytype) bool {
+pub fn every(iterator: anytype, every_fn: *const fn (value: ItemOf(Iterator)) bool,) bool {
   while (iterator.next()) |value| {
     if (!value) {
       return false;
@@ -19,7 +19,7 @@ pub fn every(iterator: anytype) bool {
   return true;
 }
 
-pub fn some(iterator: anytype) bool {
+pub fn some(iterator: anytype, some_fn: *const fn (value: ItemOf(Iterator)) bool,) bool {
   while (iterator.next()) |value| {
     if (value) {
       return true;
