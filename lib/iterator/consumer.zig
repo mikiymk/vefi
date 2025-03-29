@@ -18,3 +18,12 @@ pub fn every(iterator: anytype) bool {
   }
   return true;
 }
+
+pub fn some(iterator: anytype) bool {
+  while (iterator.next()) |value| {
+    if (value) {
+      return true;
+    }
+  }
+  return false;
+}
