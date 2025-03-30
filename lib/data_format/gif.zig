@@ -86,6 +86,22 @@ pub const TableBasedImageData = struct {
     image_data: []DataSubBlock,
 };
 
+/// 23 - グラフィックコントロール拡張
+pub const GraphicControlExtention = struct {
+    extention_introducer: u8,
+    graphic_control_label: u8,
+
+    block_size: u8,
+    reserved: u3,
+    disposal_method: u3,
+    user_input_flag: u1,
+    transparent_color_flag: u1,
+    delay_time: u8,
+    transparent_color_index: u8,
+
+    block_terminator: u8,
+};
+
 const number = lib.data_format.number;
 const string = lib.data_format.string;
 const utils = lib.data_format.utils;
@@ -129,33 +145,6 @@ pub fn logicalScreenDescriptor(allocator: Allocator, input: []const u8) Result(L
 }
 
 pub const SubBlocks = utils.TermArray(DataSubBlock, BlockTerminator);
-
-pub const ImageData = utils.Block(.{
-    .lzw_minimum_color_size = number.byte,
-    .image_data = SubBlocks,
-});
-
-pub const GraphicControlExtention = utils.Block(.{
-    .extention_introducer = number.Fixed(number.byte, 0x21),
-    .graphic_control_label = number.Fixed(number.byte, 0xF9),
-
-    .block_size = number.Fixed(number.byte, 0x04),
-    .pack = utils.Pack(.{
-        .reserved = u3,
-        .disposal_method = enum(u3) {
-            no_disposal = 0,
-            do_not_disposal = 1,
-            restore_to_background = 2,
-            restore_to_previous = 3,
-        },
-        .user_input_flag = bool,
-        .transparent_color_flag = bool,
-    }),
-    .delay_time = number.u16_le,
-    .transparent_color_index = number.byte,
-
-    .block_terminator = BlockTerminator,
-});
 
 pub const CommentExtention = utils.Block(.{
     .extention_introducer = number.Fixed(number.byte, 0x21),
