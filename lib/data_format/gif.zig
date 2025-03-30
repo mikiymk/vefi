@@ -59,6 +59,13 @@ pub const LogicalScreenDescriptor = struct {
     aspect_ratio: u8,
 };
 
+/// 19 - グローバルカラーテーブル
+pub const ColorTable = struct {
+    colors: []u8,
+};
+
+/// 20 - 画像記述子
+
 const number = lib.data_format.number;
 const string = lib.data_format.string;
 const utils = lib.data_format.utils;
