@@ -102,59 +102,52 @@ pub const GraphicControlExtention = struct {
     block_terminator: u8,
 };
 
-const number = lib.data_format.number;
-const string = lib.data_format.string;
-const utils = lib.data_format.utils;
+/// 24 - コメント拡張
+pub const CommentExtention = struct {
+    extention_introducer: u8,
+    comment_label: u8,
 
-const p = lib.parser.combinator;
-const Result = p.Result;
-const Allocator = lib.allocator.Allocator;
+    comment_data: []DataSubBlock,
 
-pub const Gif = struct {
-    header: Header,
-    logical_screen_descriptor: LogicalScreenDescriptor,
+    block_terminator: u8,
 };
 
-pub fn gif(allocator: Allocator, input: []const u8) Result(Gif, error{}) {
-    return p.block(Gif, &.{
-        .{ "header", header },
-        .{ "logical_screen_descriptor", logicalScreenDescriptor },
-    }).parse(allocator, input);
-}
+/// 25 - プレーンテキスト拡張
+pub const PlainTextExtention = struct {
+    extention_introducer: u8,
+    plain_text_label: u8,
 
-pub fn header(allocator: Allocator, input: []const u8) Result(Header, error{}) {
-    return p.block(Header, &.{
-        .{ "signature", p.arrayFixed(3, p.byte) },
-        .{ "version", p.arrayFixed(3, p.byte) },
-    }).parse(allocator, input);
-}
+    block_size: u8,
+    text_grid_left_position: u16,
+    text_grid_top_position: u16,
+    text_grid_width: u16,
+    text_grid_height: u16,
+    character_cell_width: u8,
+    character_cell_height: u8,
+    text_foreground_color_index: u8,
+    text_background_color_index: u8,
+    character_cell_width: u8,
 
-pub fn logicalScreenDescriptor(allocator: Allocator, input: []const u8) Result(LogicalScreenDescriptor, error{}) {
-    return p.block(Header, &.{
-        .{ "logical_screen_width", p.u16(.little) },
-        .{ "logical_screen_height", p.u16(.little) },
-        p.bitsSubBlock(p.byte, &.{
-            .{ "global_color_table_flag", bool },
-            .{ "color_resolution", u3 },
-            .{ "sort_flag", bool },
-            .{ "size_of_global_color_table", u3 },
-        }),
-        .{ "background_color_index", p.byte },
-        .{ "aspect_ratio", p.byte },
-    }).parse(allocator, input);
-}
+    plain_text_data: []DataSubBlock,
 
-pub const SubBlocks = utils.TermArray(DataSubBlock, BlockTerminator);
+    block_terminator: u8,
+};
 
-pub const CommentExtention = utils.Block(.{
-    .extention_introducer = number.Fixed(number.byte, 0x21),
-    .comment_label = number.Fixed(number.byte, 0xFE),
-    .comment_data = SubBlocks,
-});
+/// 26 - アプリケーション拡張
+pub const ApplicationExtention = struct {
+    extention_introducer: u8,
+    extention_label: u8,
 
-pub const PlainTextExtention = utils.Block(.{
-    .extention_introducer = number.Fixed(number.byte, 0x21),
-    .plain_text_label = number.Fixed(number.byte, 0x01),
+    block_size: u8,
+    application_identifier: [8]u8,
+    application_authentication_code: [3]u8,
 
-    .block_size = number.byte,
-});
+    application_code: []DataSubBlock,
+
+    block_terminator: u8,
+};
+
+/// 27 - トレーラー
+pub const Trailer = struct {
+    gif_trailer: u8,
+};
