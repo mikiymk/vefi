@@ -4,9 +4,24 @@
 const std = @import("std");
 const lib = @import("../root.zig");
 
-// test {
-//     std.testing.refAllDecls(@This());
-// }
+/// 15 - データサブブロック
+pub const DataSubBlock = struct {
+    /// ブロックのバイト数。
+    /// ブロックサイズ自体は含まない
+    block_size: u8,
+    /// データ。
+    /// ブロックサイズと同じ長さの必要がある。
+    /// 0〜255。
+    data_values: []u8,
+};
+
+/// 16 - ブロックターミネーター
+pub const BlockTerminator = struct {
+    /// ブロックのバイト数。
+    /// ブロックサイズ自体は含まない
+    /// ターミネーターのブロックサイズは0。
+    block_size: u8,
+};
 
 const number = lib.data_format.number;
 const string = lib.data_format.string;
@@ -90,18 +105,6 @@ pub const Color = utils.Block(.{
 
 pub const ColorTable = utils.SizedArray(Color);
 
-/// 15 - データサブブロック
-pub const DataSubBlock = struct {
-    /// ブロックのバイト数。
-    /// ブロックサイズ自体は含まない
-    block_size: u8,
-    /// データ。
-    /// ブロックサイズと同じ長さの必要がある。
-    /// 0〜255。
-    data_values: []u8,
-};
-
-pub const BlockTerminator = number.Fixed(number.byte, 0x00);
 pub const SubBlocks = utils.TermArray(DataSubBlock, BlockTerminator);
 
 pub const ImageData = utils.Block(.{
