@@ -65,6 +65,19 @@ pub const ColorTable = struct {
 };
 
 /// 20 - 画像記述子
+pub const ImageDescriptor = struct {
+    image_separator: u8,
+    image_left_position: u16,
+    image_top_position: u16,
+    image_width: u16,
+    image_height: u16,
+
+    local_color_table_flag: u1,
+    interlace_flag: u1,
+    sort_flag: u1,
+    reserved: u2,
+    size_of_local_color_table: u3,
+};
 
 const number = lib.data_format.number;
 const string = lib.data_format.string;
@@ -107,29 +120,6 @@ pub fn logicalScreenDescriptor(allocator: Allocator, input: []const u8) Result(L
         .{ "aspect_ratio", p.byte },
     }).parse(allocator, input);
 }
-
-pub const ImageDescriptor = utils.Block(.{
-    .image_separator = number.Fixed(number.byte, 0x2C),
-    .image_left_position = number.u16_le,
-    .image_top_position = number.u16_le,
-    .image_width = number.u16_le,
-    .image_height = number.u16_le,
-    .pack = utils.Pack(1, .{
-        .local_color_table_flag = bool,
-        .interlace_flag = bool,
-        .sort_flag = bool,
-        .reserved = u2,
-        .size_of_local_color_table = u3,
-    }),
-});
-
-pub const Color = utils.Block(.{
-    .red = number.byte,
-    .green = number.byte,
-    .blue = number.byte,
-});
-
-pub const ColorTable = utils.SizedArray(Color);
 
 pub const SubBlocks = utils.TermArray(DataSubBlock, BlockTerminator);
 
