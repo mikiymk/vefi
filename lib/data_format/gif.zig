@@ -23,6 +23,20 @@ pub const BlockTerminator = struct {
     block_size: u8,
 };
 
+/// 17 - ヘッダー
+pub const Header = struct {
+    /// 署名。
+    /// GIFデータストリームの開始を表す。
+    /// 値は"GIF"。
+    signature: [3]u8,
+    /// バージョン。
+    /// 前の2文字は87から始まる数字を増加する。 ("87"〜"99", "00"〜"86")
+    /// 3文字目はaから始まるアルファベットを増加する。 ("a"〜"z")
+    /// - "87a"
+    /// - "89a"
+    version: [3]u8,
+};
+
 const number = lib.data_format.number;
 const string = lib.data_format.string;
 const utils = lib.data_format.utils;
@@ -42,11 +56,6 @@ pub fn gif(allocator: Allocator, input: []const u8) Result(Gif, error{}) {
         .{ "logical_screen_descriptor", logicalScreenDescriptor },
     }).parse(allocator, input);
 }
-
-pub const Header = struct {
-    signature: [3]u8,
-    version: [3]u8,
-};
 
 pub fn header(allocator: Allocator, input: []const u8) Result(Header, error{}) {
     return p.block(Header, &.{
