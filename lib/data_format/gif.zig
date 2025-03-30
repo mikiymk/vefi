@@ -37,6 +37,28 @@ pub const Header = struct {
     version: [3]u8,
 };
 
+/// 18 - 論理スクリーン記述子
+pub const LogicalScreenDescriptor = struct {
+    /// 論理スクリーン幅
+    logical_screen_width: u16,
+    /// 論理スクリーン高さ
+    logical_screen_height: u16,
+
+    /// グローバルカラーテーブルフラグ
+    global_color_table_flag: u1,
+    /// カラー解像度
+    color_resolution: u3,
+    /// カラーソートフラグ
+    sort_flag: u1,
+    /// グローバルカラーテーブルサイズ
+    size_of_global_color_table: u3,
+
+    /// 背景色インデックス
+    background_color_index: u8,
+    /// アスペクト比
+    aspect_ratio: u8,
+};
+
 const number = lib.data_format.number;
 const string = lib.data_format.string;
 const utils = lib.data_format.utils;
@@ -64,18 +86,6 @@ pub fn header(allocator: Allocator, input: []const u8) Result(Header, error{}) {
     }).parse(allocator, input);
 }
 
-pub const LogicalScreenDescriptor = struct {
-    logical_screen_width: u16,
-    logical_screen_height: u16,
-
-    global_color_table_flag: bool,
-    color_resolution: u3,
-    sort_flag: bool,
-    size_of_global_color_table: u3,
-
-    background_color_index: u8,
-    aspect_ratio: u8,
-};
 pub fn logicalScreenDescriptor(allocator: Allocator, input: []const u8) Result(LogicalScreenDescriptor, error{}) {
     return p.block(Header, &.{
         .{ "logical_screen_width", p.u16(.little) },
