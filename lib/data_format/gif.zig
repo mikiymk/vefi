@@ -60,6 +60,7 @@ pub const LogicalScreenDescriptor = struct {
 };
 
 /// 19 - グローバルカラーテーブル
+/// 21 - ローカルカラーテーブル
 pub const ColorTable = struct {
     colors: []u8,
 };
@@ -77,6 +78,12 @@ pub const ImageDescriptor = struct {
     sort_flag: u1,
     reserved: u2,
     size_of_local_color_table: u3,
+};
+
+/// 22 - テーブルベースの画像データ
+pub const TableBasedImageData = struct {
+    lzw_minimum_code_size: u8,
+    image_data: []DataSubBlock,
 };
 
 const number = lib.data_format.number;
