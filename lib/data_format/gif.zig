@@ -90,7 +90,17 @@ pub const Color = utils.Block(.{
 
 pub const ColorTable = utils.SizedArray(Color);
 
-pub const DataSubBlock = utils.SizedArray(number.byte);
+/// 15 - データサブブロック
+pub const DataSubBlock = struct {
+    /// ブロックのバイト数。
+    /// ブロックサイズ自体は含まない
+    block_size: u8,
+    /// データ。
+    /// ブロックサイズと同じ長さの必要がある。
+    /// 0〜255。
+    data_values: []u8,
+};
+
 pub const BlockTerminator = number.Fixed(number.byte, 0x00);
 pub const SubBlocks = utils.TermArray(DataSubBlock, BlockTerminator);
 
