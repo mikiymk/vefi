@@ -22,3 +22,30 @@ pub const Chunk = struct {
         return chunk;
     }
 };
+
+pub const IHDR = struct {};
+pub const PLTE = struct {};
+pub const IDAT = struct {};
+pub const IEND = struct {};
+
+pub const acTL = struct {};
+pub const cHRM = struct {};
+pub const cICP = struct {};
+pub const gAMA = struct {};
+pub const iCCP = struct {};
+pub const mDCV = struct {};
+pub const cLLI = struct {};
+pub const sBIT = struct {};
+pub const sRGB = struct {};
+pub const bKGD = struct {};
+pub const hIST = struct {};
+pub const tRNS = struct {};
+pub const eXIf = struct {};
+pub const fcTL = struct {};
+pub const pHYs = struct {};
+pub const sPLT = struct {};
+pub const fdAT = struct {};
+pub const tIME = struct {};
+pub const iTXt = struct {};
+pub const tEXt = struct {};
+pub const zTXt = struct {};
