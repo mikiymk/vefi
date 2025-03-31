@@ -23,7 +23,19 @@ pub const Chunk = struct {
     }
 };
 
-pub const IHDR = struct {};
+/// 画像ヘッダー
+pub const IHDR = struct {
+    pub const chunk_type = "IHDR";
+
+    width: u32,
+    height: u32,
+    bit_depth: u8,
+    color_type: u8,
+    compression_method: u8,
+    filter_method: u8,
+    interlace_method: u8,
+};
+
 pub const PLTE = struct {};
 pub const IDAT = struct {};
 pub const IEND = struct {};
