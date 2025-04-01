@@ -36,7 +36,15 @@ pub const IHDR = struct {
     interlace_method: u8,
 };
 
-pub const PLTE = struct {};
+pub const PLTE = struct {
+    pub const chunk_type = "PLTE";
+
+    entries: []struct {
+        red: u8,
+        green: u8,
+        blue: u8,
+    },
+};
 pub const IDAT = struct {};
 pub const IEND = struct {};
 
