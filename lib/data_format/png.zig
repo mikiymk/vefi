@@ -24,7 +24,7 @@ pub const Chunk = struct {
 };
 
 /// 画像ヘッダー
-pub const IHDR = struct {
+pub const ImageHeader = struct {
     pub const chunk_type = "IHDR";
 
     width: u32,
@@ -36,7 +36,7 @@ pub const IHDR = struct {
     interlace_method: u8,
 };
 
-pub const PLTE = struct {
+pub const Palette = struct {
     pub const chunk_type = "PLTE";
 
     entries: []struct {
@@ -45,8 +45,16 @@ pub const PLTE = struct {
         blue: u8,
     },
 };
-pub const IDAT = struct {};
-pub const IEND = struct {};
+
+pub const ImageData = struct {
+    pub const chunk_type = "IDAT";
+
+    image_data: []u8,
+};
+
+pub const ImageTrailer = struct {
+    pub const chunk_type = "IEND";
+};
 
 pub const acTL = struct {};
 pub const cHRM = struct {};
