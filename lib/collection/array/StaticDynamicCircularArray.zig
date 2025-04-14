@@ -6,7 +6,7 @@ const assert = lib.assert.assert;
 const Range = lib.collection.Range;
 
 /// アロケーターを使わない環状配列
-pub fn CircularStaticDynamicArray(T: type, max_length:usize) type {
+pub fn StaticDynamicCircularArray(T: type, max_length:usize) type {
     return struct {
         pub const Item = T;
 
@@ -282,7 +282,7 @@ return self.head - self.tail;
 
         pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
             const writer = lib.io.writer(w);
-            try writer.print("StaticDynamicArray({s}){{", .{@typeName(T)});
+            try writer.print("StaticDynamicCircularArray({s}){{", .{@typeName(T)});
 
             var first = true;
             for (self.values[0..self.length]) |value| {
@@ -301,9 +301,9 @@ return self.head - self.tail;
     };
 }
 
-test DynamicArray {
+test StaticDynamicCircularArray {
     const allocator = std.testing.allocator;
-    const Array = StaticDynamicArray(usize, 20);
+    const Array = StaticDynamicCircularArray(usize, 20);
     const expect = lib.testing.expect;
 
     var array = Array.init();
@@ -373,7 +373,7 @@ test DynamicArray {
 }
 
 test "format" {
-    const Array = StaticDynamicArray(u8, 10);
+    const Array = StaticDynamicCircularArray(u8, 10);
     const allocator = std.testing.allocator;
 
     var array = Array.init();
@@ -388,5 +388,5 @@ test "format" {
     const format = try std.fmt.allocPrint(a, "{}", .{array});
     defer a.free(format);
 
-    try lib.assert.expectEqualString("StaticDynamicArray(u8){ 1, 2, 3, 4, 5 }", format);
+    try lib.assert.expectEqualString("StaticDynamicCircularArray(u8){ 1, 2, 3, 4, 5 }", format);
 }
