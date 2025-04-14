@@ -59,22 +59,51 @@ pub fn GeneralList(T: type, options: ListOption) type {
         /// リストが持つ値の型
         pub const Item = T;
         pub const Node = GeneralListNode(T, options);
+        const NodeRef = if (options.circular or options.has_sentinel) ?*Node else *Node;
 
         pub const IndexError = error{OutOfBounds};
         pub const AllocIndexError = Allocator.Error || IndexError;
 
-        head: ?*Node,
+        head: if (options.has_sentinel)
+*Node 
+else 
+?*Node,
+        tail: if (!options.has_tail) 
+void 
+else if (options.has_sentinel)
+*Node 
+else 
+?*Node,
+        sentinel: if (options.has_sentinel) 
+*Node 
+else 
+void,
 
         /// 新しい要素を持たないリストのインスタンスを生成し、それを返します。
         /// インスタンスを解放するときはクリーンアップのため、`List.deinit`を呼び出してください。
-        pub fn init() List {
-            return .{ .head = null };
+        pub fn init(a: Allocator) List {
+            var list = undefined;
+            if (options_has_sentinel) {
+                list.sentinel = Node.init(a);
+                list.head = list.sentinel;
+                if (has_tail) list.tail = list.sentinel;
+            } else {
+                list.head = null;
+                if (has_tail) list.tail = null;
+            }
+            return list;
         }
 
         /// 全てのノードを削除します。
         /// リストが持つ値の解放は行いません。
         pub fn deinit(self: *List, a: Allocator) void {
-            node_utils.clear(a, self.head);
+            if (options.has_sentinel) {
+                return node_utils.sentinel.clear(a, self.head, self.sentinel);
+            } else if (options.circular) {
+                return node_utils.circular.clear(a, self.head);
+            } else {
+                return node_utils.linear.clear(a, self.head);
+            }
             self.* = undefined;
         }
 
