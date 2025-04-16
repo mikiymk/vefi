@@ -65,19 +65,19 @@ pub fn GeneralList(T: type, options: ListOption) type {
         pub const AllocIndexError = Allocator.Error || IndexError;
 
         head: if (options.has_sentinel)
-*Node 
-else 
-?*Node,
-        tail: if (!options.has_tail) 
-void 
-else if (options.has_sentinel)
-*Node 
-else 
-?*Node,
-        sentinel: if (options.has_sentinel) 
-*Node 
-else 
-void,
+            *Node
+        else
+            ?*Node,
+        tail: if (!options.has_tail)
+            void
+        else if (options.has_sentinel)
+            *Node
+        else
+            ?*Node,
+        sentinel: if (options.has_sentinel)
+            *Node
+        else
+            void,
 
         /// 新しい要素を持たないリストのインスタンスを生成し、それを返します。
         /// インスタンスを解放するときはクリーンアップのため、`List.deinit`を呼び出してください。
@@ -241,7 +241,7 @@ void,
 
             const prev_last = node_utils.getLastNode2(self.head);
             const last = if (prev_last) |pl| pl.next else self.head;
-            
+
             if (last) |l| {
                 l.deinit(a);
             } else {

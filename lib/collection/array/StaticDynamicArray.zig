@@ -7,7 +7,7 @@ const Range = lib.collection.Range;
 
 /// - アロケーターを使わない動的配列
 /// - 静的配列と長さを持つ
-pub fn StaticDynamicArray(T: type, max_length:usize) type {
+pub fn StaticDynamicArray(T: type, max_length: usize) type {
     return struct {
         pub const Item = T;
 

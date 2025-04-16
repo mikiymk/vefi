@@ -13,7 +13,7 @@ pub const float_point = @import("math/float_point.zig");
 pub const big_float_point = struct {};
 pub const complex = struct {};
 
-pub const Order = enum (i2) {
+pub const Order = enum(i2) {
     /// left == right
     equal = 0,
     /// left > right
@@ -48,9 +48,7 @@ pub const pi: comptime_float = 3.141592653589793238462643383279502884197;
 pub const tau: comptime_float = 6.283185307179586476925286766559005768394;
 
 /// 正弦関数
-pub fn sin(x: anytype) @TypeOf(x) {
-    
-}
+pub fn sin(x: anytype) @TypeOf(x) {}
 /// 余弦関数
 pub fn cos(x: anytype) @TypeOf(x) {}
 /// 正接関数

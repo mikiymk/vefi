@@ -36,9 +36,9 @@ pub fn getNodeFromLast(tail: anytype, sentinel: @TypeOf(head), index: usize) @Ty
     var node = tail;
     var count = index;
 
-   while (node != sentinel and count != 0) : (node = node.prev) {
+    while (node != sentinel and count != 0) : (node = node.prev) {
         count -= 1;
-   }
+    }
     return node;
 }
 

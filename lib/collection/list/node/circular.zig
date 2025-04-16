@@ -1,5 +1,3 @@
-
-
 fn Option(T: type) type {
     return if (@typeInfo(T) == .optional) T else ?T;
 }
@@ -26,11 +24,11 @@ pub fn clear(head: anytype, a: Allocator) void {
         node.deinit(a);
         node = next;
         if (node == head) break; // do-whileになる
-   }
+    }
 }
 
 pub fn getNode(head: anytype, index: usize) Option(@TypeOf(head)) {
-   const head = head orelse return null;
+    const head = head orelse return null;
     var node = head;
     var count = index;
 
@@ -57,7 +55,7 @@ fn getLastNode(head: anytype) Option(@TypeOf(head)) {
     var prev = head orelse return null;
     var node = prev.next;
 
-   while (node != self.head) : (node = node.next) {
+    while (node != self.head) : (node = node.next) {
         prev = node;
     }
 
@@ -90,12 +88,12 @@ pub fn format(w: anytype, type_name: []const u8, head: anytype) !void {
                 first = false;
             } else {
                 try writer.print(", ", .{});
-           }
+            }
 
-           try writer.print("{}", .{node});
+            try writer.print("{}", .{node});
 
             if (node.next == head) break;
-       }
+        }
     }
-   try writer.print(" }}", .{});
+    try writer.print(" }}", .{});
 }

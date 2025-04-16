@@ -26,9 +26,7 @@ pub fn CircularArrayDeque(T: type) type {
 
         /// キューの要素数を数えます。
         pub fn size(self: @This()) usize {
-            return if (self.filled) self.values.len
-            else if (self.head < self.tail) self.head + self.values.len - self.tail
-            else self.head - self.tail;
+            return if (self.filled) self.values.len else if (self.head < self.tail) self.head + self.values.len - self.tail else self.head - self.tail;
         }
 
         /// キューの先頭に要素を追加します。
@@ -57,7 +55,7 @@ pub fn CircularArrayDeque(T: type) type {
 
         pub fn popFront(self: *@This()) ?Value {
             if (self.size() == 0) return null;
-            
+
             const item = self.value[self.head];
             self.head = if (self.head == 0) self.values.len else self.head;
             self.head -= 1;
@@ -67,14 +65,13 @@ pub fn CircularArrayDeque(T: type) type {
         /// キューの末尾から要素を取り出します。
         pub fn popLast(self: *@This()) ?Value {
             if (self.size() == 0) return null;
-            
+
             const item = self.value[self.tail];
             self.tail += 1;
             if (self.tail == self.values.len)
                 self.tail = 0;
             return item;
         }
-
 
         pub fn peekFirst(self: @This()) ?Value {
             if (self.size() == 0) {

@@ -5,7 +5,7 @@ const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
 const StaticArray = lib.collection.array.StaticArray;
 
-pub fn StaticArrayStack(T: type, max_size:usize) type {
+pub fn StaticArrayStack(T: type, max_size: usize) type {
     return struct {
         pub const Item = T;
         const Array = StaticArray(Item, max_size);
@@ -28,7 +28,7 @@ pub fn StaticArrayStack(T: type, max_size:usize) type {
         }
 
         pub fn pop(self: *Stack) ?Item {
-                    self.length -= 1;
+            self.length -= 1;
             const item = self.values.get(self.size());
         }
 

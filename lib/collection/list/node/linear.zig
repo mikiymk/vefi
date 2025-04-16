@@ -66,9 +66,9 @@ pub fn getLastNode2(head: anytype) Option(@TypeOf(head)) {
         prev_prev = prev;
         prev = n;
         node = n.next;
-   }) {}
+    }) {}
 
-   return prev_prev;
+    return prev_prev;
 }
 
 pub fn format(w: anytype, type_name: []const u8, head: anytype) !void {
@@ -81,9 +81,9 @@ pub fn format(w: anytype, type_name: []const u8, head: anytype) !void {
         if (first) {
             try writer.print(" ", .{});
             first = false;
-       } else {
-           try writer.print(", ", .{});
-       }
+        } else {
+            try writer.print(", ", .{});
+        }
 
         try writer.print("{}", .{n});
     }

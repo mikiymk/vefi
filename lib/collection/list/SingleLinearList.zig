@@ -185,7 +185,7 @@ pub fn SingleLinearList(T: type) type {
 
             const prev_last = node_utils.getLastNode2(self.head);
             const last = if (prev_last) |pl| pl.next else self.head;
-            
+
             if (last) |l| {
                 l.deinit(a);
             } else {

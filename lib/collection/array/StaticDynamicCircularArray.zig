@@ -6,7 +6,7 @@ const assert = lib.assert.assert;
 const Range = lib.collection.Range;
 
 /// アロケーターを使わない環状配列
-pub fn StaticDynamicCircularArray(T: type, max_length:usize) type {
+pub fn StaticDynamicCircularArray(T: type, max_length: usize) type {
     return struct {
         pub const Item = T;
 
@@ -45,10 +45,10 @@ pub fn StaticDynamicCircularArray(T: type, max_length:usize) type {
         /// 配列の要素数を返す。
         pub fn size(self: @This()) usize {
             if (self.head < self.tail) {
-return self.values.len + self.head - self.tail;
+                return self.values.len + self.head - self.tail;
             } else {
-return self.head - self.tail;
-            }            
+                return self.head - self.tail;
+            }
         }
 
         /// 配列の要素を全てなくす。
