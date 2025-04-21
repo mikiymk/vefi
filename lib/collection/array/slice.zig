@@ -2,20 +2,17 @@ pub fn size(slice: anytype) usize {
  return slice.len;
 }
 
-pub fn isInBound(slice: anytype, index: usize) bool {
- const s = size(slice);
-
- return 0 <= index and index < s;
+pub fn isInBound(bound: usize, index: usize) bool {
+ return 0 <= index and index < bound;
 }
 
-        pub fn isInBoundRange(slice: anytype, range: Range) bool {
-            const begin, const end = range;
-            const s = size(slice);
+pub fn isInBoundRange(bound: usize, range: Range) bool {
+ const begin, const end = range;
 
-            return 0 <= begin and begin < s and
-                0 < end and end <= s and
-                begin < end;
-        }
+ return 0 <= begin and begin < bound and
+  0 < end and end <= bound and
+  begin < end;
+}
 
 pub const initial_size = 8;
 pub const extend_factor = 2;
