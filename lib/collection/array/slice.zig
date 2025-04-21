@@ -1,16 +1,12 @@
-pub fn size(slice: anytype) usize {
- return slice.len;
+pub fn isInBound(size: usize, index: usize) bool {
+ return 0 <= index and index < size;
 }
 
-pub fn isInBound(bound: usize, index: usize) bool {
- return 0 <= index and index < bound;
-}
-
-pub fn isInBoundRange(bound: usize, range: Range) bool {
+pub fn isInBoundRange(size: usize, range: Range) bool {
  const begin, const end = range;
 
- return 0 <= begin and begin < bound and
-  0 < end and end <= bound and
+ return 0 <= begin and begin < size and
+  0 < end and end <= size and
   begin < end;
 }
 
@@ -24,10 +20,9 @@ pub fn extendedSize(size: usize) usize {
  return size * extend_factor;
 }
 
-pub fn extendedSizeAtLeast(size: usize, min: usize) {
- if (min <= size) return size;
+pub fn extendedSizeAtLeast(size: usize, min_size: usize) {
  var new_size = if (size == 0) initial_size else size;
- while (min <= new_size) {
+ while (min_size <= new_size) {
   new_size *= extend_factor;
  }
  return new_size;
