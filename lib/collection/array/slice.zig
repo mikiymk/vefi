@@ -27,3 +27,28 @@ pub fn extendedSizeAtLeast(size: usize, min_size: usize) {
  }
  return new_size;
 }
+
+fn copyInArray(slice: anytype, src: usize, dst: usize, length: usize) IndexError!void {
+            const src_end = src + length;
+            const dst_end = dst + length;
+
+            if (src == dst or length == 0) return; // 何もしない場合
+            if (!isInBoundRange(slice.len, .{ src, src_end })) return error.OutOfBounds;
+            if (!isInBoundRange(slice.len, .{ dst, dst_end })) return error.OutOfBounds;
+
+            const dst_slice = slice[dst..dst_end];
+            const src_slice = slice[src..src_end];
+
+            if (src_end < dst or dst_end < src) {
+                @memcpy(dst_slice, src_slice);
+            } else if (src < dst) {
+                var i = dst_slice.len;
+                while (i != 0) : (i -= 1) {
+                    dst_slice[i - 1] = src_slice[i - 1];
+                }
+            } else {
+                for (dst_slice, src_slice) |*d, s| {
+                    d.* = s;
+                }
+            }
+        }
