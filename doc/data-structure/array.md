@@ -3,11 +3,16 @@
 - 配列は同じ型の複数の値を持つコレクション型。
 - 一つの数値のインデックスで要素にアクセスできる。
 
-## 配列の関数
+- std::vector (C++)
+- java.util.ArrayList (Java)
+
+## 配列の機能
 
 ### get
 
 - インデックスを指定して、そのインデックスに関連付けられた値を得る。
+- std::vector::operator[] (C++)
+- std::vector::at (C++)
 
 ### set
 
@@ -26,8 +31,6 @@
 ### indexOf
 
 ### sort
-
-## 動的配列の関数
 
 ### pushFront
 
