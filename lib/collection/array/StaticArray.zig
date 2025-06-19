@@ -1,8 +1,6 @@
 const std = @import("std");
 const lib = @import("../../root.zig");
 
-const assert = lib.assert.assert;
-
 /// # 静的配列 (Static Array)
 /// - サイズがコンパイル時に決まる。
 pub fn StaticArray(T: type, array_size: usize) type {
@@ -54,22 +52,6 @@ pub fn StaticArray(T: type, array_size: usize) type {
             self.values[index] = value;
         }
 
-        /// 配列の繰り返しオブジェクト
-        pub const Iterator = struct {
-            pub const Item = T;
-            index: usize = 0,
-            ref: Array,
-
-            /// あれば次の値を返す
-            pub fn next(self: *@This()) ?T {
-                if (self.ref.isInBound(self.index)) {
-                    defer self.index += 1;
-                    return self.ref.values[self.index];
-                }
-                return null;
-            }
-        };
-
         /// 繰り返しオブジェクトを作成する
         pub iterator(self: *@This()) Iterator {
             return .{ .ref = self };
@@ -95,6 +77,24 @@ pub fn StaticArray(T: type, array_size: usize) type {
             try writer.print(" }}", .{});
         }
     };
+}
+
+/// 配列の繰り返しオブジェクト
+pub fn Iterator(Array: type) type {
+    return struct {
+    pub const Item = Array.Item;
+    index: usize = 0,
+    array: *Array,
+
+    /// あれば次の値を返す
+    pub fn next(self: *@This()) ?Item {
+        if (self.array.isInBound(self.index)) {
+            defer self.index += 1;
+            return self.array.values[self.index];
+        }
+        return null;
+    }
+};
 }
 
 test StaticArray {
