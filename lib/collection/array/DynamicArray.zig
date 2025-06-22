@@ -21,7 +21,7 @@ pub fn DynamicArray(T: type) type {
 
         /// 配列を空の状態で初期化する。
         pub fn init() @This() {
-            return .{ .values = &[_]T{}, .length = 0 };
+            return .{ .values = undefined, .length = 0 };
         }
 
         /// すべてのメモリを解放する。
@@ -32,9 +32,7 @@ pub fn DynamicArray(T: type) type {
 
         /// インデックスが配列の範囲内かどうか判定する。
         pub fn isInBound(self: @This(), index: usize) bool {
-            const size_ = self.size();
-
-            return 0 <= index and index < size_;
+            return index < self.size();
         }
 
         /// インデックス範囲が配列の範囲内かどうか判定する。
@@ -57,49 +55,24 @@ pub fn DynamicArray(T: type) type {
             self.length = 0;
         }
 
-        /// 配列の`index`番目の要素を返す。
+        /// 配列の`index`番目の要素を参照で返す。
         /// 配列の範囲外の場合、`null`を返す。
-        pub fn get(self: @This(), index: usize) ?T {
-            if (!self.isInBound(index)) return null;
-            return self.values[index];
-        }
+        pub fn get(self: @This(), index: usize) ?*T {
+            if (!self.isInBound(index)) {
+                return null;
+            }
 
-        /// 配列の`index`番目の要素への参照を返す。
-        /// 配列の範囲外の場合、`null`を返す。
-        pub fn getRef(self: @This(), index: usize) ?*T {
-            if (!self.isInBound(index)) return null;
-            return @ptrCast(self.values.ptr + index);
-        }
-
-        /// 配列の範囲の要素のスライスを返す。
-        /// 配列の範囲外の場合、`null`を返す。
-        pub fn slice(self: @This(), range: Range) ?[]const T {
-            if (!self.isInBoundRange(range)) return null;
-            const begin, const end = range;
-
-            return self.values[begin..end];
+            return &self.values[index];
         }
 
         /// 配列の`index`番目の要素の値を設定する。
         /// `index`が配列の範囲外の場合、エラーを返す。
         pub fn set(self: *@This(), index: usize, value: T) IndexError!void {
-            if (!self.isInBound(index)) return error.OutOfBounds;
+            if (!self.isInBound(index)) {
+                return error.OutOfBounds;
+            }
+
             self.values[index] = value;
-        }
-
-        /// 配列の`index`番目から先を新しい値のスライスで更新する。
-        /// `index`からスライスの範囲が配列の範囲外の場合、エラーを返す。
-        pub fn setAll(self: *@This(), index: usize, values: []const T) IndexError!void {
-            if (!self.isInBoundRange(.{ index, index + values.len })) return error.OutOfBounds;
-            @memcpy(self.values[index..][0..values.len], values);
-        }
-
-        /// 配列の`begin`番目(含む)から`end`番目(含まない)の要素の値をまとめて設定する。
-        /// `index`が配列の範囲外の場合、エラーを返す。
-        pub fn setFill(self: *@This(), range: Range, value: T) IndexError!void {
-            if (!self.isInBoundRange(range)) return error.OutOfBounds;
-            const begin, const end = range;
-            @memset(self.values[begin..end], value);
         }
 
         fn copyInArray(self: *@This(), src: usize, dst: usize, length: usize) IndexError!void {
@@ -127,24 +100,6 @@ pub fn DynamicArray(T: type) type {
             }
         }
 
-        /// 配列の`left`番目と`right`番目の要素の値を交換する。
-        /// `left`か`right`が配列の範囲外の場合、エラーを返す。
-        pub fn swap(self: *@This(), left: usize, right: usize) IndexError!void {
-            if (!self.isInBound(left)) return error.OutOfBounds;
-            if (!self.isInBound(right)) return error.OutOfBounds;
-
-            const tmp = self.get(left).?;
-            self.set(left, self.get(right).?) catch unreachable;
-            self.set(right, tmp) catch unreachable;
-        }
-
-        /// 配列の要素の並びを逆転する。
-        pub fn reverse(self: *@This()) void {
-            for (0..(self.size() / 2)) |i| {
-                self.swap(i, self.size() - i - 1) catch unreachable;
-            }
-        }
-
         /// 配列の`index`番目に新しい要素を追加する。
         /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
         /// 再確保ができない場合はエラーを返す。
@@ -158,60 +113,7 @@ pub fn DynamicArray(T: type) type {
             self.values[index] = item;
         }
 
-        pub fn addAll(self: *@This(), allocator: Allocator, index: usize, items: []const T) AllocIndexError!void {
-            if (self.values.len < self.size() + items.len) {
-                try self.reserve(allocator, self.size() + items.len);
-            }
-
-            const index_end = index + items.len;
-            self.length += items.len;
-            try self.copyInArray(index, index_end, self.size() - index_end);
-            try self.setAll(index, items);
-        }
-
-        /// 値を配列の最も後ろに追加する。
-        /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
-        /// 再確保ができない場合はエラーを返す。
-        pub fn addFirst(self: *@This(), allocator: Allocator, item: T) Allocator.Error!void {
-            self.add(allocator, 0, item) catch |err| switch (err) {
-                error.OutOfBounds => unreachable,
-                else => |e| return e,
-            };
-        }
-
-        pub fn addFirstAll(self: *@This(), allocator: Allocator, items: []const T) Allocator.Error!void {
-            self.addAll(allocator, 0, items) catch |err| switch (err) {
-                error.OutOfBounds => unreachable,
-                else => |e| return e,
-            };
-        }
-
-        /// 値を配列の最も後ろに追加する。
-        /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
-        /// 再確保ができない場合はエラーを返す。
-        pub fn addLast(self: *@This(), allocator: Allocator, item: T) Allocator.Error!void {
-            if (self.values.len <= self.length) {
-                try self.extendSize(allocator);
-            }
-
-            self.values[self.length] = item;
-            self.length += 1;
-        }
-
-        /// 複数の値を配列の最も後ろに追加する。
-        /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
-        /// 再確保ができない場合はエラーを返す。
-        pub fn addLastAll(self: *@This(), allocator: Allocator, items: []const T) Allocator.Error!void {
-            if (self.values.len < self.size() + items.len) {
-                try self.reserve(allocator, self.size() + items.len);
-            }
-
-            const index = self.size();
-            self.length += items.len;
-            self.setAll(index, items) catch unreachable;
-        }
-
-        /// 配列の`index`番目の要素を削除する。
+        /// 配列の`index`番目の要素を削除し、値を返す。
         /// 配列が要素を持たない場合、配列を変化させずにnullを返す。
         pub fn remove(self: *@This(), index: usize) ?T {
             const value = self.get(index) orelse return null;
@@ -221,50 +123,12 @@ pub fn DynamicArray(T: type) type {
                 e.* = f;
             }
 
-            return value;
-        }
-
-        pub fn removeAll(self: *@This(), index: usize, length: usize) IndexError!void {
-            const src_begin = index + length;
-            try self.copyInArray(src_begin, index, self.size() - src_begin);
-            self.length -= length;
-        }
-
-        /// 配列の最も後ろの要素を削除し、その値を返す。
-        /// 配列が要素を持たない場合、配列を変化させずにnullを返す。
-        pub fn removeFirst(self: *@This()) ?T {
-            return self.remove(0);
-        }
-
-        /// 配列の最も後ろの要素を削除し、その値を返す。
-        /// 配列が要素を持たない場合、配列を変化させずにnullを返す。
-        pub fn removeLast(self: *@This()) ?T {
-            if (self.length == 0) return null;
-            self.length -= 1;
-            return self.values[self.length];
-        }
-
-        /// 同じ要素を持つ配列を複製する。
-        pub fn copy(self: @This(), allocator: Allocator) AllocError!@This() {
-            const new_array: @This() = .{
-                ._size = self.length,
-                ._values = try self.copyToSlice(allocator),
-            };
-
-            return new_array;
+            return value.*;
         }
 
         /// 配列をスライスとして取得する。
         pub fn asSlice(self: @This()) []const T {
             return self.values[0..self.length];
-        }
-
-        /// 配列をコピーした新しいスライスを作成する。
-        pub fn copyToSlice(self: @This(), allocator: Allocator) Allocator.Error![]const T {
-            var new_slice = try allocator.alloc(T, self.length);
-            @memcpy(new_slice[0..], self.asSlice());
-
-            return new_slice;
         }
 
         /// 配列のキャパシティーを指定したサイズ以上に拡張する。
@@ -293,6 +157,11 @@ pub fn DynamicArray(T: type) type {
             self.values = try allocator.realloc(self.values, new_length);
         }
 
+        pub fn iterator(self: *@This()) Iterator(@This()) {
+             return .{ .array = self };
+        }
+
+        // 文字列に変換する
         pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
             const writer = lib.io.writer(w);
             try writer.print("DynamicArray({s}){{", .{@typeName(T)});
