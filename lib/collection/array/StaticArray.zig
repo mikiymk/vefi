@@ -49,7 +49,7 @@ pub fn StaticArray(T: type, array_size: usize) type {
         }
 
         /// 繰り返しオブジェクトを作成する
-        pub iterator(self: *@This()) Iterator {
+        pub fn iterator(self: *@This()) Iterator {
             return .{ .ref = self };
         }
 
@@ -78,19 +78,19 @@ pub fn StaticArray(T: type, array_size: usize) type {
 /// 配列の繰り返しオブジェクト
 pub fn Iterator(Array: type) type {
     return struct {
-    pub const Item = Array.Item;
-    index: usize = 0,
-    array: *Array,
+        pub const Item = Array.Item;
+        index: usize = 0,
+        array: *Array,
 
-    /// あれば次の値を返す
-    pub fn next(self: *@This()) ?*Item {
-        if (!self.array.isInBound(self.index)) {
-            return null;
+        /// あれば次の値を返す
+        pub fn next(self: *@This()) ?*Item {
+            if (!self.array.isInBound(self.index)) {
+                return null;
+            }
+            defer self.index += 1;
+            return &self.array.values[self.index];
         }
-        defer self.index += 1;
-        return &self.array.values[self.index];
-    }
-};
+    };
 }
 
 test StaticArray {

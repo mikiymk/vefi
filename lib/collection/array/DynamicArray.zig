@@ -158,7 +158,7 @@ pub fn DynamicArray(T: type) type {
         }
 
         pub fn iterator(self: *@This()) Iterator(@This()) {
-             return .{ .array = self };
+            return .{ .array = self };
         }
 
         // 文字列に変換する
