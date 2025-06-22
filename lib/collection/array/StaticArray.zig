@@ -20,7 +20,7 @@ pub fn StaticArray(T: type, array_size: usize) type {
         pub fn isInBound(self: @This(), index: usize) bool {
             const size_ = self.size();
 
-            return 0 <= index and index < size_;
+            return index < size_;
         }
 
         /// 配列の要素数を返す。
@@ -30,16 +30,10 @@ pub fn StaticArray(T: type, array_size: usize) type {
 
         /// 配列の`index`番目の要素を返す。
         /// 配列の範囲外の場合、`null`を返す。
-        pub fn get(self: @This(), index: usize) ?T {
-            if (!self.isInBound(index)) return null;
-
-            return self.values[index];
-        }
-
-        /// 配列の`index`番目の要素への参照を返す。
-        /// 配列の範囲外の場合、`null`を返す。
-        pub fn getRef(self: *@This(), index: usize) ?*T {
-            if (!self.isInBound(index)) return null;
+        pub fn get(self: @This(), index: usize) ?*T {
+            if (!self.isInBound(index)) {
+                return null;
+            }
 
             return &self.values[index];
         }
@@ -47,7 +41,9 @@ pub fn StaticArray(T: type, array_size: usize) type {
         /// 配列の`index`番目の要素の値を設定する。
         /// `index`が配列の範囲外の場合、エラーを返す。
         pub fn set(self: *@This(), index: usize, value: T) IndexError!void {
-            if (!self.isInBound(index)) return error.OutOfBounds;
+            if (!self.isInBound(index)) {
+                return error.OutOfBounds;
+            }
 
             self.values[index] = value;
         }
@@ -87,12 +83,12 @@ pub fn Iterator(Array: type) type {
     array: *Array,
 
     /// あれば次の値を返す
-    pub fn next(self: *@This()) ?Item {
-        if (self.array.isInBound(self.index)) {
-            defer self.index += 1;
-            return self.array.values[self.index];
+    pub fn next(self: *@This()) ?*Item {
+        if (!self.array.isInBound(self.index)) {
+            return null;
         }
-        return null;
+        defer self.index += 1;
+        return &self.array.values[self.index];
     }
 };
 }
