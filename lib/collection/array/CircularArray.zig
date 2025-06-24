@@ -5,8 +5,9 @@ const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
 const Range = lib.collection.Range;
 
-/// アロケーターを使わない環状配列
-pub fn StaticDynamicCircularArray(T: type, max_length: usize) type {
+/// 環状配列
+/// 最初と最後の要素の追加・削除が高速にできる。
+pub fn CircularArray(T: type, max_length: usize) type {
     return struct {
         pub const Item = T;
 
@@ -29,7 +30,7 @@ pub fn StaticDynamicCircularArray(T: type, max_length: usize) type {
 
         /// インデックスが配列の範囲内かどうか判定する。
         pub fn isInBound(self: @This(), index: usize) bool {
-            return 0 <= index and index < self.size();
+            return index < self.size();
         }
 
         /// インデックス範囲が配列の範囲内かどうか判定する。
@@ -58,7 +59,7 @@ pub fn StaticDynamicCircularArray(T: type, max_length: usize) type {
         }
 
         /// 内部配列のインデックスに変換する
-        pub fn internalIndex(self: @This(), index: usize) usize {
+        fn internalIndex(self: @This(), index: usize) usize {
             if (self.tail <= index) {
                 return index - self.tail;
             } else {
@@ -68,18 +69,10 @@ pub fn StaticDynamicCircularArray(T: type, max_length: usize) type {
 
         /// 配列の`index`番目の要素を返す。
         /// 配列の範囲外の場合、`null`を返す。
-        pub fn get(self: @This(), index: usize) ?T {
+        pub fn get(self: @This(), index: usize) ?*T {
             if (!self.isInBound(index)) return null;
             const internal_index = self.internalIndex(index);
-            return self.values[internal_index];
-        }
-
-        /// 配列の`index`番目の要素への参照を返す。
-        /// 配列の範囲外の場合、`null`を返す。
-        pub fn getRef(self: @This(), index: usize) ?*T {
-            if (!self.isInBound(index)) return null;
-            const internal_index = self.internalIndex(index);
-            return @ptrCast(self.values.ptr + internal_index);
+            return &self.values[internal_index];
         }
 
         /// 配列の`index`番目の要素の値を設定する。
@@ -88,40 +81,6 @@ pub fn StaticDynamicCircularArray(T: type, max_length: usize) type {
             if (!self.isInBound(index)) return error.OutOfBounds;
             const internal_index = self.internalIndex(index);
             self.values[internal_index] = value;
-        }
-
-        /// 配列の`index`番目から先を新しい値のスライスで更新する。
-        /// `index`からスライスの範囲が配列の範囲外の場合、エラーを返す。
-        pub fn setAll(self: *@This(), index: usize, values: []const T) IndexError!void {
-            if (!self.isInBoundRange(.{ index, index + values.len })) return error.OutOfBounds;
-            const internal_begin = self.internalIndex(index);
-            const internal_end = self.internalIndex(index + values.len);
-            if (internal_end < internal_begin) {
-                const trimmed_length = self.values.len - internal_begin;
-                const remain_length = values.len - trimmed_length;
-                @memcpy(self.values[internal_begin..], values[0..trimmed_length]);
-                @memcpy(self.values[0..remain_length], values[trimmed_length..]);
-            } else {
-                @memcpy(self.values[internal_begin..][0..values.len], values);
-            }
-        }
-
-        /// 配列の`begin`番目(含む)から`end`番目(含まない)の要素の値をまとめて設定する。
-        /// `index`が配列の範囲外の場合、エラーを返す。
-        pub fn setFill(self: *@This(), range: Range, value: T) IndexError!void {
-            if (!self.isInBoundRange(range)) return error.OutOfBounds;
-            const begin, const end = range;
-            const internal_begin = self.internalIndex(begin);
-            const internal_end = self.internalIndex(end);
-            const length = end - begin;
-            if (internal_end < internal_begin) {
-                const trimmed_length = self.values.len - internal_begin;
-                const remain_length = length - trimmed_length;
-                @memset(self.values[internal_begin..], value);
-                @memset(self.values[0..remain_length], value);
-            } else {
-                @memset(self.values[internal_begin..internal_end], value);
-            }
         }
 
         fn copyInArray(self: *@This(), src: usize, dst: usize, length: usize) IndexError!void {
@@ -149,24 +108,6 @@ pub fn StaticDynamicCircularArray(T: type, max_length: usize) type {
             }
         }
 
-        /// 配列の`left`番目と`right`番目の要素の値を交換する。
-        /// `left`か`right`が配列の範囲外の場合、エラーを返す。
-        pub fn swap(self: *@This(), left: usize, right: usize) IndexError!void {
-            if (!self.isInBound(left)) return error.OutOfBounds;
-            if (!self.isInBound(right)) return error.OutOfBounds;
-
-            const tmp = self.get(left).?;
-            self.set(left, self.get(right).?) catch unreachable;
-            self.set(right, tmp) catch unreachable;
-        }
-
-        /// 配列の要素の並びを逆転する。
-        pub fn reverse(self: *@This()) void {
-            for (0..(self.size() / 2)) |i| {
-                self.swap(i, self.size() - i - 1) catch unreachable;
-            }
-        }
-
         /// 配列の`index`番目に新しい要素を追加する。
         /// 配列の長さが足りないときはエラーを返す。
         pub fn add(self: *@This(), index: usize, item: T) OverIndexError!void {
@@ -179,105 +120,19 @@ pub fn StaticDynamicCircularArray(T: type, max_length: usize) type {
             self.values[index] = item;
         }
 
-        pub fn addAll(self: *@This(), index: usize, items: []const T) OverIndexError!void {
-            if (self.values.len < self.size() + items.len) {
-                return error.Overflow;
-            }
-
-            const index_end = index + items.len;
-            self.length += items.len;
-            try self.copyInArray(index, index_end, self.size() - index_end);
-            try self.setAll(index, items);
-        }
-
-        /// 値を配列の最も後ろに追加する。
-        /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
-        /// 再確保ができない場合はエラーを返す。
-        pub fn addFirst(self: *@This(), allocator: Allocator, item: T) OverflowError!void {
-            self.add(allocator, 0, item) catch |err| switch (err) {
-                error.OutOfBounds => unreachable,
-                else => |e| return e,
-            };
-        }
-
-        pub fn addFirstAll(self: *@This(), items: []const T) OverflowError!void {
-            self.addAll(allocator, 0, items) catch |err| switch (err) {
-                error.OutOfBounds => unreachable,
-                else => |e| return e,
-            };
-        }
-
-        /// 値を配列の最も後ろに追加する。
-        /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
-        /// 再確保ができない場合はエラーを返す。
-        pub fn addLast(self: *@This(), allocator: Allocator, item: T) OverflowError!void {
-            if (self.values.len <= self.length) {
-                return error.Overflow;
-            }
-
-            self.values[self.length] = item;
-            self.length += 1;
-        }
-
-        /// 複数の値を配列の最も後ろに追加する。
-        /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
-        /// 再確保ができない場合はエラーを返す。
-        pub fn addLastAll(self: *@This(), allocator: Allocator, items: []const T) OverflowError!void {
-            if (self.values.len < self.size() + items.len) {
-                return error.Overflow;
-            }
-
-            const index = self.size();
-            self.length += items.len;
-            self.setAll(index, items) catch unreachable;
-        }
-
         /// 配列の`index`番目の要素を削除する。
         /// 配列が要素を持たない場合、配列を変化させずにnullを返す。
         pub fn remove(self: *@This(), index: usize) ?T {
-            const value = self.get(index) orelse return null;
+            const value = (self.get(index) orelse return null).*;
 
             try self.copyInArray(index + 1, index, self.size() - index - 1);
             self.length -= 1;
             return value;
         }
 
-        pub fn removeAll(self: *@This(), index: usize, length: usize) IndexError!void {
-            const src_begin = index + length;
-            try self.copyInArray(src_begin, index, self.size() - src_begin);
-            self.length -= length;
-        }
-
-        /// 配列の最も後ろの要素を削除し、その値を返す。
-        /// 配列が要素を持たない場合、配列を変化させずにnullを返す。
-        pub fn removeFirst(self: *@This()) ?T {
-            return self.remove(0);
-        }
-
-        /// 配列の最も後ろの要素を削除し、その値を返す。
-        /// 配列が要素を持たない場合、配列を変化させずにnullを返す。
-        pub fn removeLast(self: *@This()) ?T {
-            if (self.length == 0) return null;
-            self.length -= 1;
-            return self.values[self.length];
-        }
-
-        /// 同じ要素を持つ配列を複製する。
-        pub fn copy(self: @This()) @This() {
-            return self;
-        }
-
         /// 配列をスライスとして取得する。
         pub fn asSlice(self: @This()) []const T {
             return self.values[0..self.length];
-        }
-
-        /// 配列をコピーした新しいスライスを作成する。
-        pub fn copyToSlice(self: @This(), allocator: Allocator) Allocator.Error![]const T {
-            var new_slice = try allocator.alloc(T, self.length);
-            @memcpy(new_slice[0..], self.asSlice());
-
-            return new_slice;
         }
 
         pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
