@@ -4,17 +4,11 @@ const lib = @import("../root.zig");
 pub const StaticArray = @import("array/StaticArray.zig").StaticArray;
 pub const StaticDynamicArray = @import("array/StaticDynamicArray.zig").StaticDynamicArray;
 pub const DynamicArray = @import("array/DynamicArray.zig").DynamicArray;
-
-pub const StaticDynamicCircularArray = @import("array/StaticDynamicCircularArray.zig").StaticDynamicCircularArray;
-pub const DynamicCircularArray = @import("array/DynamicCircularArray.zig").DynamicCircularArray;
+pub const CircularArray = @import("array/CircularArray.zig").CircularArray;
 
 pub const StaticMultiDimensionalArray = @import("array/StaticMultiDimensionalArray.zig").StaticMultiDimensionalArray;
 
-pub const StaticBitArray = @import("array/BitArray.zig");
-pub const DynamicBitArray = @import("array/BitArray.zig");
-
-/// TODO: あとで消す
-pub const StringArray = @import("array/StringArray.zig");
+pub const BitArray = @import("array/BitArray.zig");
 
 pub fn isArray(T: type) bool {
     const match = lib.concept.Match.init(T);
