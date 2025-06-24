@@ -75,7 +75,7 @@ pub fn DynamicArray(T: type) type {
             self.values[index] = value;
         }
 
-        fn copyInArray(self: *@This(), src: usize, dst: usize, length: usize) IndexError!void {
+        fn copyInArray(slice: anytype, src: usize, dst: usize, length: usize) IndexError!void {
             const src_end = src + length;
             const dst_end = dst + length;
 
@@ -83,8 +83,8 @@ pub fn DynamicArray(T: type) type {
             if (!self.isInBoundRange(.{ src, src_end })) return error.OutOfBounds;
             if (!self.isInBoundRange(.{ dst, dst_end })) return error.OutOfBounds;
 
-            const dst_slice = self.values[dst..dst_end];
-            const src_slice = self.values[src..src_end];
+            const dst_slice = slice[dst..dst_end];
+            const src_slice = slice[src..src_end];
 
             if (src_end < dst or dst_end < src) {
                 @memcpy(dst_slice, src_slice);
