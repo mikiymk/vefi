@@ -116,14 +116,12 @@ pub fn DynamicArray(T: type) type {
         /// 配列の`index`番目の要素を削除し、値を返す。
         /// 配列が要素を持たない場合、配列を変化させずにnullを返す。
         pub fn remove(self: *@This(), index: usize) ?T {
-            const value = self.get(index) orelse return null;
+            const value = (self.get(index) orelse return null).*;
 
+            try self.copyInArray(index + 1, index, self.size() - index - 1);
             self.length -= 1;
-            for (self.values[index..self.length], self.values[(index + 1)..(self.length + 1)]) |*e, f| {
-                e.* = f;
-            }
 
-            return value.*;
+            return value;
         }
 
         /// 配列をスライスとして取得する。
