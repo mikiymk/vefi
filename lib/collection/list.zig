@@ -7,14 +7,10 @@ pub const node = struct {
     pub const sentinel = @import("list/node/sentinel.zig");
 };
 
-pub const SingleLinearList = @import("list/SingleLinearList.zig").SingleLinearList;
-pub const SingleLinearSentinelList = @import("list/SingleLinearSentinelList.zig").SingleLinearSentinelList;
-pub const SingleCircularList = @import("list/SingleCircularList.zig").SingleCircularList;
-pub const SingleCircularSentinelList = @import("list/SingleCircularSentinelList.zig").SingleCircularSentinelList;
-pub const DoubleLinearList = @import("list/DoubleLinearList.zig").DoubleLinearList;
-pub const DoubleLinearSentinelList = @import("list/DoubleLinearSentinelList.zig").DoubleLinearSentinelList;
-pub const DoubleCircularList = @import("list/DoubleCircularList.zig").DoubleCircularList;
-pub const DoubleCircularSentinelList = @import("list/DoubleCircularSentinelList.zig").DoubleCircularSentinelList;
+pub const List = @import("list/List.zig").List;
+pub const SentinelList = @import("list/SentinelList.zig").SentinelList;
+pub const CircularList = @import("list/CircularList.zig").CircularList;
+pub const DoublyList = @import("list/DoublyList.zig").DoublyList;
 
 pub const test_list = @import("list/test.zig");
 
