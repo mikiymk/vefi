@@ -1,3 +1,5 @@
+//! 型の情報を確認する関数
+
 const std = @import("std");
 const lib = @import("../root.zig");
 
@@ -68,26 +70,32 @@ pub fn item(self: Match) Match {
     };
 }
 
+/// 配列
 pub fn isArray(self: Match) bool {
     return self.info() == .array;
 }
 
+/// ベクトル
 pub fn isVec(self: Match) bool {
     return self.info() == .vector;
 }
 
+/// 単純ポインタ
 pub fn isPtr(self: Match) bool {
     return self.info() == .pointer and self.info().pointer.size != .slice;
 }
 
+/// スライス
 pub fn isSlice(self: Match) bool {
     return self.info() == .pointer and self.info().pointer.size == .slice;
 }
 
+/// ユーザー定義型
 pub fn isUserDefined(self: Match) bool {
     return self.isStruct() or self.isEnum() or self.isUnion();
 }
 
+/// `packed`
 pub fn isPacked(self: Match) bool {
     return switch (self.info()) {
         inline .@"struct", .@"union" => |s| s.layout == .@"packed",
@@ -95,6 +103,7 @@ pub fn isPacked(self: Match) bool {
     };
 }
 
+/// `extern`
 pub fn isExtern(self: Match) bool {
     return switch (self.info()) {
         inline .@"struct", .@"union" => |s| s.layout == .@"extern",
@@ -102,30 +111,37 @@ pub fn isExtern(self: Match) bool {
     };
 }
 
+/// 構造体
 pub fn isStruct(self: Match) bool {
     return self.info() == .@"struct";
 }
 
+/// 列挙型
 pub fn isEnum(self: Match) bool {
     return self.info() == .@"enum";
 }
 
+/// 合併型
 pub fn isUnion(self: Match) bool {
     return self.info() == .@"union";
 }
 
+/// 不透明型
 pub fn isOpaque(self: Match) bool {
     return self.info() == .@"opaque";
 }
 
+/// オプショナル
 pub fn isOptional(self: Match) bool {
     return self.info() == .optional;
 }
 
+/// エラー合併型
 pub fn isErrorUnion(self: Match) bool {
     return self.info() == .error_union;
 }
 
+/// エラー合併型からエラー集合型を取り出す
 pub fn errorSet(self: Match) Match {
     return switch (self.info()) {
         .error_union => |e| init(e.error_set),
@@ -133,10 +149,12 @@ pub fn errorSet(self: Match) Match {
     };
 }
 
+/// エラー集合型
 pub fn isErrorSet(self: Match) bool {
     return self.info() == .error_set;
 }
 
+/// 特定の名前のエラーを受け入れるか
 pub fn hasError(self: Match, comptime name: []const u8) bool {
     if (comptime self.isErrorUnion())
         return self.errorSet().hasError(name);
@@ -153,32 +171,38 @@ pub fn hasError(self: Match, comptime name: []const u8) bool {
     return false;
 }
 
+/// 関数
 pub fn isFn(self: Match) bool {
     return self.info() == .@"fn";
 }
 
+/// n番目の引数の型
 pub fn argAt(self: Match, index: usize) Match {
     return init(self.info().@"fn".params[index].type.?);
 }
 
+/// n番目の引数の型が`anytype`か
 pub fn isAnyTypeAt(self: Match, index: usize) bool {
     return init(self.info().@"fn".params[index].is_generic);
 }
 
+/// 戻り値の型
 pub fn returns(self: Match) Match {
     return init(self.info().@"fn".return_type.?);
 }
 
+/// 型の中で定義された値
 pub fn decl(self: Match, comptime name: []const u8) Match {
     return init(@TypeOf(@field(self.type, name)));
 }
 
+/// 指定した名前の関数を持つか
 pub fn hasFn(self: Match, comptime name: []const u8) bool {
     return @hasDecl(self.type, name) and
         self.decl(name).isFn();
 }
 
-/// その型の値がa.b()として呼びだせるもの
+/// 指定した名前のメソッド(a.b()として呼びだせる関数)を持つか
 pub fn hasMethod(self: Match, comptime name: []const u8) bool {
     return self.hasFn(name) and
         (self.decl(name).argAt(0).is(self.type) or
@@ -186,16 +210,19 @@ pub fn hasMethod(self: Match, comptime name: []const u8) bool {
                 self.decl(name).argAt(0).item().is(self.type)));
 }
 
+/// 指定した名前の関数でない値を持つか
 pub fn hasDecl(self: Match, comptime name: []const u8) bool {
     return @hasDecl(self.type, name) and
         !self.decl(name).isFn();
 }
 
+/// フィールドの型
 pub fn field(self: Match, comptime name: []const u8) Match {
     const value: self.type = undefined;
     return init(@TypeOf(@field(value, name)));
 }
 
+/// フィールドを持つか
 pub fn hasField(self: Match, comptime name: []const u8) bool {
     return @hasField(self.type, name);
 }
