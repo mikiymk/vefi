@@ -126,7 +126,6 @@ pub const PlainTextExtention = struct {
     character_cell_height: u8,
     text_foreground_color_index: u8,
     text_background_color_index: u8,
-    character_cell_width: u8,
 
     plain_text_data: []DataSubBlock,
 

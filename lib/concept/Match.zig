@@ -3,11 +3,9 @@
 const std = @import("std");
 const lib = @import("../root.zig");
 
-const Match = @This();
-
 type: type,
 
-pub fn init(T: type) Match {
+pub fn init(T: type) @This() {
     return .{ .type = T };
 }
 
@@ -15,6 +13,7 @@ fn info(self: @This()) std.builtin.Type {
     return @typeInfo(self.type);
 }
 
+/// 指定された型
 pub fn is(self: @This(), target: type) bool {
     return self.type == target;
 }
@@ -39,6 +38,11 @@ pub fn isFloat(self: @This()) bool {
     return self.info() == .float or self.info() == .comptime_float;
 }
 
+/// 指定したビット数
+pub fn isBitOf(self: @This(), size: u15) bool {
+    return @bitSizeOf(self.type) == size;
+}
+
 /// 整数か浮動小数点数
 pub fn isNum(self: @This()) bool {
     return self.isInt() or self.isFloat();
@@ -56,47 +60,90 @@ pub fn isEqualed(self: @This()) bool {
 }
 
 /// `<` `<=` `>` `>=`で比較可能
-pub fn isOrdered(self: Match) bool {
+pub fn isOrdered(self: @This()) bool {
     return self.isNum() or
         (self.isVec() and self.item().isNum());
 }
 
-/// 複合型の内容のマッチオブジェクト
-pub fn item(self: Match) Match {
-    return switch (self.info()) {
-        inline .pointer, .array, .vector, .optional => |a| init(a.child),
-        .error_union => |e| init(e.payload),
-        else => @panic(@typeName(self.type) ++ " have no items."),
-    };
-}
-
 /// 配列
-pub fn isArray(self: Match) bool {
+pub fn isArray(self: @This()) bool {
     return self.info() == .array;
 }
 
 /// ベクトル
-pub fn isVec(self: Match) bool {
+pub fn isVec(self: @This()) bool {
     return self.info() == .vector;
 }
 
-/// 単純ポインタ
-pub fn isPtr(self: Match) bool {
+/// スライスではないポインタ
+pub fn isPtr(self: @This()) bool {
     return self.info() == .pointer and self.info().pointer.size != .slice;
 }
 
 /// スライス
-pub fn isSlice(self: Match) bool {
+pub fn isSlice(self: @This()) bool {
     return self.info() == .pointer and self.info().pointer.size == .slice;
 }
 
+/// 構造体
+pub fn isStruct(self: @This()) bool {
+    return self.info() == .@"struct";
+}
+
+/// タプル
+pub fn isTuple(self: @This()) bool {
+    return switch (self.info()) {
+        .@"struct" => |s| s.is_tuple,
+        else => false,
+    };
+}
+
+/// 列挙型
+pub fn isEnum(self: @This()) bool {
+    return self.info() == .@"enum";
+}
+
+/// 合併型
+pub fn isUnion(self: @This()) bool {
+    return self.info() == .@"union";
+}
+
+/// 不透明型
+pub fn isOpaque(self: @This()) bool {
+    return self.info() == .@"opaque";
+}
+
+/// 添字アクセス可能
+pub fn isIndexAccess(self: @This()) bool {
+    return self.isArray() or
+        self.isVec() or
+        self.isTuple() or
+        (self.isPtr() and
+            (self.info().pointer.size == .many or
+                self.info().pointer.size == .c or
+                self.item().isArray() or
+                self.item().isVec() or
+                self.item().isTuple())) or
+        self.isSlice();
+}
+
+/// スライス化可能
+pub fn isSliceAccess(self: @This()) bool {
+    return self.isArray() or
+        (self.isPtr() and
+            (self.info().pointer.size == .many or
+                self.info().pointer.size == .c or
+                self.item().isArray())) or
+        self.isSlice();
+}
+
 /// ユーザー定義型
-pub fn isUserDefined(self: Match) bool {
-    return self.isStruct() or self.isEnum() or self.isUnion();
+pub fn isUserDefined(self: @This()) bool {
+    return self.isStruct() or self.isEnum() or self.isUnion() or self.isOpaque();
 }
 
 /// `packed`
-pub fn isPacked(self: Match) bool {
+pub fn isPacked(self: @This()) bool {
     return switch (self.info()) {
         inline .@"struct", .@"union" => |s| s.layout == .@"packed",
         else => false,
@@ -104,58 +151,30 @@ pub fn isPacked(self: Match) bool {
 }
 
 /// `extern`
-pub fn isExtern(self: Match) bool {
+pub fn isExtern(self: @This()) bool {
     return switch (self.info()) {
         inline .@"struct", .@"union" => |s| s.layout == .@"extern",
         else => false,
     };
 }
 
-/// 構造体
-pub fn isStruct(self: Match) bool {
-    return self.info() == .@"struct";
-}
-
-/// 列挙型
-pub fn isEnum(self: Match) bool {
-    return self.info() == .@"enum";
-}
-
-/// 合併型
-pub fn isUnion(self: Match) bool {
-    return self.info() == .@"union";
-}
-
-/// 不透明型
-pub fn isOpaque(self: Match) bool {
-    return self.info() == .@"opaque";
-}
-
 /// オプショナル
-pub fn isOptional(self: Match) bool {
+pub fn isOptional(self: @This()) bool {
     return self.info() == .optional;
 }
 
 /// エラー合併型
-pub fn isErrorUnion(self: Match) bool {
+pub fn isErrorUnion(self: @This()) bool {
     return self.info() == .error_union;
 }
 
-/// エラー合併型からエラー集合型を取り出す
-pub fn errorSet(self: Match) Match {
-    return switch (self.info()) {
-        .error_union => |e| init(e.error_set),
-        else => @panic(@typeName(self.type) ++ " is not error union."),
-    };
-}
-
 /// エラー集合型
-pub fn isErrorSet(self: Match) bool {
+pub fn isErrorSet(self: @This()) bool {
     return self.info() == .error_set;
 }
 
 /// 特定の名前のエラーを受け入れるか
-pub fn hasError(self: Match, comptime name: []const u8) bool {
+pub fn hasError(self: @This(), comptime name: []const u8) bool {
     if (comptime self.isErrorUnion())
         return self.errorSet().hasError(name);
 
@@ -172,38 +191,23 @@ pub fn hasError(self: Match, comptime name: []const u8) bool {
 }
 
 /// 関数
-pub fn isFn(self: Match) bool {
+pub fn isFn(self: @This()) bool {
     return self.info() == .@"fn";
 }
 
-/// n番目の引数の型
-pub fn argAt(self: Match, index: usize) Match {
-    return init(self.info().@"fn".params[index].type.?);
-}
-
 /// n番目の引数の型が`anytype`か
-pub fn isAnyTypeAt(self: Match, index: usize) bool {
+pub fn isAnyTypeAt(self: @This(), index: usize) bool {
     return init(self.info().@"fn".params[index].is_generic);
 }
 
-/// 戻り値の型
-pub fn returns(self: Match) Match {
-    return init(self.info().@"fn".return_type.?);
-}
-
-/// 型の中で定義された値
-pub fn decl(self: Match, comptime name: []const u8) Match {
-    return init(@TypeOf(@field(self.type, name)));
-}
-
 /// 指定した名前の関数を持つか
-pub fn hasFn(self: Match, comptime name: []const u8) bool {
+pub fn hasFn(self: @This(), comptime name: []const u8) bool {
     return @hasDecl(self.type, name) and
         self.decl(name).isFn();
 }
 
 /// 指定した名前のメソッド(a.b()として呼びだせる関数)を持つか
-pub fn hasMethod(self: Match, comptime name: []const u8) bool {
+pub fn hasMethod(self: @This(), comptime name: []const u8) bool {
     return self.hasFn(name) and
         (self.decl(name).argAt(0).is(self.type) or
             ((comptime self.decl(name).argAt(0).isPtr()) and // comptimeでないと下の.item()でコンパイルエラー
@@ -211,26 +215,65 @@ pub fn hasMethod(self: Match, comptime name: []const u8) bool {
 }
 
 /// 指定した名前の関数でない値を持つか
-pub fn hasDecl(self: Match, comptime name: []const u8) bool {
+pub fn hasDecl(self: @This(), comptime name: []const u8) bool {
     return @hasDecl(self.type, name) and
         !self.decl(name).isFn();
 }
 
-/// フィールドの型
-pub fn field(self: Match, comptime name: []const u8) Match {
-    const value: self.type = undefined;
-    return init(@TypeOf(@field(value, name)));
+/// フィールドを持つか
+pub fn hasField(self: @This(), comptime name: []const u8) bool {
+    return @hasField(self.type, name);
 }
 
-/// フィールドを持つか
-pub fn hasField(self: Match, comptime name: []const u8) bool {
-    return @hasField(self.type, name);
+pub fn isSized(self: @This()) bool {
+    return self.isOpaque() or self.type == anyopaque;
+}
+
+/// 複合型の内容のマッチオブジェクト
+pub fn item(self: @This()) @This() {
+    return switch (self.info()) {
+        inline .pointer, .array, .vector, .optional => |a| init(a.child),
+        .error_union => |e| init(e.payload),
+        else => @panic(@typeName(self.type) ++ " have no items."),
+    };
+}
+
+/// エラー合併型からエラー集合型を取り出す
+pub fn errorSet(self: @This()) @This() {
+    return switch (self.info()) {
+        .error_union => |e| init(e.error_set),
+        else => @panic(@typeName(self.type) ++ " is not error union."),
+    };
+}
+
+/// n番目の引数の型
+pub fn argAt(self: @This(), index: usize) @This() {
+    return init(self.info().@"fn".params[index].type.?);
+}
+
+/// 戻り値の型
+pub fn returns(self: @This()) @This() {
+    return init(self.info().@"fn".return_type.?);
+}
+
+/// 型の中で定義された値
+pub fn decl(self: @This(), comptime name: []const u8) @This() {
+    return init(@TypeOf(@field(self.type, name)));
+}
+
+/// フィールドの型
+pub fn field(self: @This(), comptime name: []const u8) @This() {
+    const value: self.type = undefined;
+    return init(@TypeOf(@field(value, name)));
 }
 
 test init {
     const expect = lib.assert.expect;
 
     try expect(init(bool).is(bool));
+    try expect(init(*u32).is(*u32));
+    try expect(init(?f16).is(?f16));
+
     try expect(init(u32).isInt());
     try expect(init(i16).isSigned());
     try expect(init(u16).isUnsigned());

@@ -122,8 +122,6 @@ pub const tree = @import("collection/tree.zig");
 
 pub const table = @import("collection/table.zig");
 
-pub const doubly_list = struct {};
-pub const circular_list = struct {};
 pub const priority_queue = struct {};
 pub const double_ended_queue = struct {};
 pub const heap = struct {};

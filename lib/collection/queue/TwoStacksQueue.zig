@@ -38,7 +38,7 @@ pub fn TwoStacksQueue(T: type) type {
             return self.outputs.pop();
         }
 
-        pub fn peek(self: Queue) ?Item {
+        pub fn peek(self: Queue, a: Allocator) ?Item {
             self.transqueue(a);
             return self.outputs.peek();
         }

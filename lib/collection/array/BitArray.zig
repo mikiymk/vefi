@@ -8,13 +8,13 @@ length: usize,
 
 pub fn init() @This() {}
 
-pub fn size() {
+pub fn size(self: @This()) usize {
     return self.array.len * usize_length + self.length;
 }
 
-pub fn get(index: usize) {
+pub fn get(self: @This(), index: usize) u1 {
     const large_index = index / usize_length;
-    const small_indec = index % usize_length;
+    const small_index = index % usize_length;
 
     return self.array[large_index] >> small_index & 1;
 }

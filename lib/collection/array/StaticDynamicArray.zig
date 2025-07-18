@@ -135,7 +135,7 @@ pub fn StaticDynamicArray(T: type, max_length: usize) type {
     };
 }
 
-test DynamicArray {
+test StaticDynamicArray {
     const allocator = std.testing.allocator;
     const Array = StaticDynamicArray(usize, 20);
     const expect = lib.testing.expect;
@@ -219,8 +219,8 @@ test "format" {
     try array.addLast(4);
     try array.addLast(5);
 
-    const format = try std.fmt.allocPrint(a, "{}", .{array});
-    defer a.free(format);
+    const format = try std.fmt.allocPrint(allocator, "{}", .{array});
+    defer allocator.free(format);
 
     try lib.assert.expectEqualString("StaticDynamicArray(u8){ 1, 2, 3, 4, 5 }", format);
 }

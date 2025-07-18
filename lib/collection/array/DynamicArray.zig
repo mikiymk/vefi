@@ -80,8 +80,8 @@ pub fn DynamicArray(T: type) type {
             const dst_end = dst + length;
 
             if (src == dst or length == 0) return; // 何もしない場合
-            if (!self.isInBoundRange(.{ src, src_end })) return error.OutOfBounds;
-            if (!self.isInBoundRange(.{ dst, dst_end })) return error.OutOfBounds;
+            if (slice.len <= src or slice.len <= src_end) return error.OutOfBounds;
+            if (slice.len <= dst or slice.len <= dst_end) return error.OutOfBounds;
 
             const dst_slice = slice[dst..dst_end];
             const src_slice = slice[src..src_end];
@@ -153,6 +153,11 @@ pub fn DynamicArray(T: type) type {
             const new_length: usize = if (length == 0) initial_length else length * extend_factor;
 
             self.values = try allocator.realloc(self.values, new_length);
+        }
+
+        fn Iterator(U: type) type {
+            _ = U;
+            return void;
         }
 
         pub fn iterator(self: *@This()) Iterator(@This()) {

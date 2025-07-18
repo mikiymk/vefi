@@ -10,6 +10,7 @@ pub fn StaticArrayStack(T: type, max_size: usize) type {
         pub const Item = T;
         const Array = StaticArray(Item, max_size);
         const Stack = @This();
+        const IndexError = Array.IndexError;
 
         values: Array,
         length: usize = 0,
@@ -30,9 +31,11 @@ pub fn StaticArrayStack(T: type, max_size: usize) type {
         pub fn pop(self: *Stack) ?Item {
             self.length -= 1;
             const item = self.values.get(self.size());
+
+            return if (item) |i| i.* else null;
         }
 
-        pub fn peek(self: Stack) ?Item {
+        pub fn peek(self: Stack) ?*Item {
             if (self.size() == 0) return null;
 
             return self.values.get(self.size() - 1);
@@ -54,9 +57,8 @@ pub fn StaticArrayStack(T: type, max_size: usize) type {
     };
 }
 
-test ArrayStack {
-    const Stack = StaticArrayStack(usize);
-    const a = std.testing.allocator;
+test StaticArrayStack {
+    const Stack = StaticArrayStack(usize, 10);
     const expect = lib.testing.expect;
 
     var stack = Stack.init();
@@ -67,7 +69,7 @@ test ArrayStack {
 
     try expect(stack.size()).is(3);
     try expect(stack.pop()).is(5);
-    try expect(stack.peek()).is(4);
+    try expect(stack.peek()).opt().ptr().is(4);
     try expect(stack.pop()).is(4);
     try expect(stack.pop()).is(3);
     try expect(stack.peek()).is(null);

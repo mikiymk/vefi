@@ -1,5 +1,5 @@
 const std = @import("std");
-const lib = @import("../../root.zig");
+const lib = @import("../../../root.zig");
 
 const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
@@ -35,7 +35,7 @@ pub fn getNode(head: anytype, index: usize) Option(@TypeOf(head)) {
     } else null;
 }
 
-pub fn getNodeFromLast(tail: anytype, index: usize) Option(@TypeOf(head)) {
+pub fn getNodeFromLast(tail: anytype, index: usize) Option(@TypeOf(tail)) {
     var node = tail;
     var count = index;
 

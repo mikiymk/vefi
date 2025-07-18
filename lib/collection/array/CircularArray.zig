@@ -156,9 +156,9 @@ pub fn CircularArray(T: type, max_length: usize) type {
     };
 }
 
-test StaticDynamicCircularArray {
+test CircularArray {
     const allocator = std.testing.allocator;
-    const Array = StaticDynamicCircularArray(usize, 20);
+    const Array = CircularArray(usize, 20);
     const expect = lib.testing.expect;
 
     var array = Array.init();
@@ -228,7 +228,7 @@ test StaticDynamicCircularArray {
 }
 
 test "format" {
-    const Array = StaticDynamicCircularArray(u8, 10);
+    const Array = CircularArray(u8, 10);
     const allocator = std.testing.allocator;
 
     var array = Array.init();
@@ -240,8 +240,8 @@ test "format" {
     try array.addLast(4);
     try array.addLast(5);
 
-    const format = try std.fmt.allocPrint(a, "{}", .{array});
-    defer a.free(format);
+    const format = try std.fmt.allocPrint(allocator, "{}", .{array});
+    defer allocator.free(format);
 
     try lib.assert.expectEqualString("StaticDynamicCircularArray(u8){ 1, 2, 3, 4, 5 }", format);
 }

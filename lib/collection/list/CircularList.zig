@@ -4,10 +4,8 @@ const lib = @import("../../root.zig");
 const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
 
-pub fn SingleCircularList(T: type) type {
+pub fn CircularList(T: type) type {
     return struct {
-        const List = @This();
-
         /// リストが持つ値の型
         pub const Item = T;
         pub const Node = struct {
@@ -45,12 +43,12 @@ pub fn SingleCircularList(T: type) type {
         head: ?*Node,
 
         /// 空のリストを作成する。
-        pub fn init() List {
+        pub fn init() @This() {
             return .{ .head = null };
         }
 
         /// リストに含まれる全てのノードを削除する。
-        pub fn deinit(self: *List, a: Allocator) void {
+        pub fn deinit(self: *@This(), a: Allocator) void {
             const head = self.head orelse return;
             var node = head;
 
@@ -64,7 +62,7 @@ pub fn SingleCircularList(T: type) type {
         }
 
         /// リストの構造が正しいか確認する。
-        fn isValidList(self: List) bool {
+        fn isValidList(self: @This()) bool {
             const head = self.head orelse return true;
             var prev = head;
             var node = prev.next;
@@ -78,7 +76,7 @@ pub fn SingleCircularList(T: type) type {
         }
 
         /// リストの要素数を数える
-        pub fn size(self: List) usize {
+        pub fn size(self: @This()) usize {
             assert(self.isValidList());
 
             const head = self.head orelse return 0;
@@ -92,7 +90,7 @@ pub fn SingleCircularList(T: type) type {
         }
 
         /// リストの全ての要素を削除する。
-        pub fn clear(self: *List, a: Allocator) void {
+        pub fn clear(self: *@This(), a: Allocator) void {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
@@ -109,7 +107,7 @@ pub fn SingleCircularList(T: type) type {
         }
 
         /// リストの指定した位置のノードを返す。
-        fn getNode(self: List, index: usize) ?*Node {
+        fn getNode(self: @This(), index: usize) ?*Node {
             assert(self.isValidList());
 
             const head = self.head orelse return null;
@@ -124,14 +122,14 @@ pub fn SingleCircularList(T: type) type {
         }
 
         /// リストの先頭のノードを返す。
-        fn getFirstNode(self: List) ?*Node {
+        fn getFirstNode(self: @This()) ?*Node {
             assert(self.isValidList());
 
             return self.head;
         }
 
         /// リストの末尾のノードを返す。
-        fn getLastNode(self: List) ?*Node {
+        fn getLastNode(self: @This()) ?*Node {
             assert(self.isValidList());
 
             var prev = self.head orelse return null;
@@ -145,22 +143,22 @@ pub fn SingleCircularList(T: type) type {
         }
 
         /// リストの指定した位置の要素を返す。
-        pub fn get(self: List, index: usize) ?T {
+        pub fn get(self: @This(), index: usize) ?T {
             return if (self.getNode(index)) |n| n.value else null;
         }
 
         /// リストの先頭の要素を返す。
-        pub fn getFirst(self: List) ?T {
+        pub fn getFirst(self: @This()) ?T {
             return if (self.getFirstNode()) |n| n.value else null;
         }
 
         /// リストの末尾の要素を返す。
-        pub fn getLast(self: List) ?T {
+        pub fn getLast(self: @This()) ?T {
             return if (self.getLastNode()) |n| n.value else null;
         }
 
         /// リストの指定した位置に要素を追加する。
-        pub fn add(self: *List, a: Allocator, index: usize, value: T) AllocIndexError!void {
+        pub fn add(self: *@This(), a: Allocator, index: usize, value: T) AllocIndexError!void {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
@@ -173,7 +171,7 @@ pub fn SingleCircularList(T: type) type {
         }
 
         /// リストの先頭に要素を追加する。
-        pub fn addFirst(self: *List, a: Allocator, value: T) Allocator.Error!void {
+        pub fn addFirst(self: *@This(), a: Allocator, value: T) Allocator.Error!void {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
@@ -188,7 +186,7 @@ pub fn SingleCircularList(T: type) type {
         }
 
         /// リストの末尾に要素を追加する。
-        pub fn addLast(self: *List, a: Allocator, value: T) Allocator.Error!void {
+        pub fn addLast(self: *@This(), a: Allocator, value: T) Allocator.Error!void {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
@@ -200,7 +198,7 @@ pub fn SingleCircularList(T: type) type {
         }
 
         /// リストの指定した位置の要素を削除する。
-        pub fn remove(self: *List, a: Allocator, index: usize) IndexError!void {
+        pub fn remove(self: *@This(), a: Allocator, index: usize) IndexError!void {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
@@ -217,7 +215,7 @@ pub fn SingleCircularList(T: type) type {
         }
 
         /// リストの先頭の要素を削除する。
-        pub fn removeFirst(self: *List, a: Allocator) IndexError!void {
+        pub fn removeFirst(self: *@This(), a: Allocator) IndexError!void {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
@@ -236,7 +234,7 @@ pub fn SingleCircularList(T: type) type {
         }
 
         /// リストの末尾の要素を削除する。
-        pub fn removeLast(self: *List, a: Allocator) IndexError!void {
+        pub fn removeLast(self: *@This(), a: Allocator) IndexError!void {
             assert(self.isValidList());
             defer assert(self.isValidList());
 
@@ -265,22 +263,22 @@ pub fn SingleCircularList(T: type) type {
         }
 
         /// リストを複製する。
-        pub fn copy(self: List, a: Allocator) List {
+        pub fn copy(self: @This(), a: Allocator) @This() {
             _ = .{ self, a };
         }
 
         pub const Iterator = struct {};
 
-        pub fn iterator(self: List) Iterator {
+        pub fn iterator(self: @This()) Iterator {
             _ = self;
         }
 
-        pub fn equal(left: List, right: List) bool {
+        pub fn equal(left: @This(), right: @This()) bool {
             _ = left;
             _ = right;
         }
 
-        pub fn format(self: List, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
+        pub fn format(self: @This(), comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {
             assert(self.isValidList());
 
             const type_name = "SingleCircularList(" ++ @typeName(T) ++ ")";
@@ -308,22 +306,22 @@ pub fn SingleCircularList(T: type) type {
     };
 }
 
-test SingleCircularList {
-    const List = SingleCircularList(u8);
+test CircularList {
+    const List = CircularList(u8);
     const a = std.testing.allocator;
     const expect = lib.assert.expect;
 
     var list = List.init();
     defer list.deinit(a);
 
-    try expect(@TypeOf(list) == SingleCircularList(u8));
+    try expect(@TypeOf(list) == CircularList(u8));
     try lib.collection.list.test_list.testList(List, &list, a);
     try lib.collection.list.test_list.testRemoveToZero(List, &list, a);
     try lib.collection.list.test_list.testIndexError(List, &list, a);
 }
 
 test "format" {
-    const List = SingleCircularList(u8);
+    const List = CircularList(u8);
     const a = std.testing.allocator;
 
     var list = List.init();

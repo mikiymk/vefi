@@ -11,7 +11,7 @@ pub fn assert(value: bool) !void {
 }
 
 /// 2つのスライスを等値比較します。
-pub fn equalSlices(left: anytype, right: @TypeOf(left)) bool {
+pub fn equalSlices(left: []const u8, right: []const u8) bool {
     return left.len == right.len and for (left, right) |l, r| {
         if (l != r) break false;
     } else true;

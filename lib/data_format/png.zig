@@ -4,6 +4,7 @@
 
 const std = @import("std");
 const lib = @import("../root.zig");
+const Reader = void;
 
 pub const signature: [8]u8 = "89 50 4E 47 0D 0A 1A 0A";
 

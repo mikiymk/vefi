@@ -1,3 +1,8 @@
+const std = @import("std");
+const lib = @import("../../root.zig");
+
+const Allocator = std.mem.Allocator;
+
 pub fn CircularArrayDeque(T: type) type {
     return struct {
         const Queue = @This();
@@ -30,7 +35,7 @@ pub fn CircularArrayDeque(T: type) type {
         }
 
         /// キューの先頭に要素を追加します。
-        pub fn pushFront(self: *@This(), allocator: Allocator, item: Value) Allocator.Error!void {
+        pub fn pushFront(self: *@This(), allocator: Allocator, item: Item) Allocator.Error!void {
             if (self.filled) {
                 try self.extendSize(allocator);
             }
@@ -42,7 +47,7 @@ pub fn CircularArrayDeque(T: type) type {
             self.filled = self.head == self.tail;
         }
 
-        pub fn pushLast(self: *@This(), allocator: Allocator, item: Value) Allocator.Error!void {
+        pub fn pushLast(self: *@This(), allocator: Allocator, item: Item) Allocator.Error!void {
             if (self.filled) {
                 try self.extendSize(allocator);
             }
@@ -53,7 +58,7 @@ pub fn CircularArrayDeque(T: type) type {
             self.filled = self.head == self.tail;
         }
 
-        pub fn popFront(self: *@This()) ?Value {
+        pub fn popFront(self: *@This()) ?Item {
             if (self.size() == 0) return null;
 
             const item = self.value[self.head];
@@ -63,7 +68,7 @@ pub fn CircularArrayDeque(T: type) type {
         }
 
         /// キューの末尾から要素を取り出します。
-        pub fn popLast(self: *@This()) ?Value {
+        pub fn popLast(self: *@This()) ?Item {
             if (self.size() == 0) return null;
 
             const item = self.value[self.tail];
@@ -73,7 +78,7 @@ pub fn CircularArrayDeque(T: type) type {
             return item;
         }
 
-        pub fn peekFirst(self: @This()) ?Value {
+        pub fn peekFirst(self: @This()) ?Item {
             if (self.size() == 0) {
                 return null;
             } else {
@@ -82,7 +87,7 @@ pub fn CircularArrayDeque(T: type) type {
         }
 
         /// キューの末尾の要素を取得します。
-        pub fn peekLast(self: @This()) ?Value {
+        pub fn peekLast(self: @This()) ?Item {
             if (self.size() == 0) {
                 return null;
             } else {
@@ -94,7 +99,7 @@ pub fn CircularArrayDeque(T: type) type {
         pub const Iterator = struct {
             ref: *OuterThis,
 
-            pub fn next(self: *@This()) ?Value {
+            pub fn next(self: *@This()) ?Item {
                 return self.ref.dequeue();
             }
         };
@@ -114,7 +119,7 @@ pub fn CircularArrayDeque(T: type) type {
             const old_length = self.value.len;
 
             const new_length: usize = if (self.value.len == 0) initial_length else self.value.len * extend_factor;
-            var new_array = try allocator.alloc(Value, new_length);
+            var new_array = try allocator.alloc(Item, new_length);
 
             var i: usize = 0;
             const c = self.count();
@@ -130,8 +135,8 @@ pub fn CircularArrayDeque(T: type) type {
     };
 }
 
-test Queue {
-    const Q = Queue(usize);
+test CircularArrayDeque {
+    const Q = CircularArrayDeque(usize);
     const a = std.testing.allocator;
 
     var q = Q.init();
