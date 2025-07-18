@@ -9,54 +9,57 @@ pub fn init(T: type) Match {
     return .{ .type = T };
 }
 
-fn info(self: Match) std.builtin.Type {
+fn info(self: @This()) std.builtin.Type {
     return @typeInfo(self.type);
 }
 
-pub fn is(self: Match, target: type) bool {
+pub fn is(self: @This(), target: type) bool {
     return self.type == target;
 }
 
-pub fn isInt(self: Match) bool {
+/// 整数
+pub fn isInt(self: @This()) bool {
     return self.info() == .int or self.info() == .comptime_int;
 }
 
-pub fn isSigned(self: Match) bool {
+/// 符号付き整数
+pub fn isSigned(self: @This()) bool {
     return self.info() == .int and self.info().int.signedness == .signed;
 }
 
-pub fn isUnsigned(self: Match) bool {
+/// 符号なし整数
+pub fn isUnsigned(self: @This()) bool {
     return self.info() == .int and self.info().int.signedness == .unsigned;
 }
 
-pub fn isFloat(self: Match) bool {
+/// 浮動小数点数
+pub fn isFloat(self: @This()) bool {
     return self.info() == .float or self.info() == .comptime_float;
 }
 
-pub fn isNum(self: Match) bool {
+/// 整数か浮動小数点数
+pub fn isNum(self: @This()) bool {
     return self.isInt() or self.isFloat();
 }
 
 /// `==` `!=`で比較可能
-pub fn isComparable(self: Match) bool {
+pub fn isEqualed(self: @This()) bool {
     return self.is(type) or
         self.is(bool) or
-        self.isInt() or
-        self.isFloat() or
+        self.isNum() or
         self.isPtr() or
         self.isEnum() or
+        // TODO: ↓ほんと？
         self.isVec();
 }
 
 /// `<` `<=` `>` `>=`で比較可能
 pub fn isOrdered(self: Match) bool {
-    return self.isInt() or
-        self.isFloat() or
-        (self.isVec() and
-            (self.item().isInt() or
-                self.item().isFloat()));
+    return self.isNum() or
+        (self.isVec() and self.item().isNum());
 }
 
+/// 複合型の内容のマッチオブジェクト
 pub fn item(self: Match) Match {
     return switch (self.info()) {
         inline .pointer, .array, .vector, .optional => |a| init(a.child),
