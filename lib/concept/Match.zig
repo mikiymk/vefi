@@ -5,6 +5,9 @@ const lib = @import("../root.zig");
 
 type: type,
 
+/// 無効な型(要素のない型の要素を取り出した場合など)に使う
+const invalid_type = opaque {};
+
 pub fn init(T: type) @This() {
     return .{ .type = T };
 }
@@ -46,23 +49,6 @@ pub fn isBitOf(self: @This(), size: u15) bool {
 /// 整数か浮動小数点数
 pub fn isNum(self: @This()) bool {
     return self.isInt() or self.isFloat();
-}
-
-/// `==` `!=`で比較可能
-pub fn isEqualed(self: @This()) bool {
-    return self.is(type) or
-        self.is(bool) or
-        self.isNum() or
-        self.isPtr() or
-        self.isEnum() or
-        // TODO: ↓ほんと？
-        self.isVec();
-}
-
-/// `<` `<=` `>` `>=`で比較可能
-pub fn isOrdered(self: @This()) bool {
-    return self.isNum() or
-        (self.isVec() and self.item().isNum());
 }
 
 /// 配列
@@ -111,35 +97,6 @@ pub fn isUnion(self: @This()) bool {
 /// 不透明型
 pub fn isOpaque(self: @This()) bool {
     return self.info() == .@"opaque";
-}
-
-/// 添字アクセス可能
-pub fn isIndexAccess(self: @This()) bool {
-    return self.isArray() or
-        self.isVec() or
-        self.isTuple() or
-        (self.isPtr() and
-            (self.info().pointer.size == .many or
-                self.info().pointer.size == .c or
-                self.item().isArray() or
-                self.item().isVec() or
-                self.item().isTuple())) or
-        self.isSlice();
-}
-
-/// スライス化可能
-pub fn isSliceAccess(self: @This()) bool {
-    return self.isArray() or
-        (self.isPtr() and
-            (self.info().pointer.size == .many or
-                self.info().pointer.size == .c or
-                self.item().isArray())) or
-        self.isSlice();
-}
-
-/// ユーザー定義型
-pub fn isUserDefined(self: @This()) bool {
-    return self.isStruct() or self.isEnum() or self.isUnion() or self.isOpaque();
 }
 
 /// `packed`
@@ -220,13 +177,55 @@ pub fn hasDecl(self: @This(), comptime name: []const u8) bool {
         !self.decl(name).isFn();
 }
 
-/// フィールドを持つか
+/// 指定した名前でフィールドを持つか
 pub fn hasField(self: @This(), comptime name: []const u8) bool {
     return @hasField(self.type, name);
 }
 
+/// `==` `!=`で比較可能
+pub fn isEqualed(self: @This()) bool {
+    return self.is(type) or
+        self.is(bool) or
+        self.isNum() or
+        self.isPtr() or
+        self.isEnum() or
+        self.isVec();
+}
+
+/// `<` `<=` `>` `>=`で比較可能
+pub fn isOrdered(self: @This()) bool {
+    return self.isNum() or (self.isVec() and self.item().isNum());
+}
+
+/// 添字アクセス可能
+pub fn isIndexAccess(self: @This()) bool {
+    return self.isArray() or
+        self.isVec() or
+        self.isTuple() or
+        (self.isPtr() and
+            (self.info().pointer.size == .many or
+                self.info().pointer.size == .c or
+                self.item().isArray() or
+                self.item().isVec() or
+                self.item().isTuple())) or
+        self.isSlice();
+}
+
+/// スライス化可能
+pub fn isSliceAccess(self: @This()) bool {
+    return self.isArray() or
+        self.isPtr() or
+        self.isSlice();
+}
+
+/// ユーザー定義型
+pub fn isUserDefined(self: @This()) bool {
+    return self.isStruct() or self.isEnum() or self.isUnion() or self.isOpaque();
+}
+
+/// コンパイル時にサイズが決まる
 pub fn isSized(self: @This()) bool {
-    return self.isOpaque() or self.type == anyopaque;
+    return !self.isOpaque() and self.type != anyopaque;
 }
 
 /// 複合型の内容のマッチオブジェクト
