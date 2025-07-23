@@ -283,13 +283,19 @@ pub fn returns(self: @This()) @This() {
 
 /// 型の中で定義された値
 pub fn decl(self: @This(), comptime name: []const u8) @This() {
-    return init(@TypeOf(@field(self.type, name)));
+    if (@hasDecl(self.type, name)) 
+        return init(@TypeOf(@field(self.type, name)));
+    else
+        return init(invalid);
 }
 
 /// フィールドの型
 pub fn field(self: @This(), comptime name: []const u8) @This() {
     const value: self.type = undefined;
-    return init(@TypeOf(@field(value, name)));
+    if (self.hasField(name)) 
+        return init(@TypeOf(@field(value, name)));
+    else
+        return init(invalid);
 }
 
 test init {
