@@ -6,7 +6,7 @@ const lib = @import("../root.zig");
 type: type,
 
 /// 無効な型(要素のない型の要素を取り出した場合など)に使う
-const invalid_type = opaque {};
+const invalid = struct {};
 
 pub fn init(T: type) @This() {
     return .{ .type = T };
@@ -23,27 +23,32 @@ pub fn is(self: @This(), target: type) bool {
 
 /// 整数
 pub fn isInt(self: @This()) bool {
-    return self.info() == .int or self.info() == .comptime_int;
+    return self.info() == .int or
+        self.is(comptime_int);
 }
 
 /// 符号付き整数
 pub fn isSigned(self: @This()) bool {
-    return self.info() == .int and self.info().int.signedness == .signed;
+    return self.info() == .int and
+        self.info().int.signedness == .signed;
 }
 
 /// 符号なし整数
 pub fn isUnsigned(self: @This()) bool {
-    return self.info() == .int and self.info().int.signedness == .unsigned;
+    return self.info() == .int and
+        self.info().int.signedness == .unsigned;
 }
 
 /// 浮動小数点数
 pub fn isFloat(self: @This()) bool {
-    return self.info() == .float or self.info() == .comptime_float;
+    return self.info() == .float or
+        self.is(comptime_float);
 }
 
 /// 指定したビット数
 pub fn isBitOf(self: @This(), size: u15) bool {
-    return @bitSizeOf(self.type) == size;
+    return !self.is(invalid) and
+        @bitSizeOf(self.type) == size;
 }
 
 /// 整数か浮動小数点数
@@ -63,25 +68,27 @@ pub fn isVec(self: @This()) bool {
 
 /// スライスではないポインタ
 pub fn isPtr(self: @This()) bool {
-    return self.info() == .pointer and self.info().pointer.size != .slice;
+    return self.info() == .pointer and
+        self.info().pointer.size != .slice;
 }
 
 /// スライス
 pub fn isSlice(self: @This()) bool {
-    return self.info() == .pointer and self.info().pointer.size == .slice;
+    return self.info() == .pointer and
+        self.info().pointer.size == .slice;
 }
 
 /// 構造体
 pub fn isStruct(self: @This()) bool {
-    return self.info() == .@"struct";
+    return !self.is(invalid) and
+        self.info() == .@"struct" and
+        !self.info().@"struct".is_tuple;
 }
 
 /// タプル
 pub fn isTuple(self: @This()) bool {
-    return switch (self.info()) {
-        .@"struct" => |s| s.is_tuple,
-        else => false,
-    };
+    return self.info() == .@"struct" and
+        self.info().@"struct".is_tuple;
 }
 
 /// 列挙型
@@ -132,11 +139,10 @@ pub fn isErrorSet(self: @This()) bool {
 
 /// 特定の名前のエラーを受け入れるか
 pub fn hasError(self: @This(), comptime name: []const u8) bool {
-    if (comptime self.isErrorUnion())
+    if (self.isErrorUnion()) {
         return self.errorSet().hasError(name);
-
-    if (self.info().error_set) |set| {
-        for (set) |err| {
+    } else if (self.isErrorSet()) {
+        for (self.info().error_set) |err| {
             if (err.name.len != name.len) continue;
             for (err.name, name) |en, n| {
                 if (en != n) break;
@@ -154,7 +160,9 @@ pub fn isFn(self: @This()) bool {
 
 /// n番目の引数の型が`anytype`か
 pub fn isAnyTypeAt(self: @This(), index: usize) bool {
-    return init(self.info().@"fn".params[index].is_generic);
+    return self.isFn() and
+        index < self.info().@"fn".params.len and
+        self.info().@"fn".params[index].is_generic;
 }
 
 /// 指定した名前の関数を持つか
@@ -167,7 +175,7 @@ pub fn hasFn(self: @This(), comptime name: []const u8) bool {
 pub fn hasMethod(self: @This(), comptime name: []const u8) bool {
     return self.hasFn(name) and
         (self.decl(name).argAt(0).is(self.type) or
-            ((comptime self.decl(name).argAt(0).isPtr()) and // comptimeでないと下の.item()でコンパイルエラー
+            ((self.decl(name).argAt(0).isPtr()) and
                 self.decl(name).argAt(0).item().is(self.type)));
 }
 
@@ -220,12 +228,19 @@ pub fn isSliceAccess(self: @This()) bool {
 
 /// ユーザー定義型
 pub fn isUserDefined(self: @This()) bool {
-    return self.isStruct() or self.isEnum() or self.isUnion() or self.isOpaque();
+    return !self.is(invalid) and (
+        self.isStruct() or
+        self.isEnum() or
+        self.isUnion() or
+        self.isOpaque()
+    );
 }
 
 /// コンパイル時にサイズが決まる
 pub fn isSized(self: @This()) bool {
-    return !self.isOpaque() and self.type != anyopaque;
+    return !self.is(invalid) and
+        !self.isOpaque() and
+        self.type != anyopaque;
 }
 
 /// 複合型の内容のマッチオブジェクト
@@ -233,7 +248,7 @@ pub fn item(self: @This()) @This() {
     return switch (self.info()) {
         inline .pointer, .array, .vector, .optional => |a| init(a.child),
         .error_union => |e| init(e.payload),
-        else => @panic(@typeName(self.type) ++ " have no items."),
+        else => init(invalid),
     };
 }
 
@@ -241,18 +256,29 @@ pub fn item(self: @This()) @This() {
 pub fn errorSet(self: @This()) @This() {
     return switch (self.info()) {
         .error_union => |e| init(e.error_set),
-        else => @panic(@typeName(self.type) ++ " is not error union."),
+        else => init(invalid),
     };
 }
 
 /// n番目の引数の型
 pub fn argAt(self: @This(), index: usize) @This() {
-    return init(self.info().@"fn".params[index].type.?);
+    switch (self.info()) {
+        .@"fn" => |f| if (index < f.params.len)
+            if (f.params.type) |t|
+                return init(t),
+        else => {},
+    };
+    return init(invalid);
 }
 
 /// 戻り値の型
 pub fn returns(self: @This()) @This() {
-    return init(self.info().@"fn".return_type.?);
+    switch (self.info()) {
+        .@"fn" => |f| if (f.return_type) |t|
+            return init(t),
+        else => {},
+    };
+    return init(invalid);
 }
 
 /// 型の中で定義された値
