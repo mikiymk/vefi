@@ -5,8 +5,9 @@ const lib = @import("../root.zig");
 
 type: type,
 
-/// 無効な型(要素のない型の要素を取り出した場合など)に使う
-const invalid = struct {};
+/// 無効な型(要素のない型の要素を取り出した場合など)に使う。
+/// すべての判定で偽値を返す。
+const disabled = init(struct {});
 
 pub fn init(T: type) @This() {
     return .{ .type = T };
@@ -47,7 +48,7 @@ pub fn isFloat(self: @This()) bool {
 
 /// 指定したビット数
 pub fn isBitOf(self: @This(), size: u15) bool {
-    return !self.is(invalid) and
+    return self != disabled and
         @bitSizeOf(self.type) == size;
 }
 
@@ -80,7 +81,7 @@ pub fn isSlice(self: @This()) bool {
 
 /// 構造体
 pub fn isStruct(self: @This()) bool {
-    return !self.is(invalid) and
+    return self != disabled and
         self.info() == .@"struct" and
         !self.info().@"struct".is_tuple;
 }
@@ -238,7 +239,7 @@ pub fn isUserDefined(self: @This()) bool {
 
 /// コンパイル時にサイズが決まる
 pub fn isSized(self: @This()) bool {
-    return !self.is(invalid) and
+    return self != disabled and
         !self.isOpaque() and
         self.type != anyopaque;
 }
@@ -248,7 +249,7 @@ pub fn item(self: @This()) @This() {
     return switch (self.info()) {
         inline .pointer, .array, .vector, .optional => |a| init(a.child),
         .error_union => |e| init(e.payload),
-        else => init(invalid),
+        else => disabled,
     };
 }
 
@@ -256,7 +257,7 @@ pub fn item(self: @This()) @This() {
 pub fn errorSet(self: @This()) @This() {
     return switch (self.info()) {
         .error_union => |e| init(e.error_set),
-        else => init(invalid),
+        else => disabled,
     };
 }
 
@@ -268,7 +269,7 @@ pub fn argAt(self: @This(), index: usize) @This() {
                 return init(t),
         else => {},
     };
-    return init(invalid);
+    return disabled;
 }
 
 /// 戻り値の型
@@ -278,7 +279,7 @@ pub fn returns(self: @This()) @This() {
             return init(t),
         else => {},
     };
-    return init(invalid);
+    return disabled;
 }
 
 /// 型の中で定義された値
@@ -286,7 +287,7 @@ pub fn decl(self: @This(), comptime name: []const u8) @This() {
     if (@hasDecl(self.type, name)) 
         return init(@TypeOf(@field(self.type, name)));
     else
-        return init(invalid);
+        return disabled;
 }
 
 /// フィールドの型
@@ -295,7 +296,7 @@ pub fn field(self: @This(), comptime name: []const u8) @This() {
     if (self.hasField(name)) 
         return init(@TypeOf(@field(value, name)));
     else
-        return init(invalid);
+        return disabled;
 }
 
 test init {
