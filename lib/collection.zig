@@ -111,6 +111,33 @@ test {
 
 const Allocator = std.mem.Allocator;
 
+//
+
+pub const Array_Array = @import("array/DynamicArray.zig").DynamicArray;
+pub const Array_CircularArray = @import("array/CircularArray.zig").CircularArray;
+pub const List_List = @import("list/SinglyList.zig").SinglyList;
+pub const List_SentinelList = @import("list/SentinelList.zig").SentinelList;
+pub const List_CircularList = @import("list/CircularList.zig").CircularList;
+pub const List_DoublyList = @import("list/DoublyList.zig").DoublyList;
+pub const Stack_ArrayStack = @import("stack/ArrayStack.zig").ArrayStack;
+pub const Stack_ListStack = @import("stack/ListStack.zig").ListStack;
+pub const Queue_SinglyListQueue = @import("queue/SinglyListQueue.zig").SinglyListQueue;
+pub const Queue_TwoStacksQueue = @import("queue/TwoStacksQueue.zig").TwoStacksQueue;
+pub const Deque_DoublyListDeque = @import("queue/DoublyListDeque.zig").DoublyListDeque;
+pub const Deque_CircularArrayDeque = @import("queue/CircularArrayDeque.zig").CircularArrayDeque;
+pub const Tree_BinaryTree = @import("assoc_array/hash.zig").hash;
+pub const Tree_BinarySearchTree = @import("assoc_array/hash.zig").hash;
+pub const Tree_BalancedTree = @import("assoc_array/hash.zig").hash;
+pub const AssocArray_List = @import("assoc_array/hash.zig").hash;
+pub const AssocArray_Hash = @import("assoc_array/hash.zig").hash;
+pub const AssocArray_Tree = @import("assoc_array/hash.zig").hash;
+
+pub const SkipList = @import("list/SkipList.zig");
+pub const BitArray = @import("array/BitArray.zig");
+pub const BidiAssocArray = @import("array/BitArray.zig");
+
+//
+
 pub const Range = struct { usize, usize };
 
 pub const array = @import("collection/array.zig");
