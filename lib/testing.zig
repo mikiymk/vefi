@@ -1,8 +1,8 @@
 const std = @import("std");
 const lib = @import("root.zig");
 const NotError = lib.types.error_union.Value;
-const NotOptional = lib.types.Optional.NonOptional;
-const Deref = lib.types.Pointer.Deref;
+const NotOptional = lib.types.optional.NonOptional;
+const Deref = lib.types.pointer.Deref;
 
 fn print(comptime fmt: []const u8, args: anytype) void {
     std.debug.print(fmt ++ "\n", args);

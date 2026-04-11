@@ -3,7 +3,7 @@ const lib = @import("../../root.zig");
 
 const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
-const List = lib.collection.list.SingleLinearList;
+const List = lib.collection.List_List;
 
 pub fn ListStack(T: type) type {
     return struct {
@@ -35,7 +35,7 @@ pub fn ListStack(T: type) type {
         }
 
         pub fn peek(self: Stack) ?Item {
-            return self.values.getFirst();
+            return self.values.get(0);
         }
 
         pub fn format(self: Stack, comptime _: []const u8, _: std.fmt.FormatOptions, w: anytype) !void {

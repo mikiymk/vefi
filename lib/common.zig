@@ -52,12 +52,12 @@ pub fn equal(left: anytype, right: @TypeOf(left)) bool {
         },
         .pointer => |p| {
             switch (p.size) {
-                .slice => return lib.types.Slice.equal(p.child, left, right),
+                .slice => return lib.types.slice.equal(p.child, left, right),
                 .one => {
                     const child_info = @typeInfo(p.child);
                     switch (child_info) {
                         .array => |a| { // *[n]T as []T
-                            return lib.types.Slice.equal(a.child, left, right);
+                            return lib.types.slice.equal(a.child, left, right);
                         },
                         else => {},
                     }

@@ -21,19 +21,21 @@ const FizzOptions = struct {
 };
 
 /// 1からnまでのfizzbuzzを1行ずつ標準出力に書き込みます。
-pub fn fizz(n: u32, writer: anytype, options: FizzOptions) !void {
+pub fn fizz(n: u32, options: FizzOptions) !void {
+    const print = std.debug.print;
+
     for (1..n + 1) |i| { // iを1からnまでループする
         var is_fizzed = false;
         for (options.fizzes) |f| {
             if (i % f.count == 0) {
-                try writer.print("{s}", .{f.name});
+                print("{s}", .{f.name});
                 is_fizzed = true;
             }
         }
         if (!is_fizzed) {
-            try writer.print("{d}", .{i});
+            print("{d}", .{i});
         }
 
-        try writer.print("{s}", .{options.separator});
+        print("{s}", .{options.separator});
     }
 }

@@ -229,12 +229,10 @@ pub fn isSliceAccess(self: @This()) bool {
 
 /// ユーザー定義型
 pub fn isUserDefined(self: @This()) bool {
-    return !self.is(invalid) and (
-        self.isStruct() or
+    return !self.is(disabled) and (self.isStruct() or
         self.isEnum() or
         self.isUnion() or
-        self.isOpaque()
-    );
+        self.isOpaque());
 }
 
 /// コンパイル時にサイズが決まる
@@ -268,7 +266,7 @@ pub fn argAt(self: @This(), index: usize) @This() {
             if (f.params.type) |t|
                 return init(t),
         else => {},
-    };
+    }
     return disabled;
 }
 
@@ -278,14 +276,14 @@ pub fn returns(self: @This()) @This() {
         .@"fn" => |f| if (f.return_type) |t|
             return init(t),
         else => {},
-    };
+    }
     return disabled;
 }
 
 /// 型の中で定義された値
 pub fn decl(self: @This(), comptime name: []const u8) @This() {
-    if (@hasDecl(self.type, name)) 
-        return init(@TypeOf(@field(self.type, name)));
+    if (@hasDecl(self.type, name))
+        return init(@TypeOf(@field(self.type, name)))
     else
         return disabled;
 }
@@ -293,8 +291,8 @@ pub fn decl(self: @This(), comptime name: []const u8) @This() {
 /// フィールドの型
 pub fn field(self: @This(), comptime name: []const u8) @This() {
     const value: self.type = undefined;
-    if (self.hasField(name)) 
-        return init(@TypeOf(@field(value, name)));
+    if (self.hasField(name))
+        return init(@TypeOf(@field(value, name)))
     else
         return disabled;
 }

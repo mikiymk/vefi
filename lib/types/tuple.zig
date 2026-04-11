@@ -29,7 +29,7 @@ pub const Field = struct {
     pub fn toBuiltin(self: @This(), comptime index: usize) lib.builtin.Type.StructField {
         return .{
             .type = self.type,
-            .name = &lib.types.Integer.toStringComptime(index, 10),
+            .name = &lib.types.integer.toStringComptime(index, 10),
             .default_value_ptr = null,
             .is_comptime = self.is_comptime,
             .alignment = self.alignment,

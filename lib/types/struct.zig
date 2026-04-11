@@ -10,7 +10,7 @@ pub const Field = struct {
     name: [:0]const u8,
     default_value_ptr: ?*const anyopaque = null,
     is_comptime: bool = false,
-    alignment: comptime_int = 0,
+    alignment: comptime_int = 1,
 
     pub fn init(Type: type, name: [:0]const u8, comptime default_value: ?Type, is_comptime: ?bool, alignment: ?comptime_int) @This() {
         if (default_value == null) {
@@ -19,7 +19,7 @@ pub const Field = struct {
                 .name = name,
                 .default_value_ptr = null,
                 .is_comptime = is_comptime orelse false,
-                .alignment = alignment orelse 0,
+                .alignment = alignment orelse 1,
             };
         }
 
@@ -28,7 +28,7 @@ pub const Field = struct {
             .name = name,
             .default_value_ptr = @as(*const anyopaque, @ptrCast(&default_value)),
             .is_comptime = is_comptime orelse false,
-            .alignment = alignment orelse 0,
+            .alignment = alignment orelse 1,
         };
     }
 

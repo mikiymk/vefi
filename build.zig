@@ -15,63 +15,52 @@ pub fn build(b: *std.Build) void {
     const options = b.addOptions();
     options.addOption(bool, "is_enabled", is_enabled);
 
-    const exe = addExecutable(b, target, optimize);
-    const lib_module = addModule(b, target, optimize);
-    exe.root_module.addImport("ziglib", lib_module);
-
-    exe.root_module.addOptions("config", options);
-
-    addRunExe(b, exe);
-    addRunUnitTest(b, target, optimize);
-    addRunZigTest(b, target, optimize);
-}
-
-fn addModule(b: *Build, target: Target, optimize: Optimize) *Module {
-    return b.addModule("ziglib", .{
+    // モジュールを作成
+    const lib_module = b.addModule("vefi", .{
         .root_source_file = b.path("lib/root.zig"),
         .target = target,
-        .optimize = optimize,
     });
-}
 
-fn addExecutable(b: *Build, target: Target, optimize: Optimize) *Compile {
+    // 実行ファイルを作成
     const exe = b.addExecutable(.{
-        .name = "miniature-fiesta",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .name = "vefi",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     b.installArtifact(exe);
 
-    return exe;
-}
+    // 実行する
+    exe.root_module.addImport("vefi", lib_module);
+    exe.root_module.addOptions("config", options);
 
-fn addRunExe(b: *Build, exe: *Compile) void {
+    const run_step = b.step("run", "Run the app");
     const run_cmd = b.addRunArtifact(exe);
+
+    run_step.dependOn(&run_cmd.step);
     run_cmd.step.dependOn(b.getInstallStep());
+
     if (b.args) |args| {
         run_cmd.addArgs(args);
     }
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
-}
 
-fn addRunUnitTest(b: *Build, target: Target, optimize: Optimize) void {
-    const unit_tests = b.addTest(.{
-        .root_source_file = b.path("lib/root.zig"),
-        .target = target,
-        .optimize = optimize,
+    // テストを実行
+    const mod_tests = b.addTest(.{
+        .root_module = lib_module,
     });
-    const run_unit_tests = b.addRunArtifact(unit_tests);
+    const run_mod_tests = b.addRunArtifact(mod_tests);
     const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_unit_tests.step);
-}
+    test_step.dependOn(&run_mod_tests.step);
 
-fn addRunZigTest(b: *Build, target: Target, optimize: Optimize) void {
-    const zig_tests = b.addTest(.{
+    // Zigのテストを実行
+    const zig_tests_mod = b.addModule("zig-test", .{
         .root_source_file = b.path("zig/root.zig"),
         .target = target,
-        .optimize = optimize,
+    });
+    const zig_tests = b.addTest(.{
+        .root_module = zig_tests_mod,
     });
     const run_zig_tests = b.addRunArtifact(zig_tests);
     const zig_test_step = b.step("test-zig", "Run zig tests");
