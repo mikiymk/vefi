@@ -114,7 +114,7 @@ const Allocator = std.mem.Allocator;
 //
 
 pub const Array_Array = @import("collection/array/Array.zig").Array;
-// pub const Array_CircularArray = @import("collection/array/CircularArray.zig").CircularArray;
+pub const Array_CircularArray = @import("collection/array/CircularArray.zig").CircularArray;
 // pub const List_List = @import("collection/list/SinglyList.zig").SinglyList;
 // pub const List_SentinelList = @import("collection/list/SentinelList.zig").SentinelList;
 // pub const List_CircularList = @import("collection/list/CircularList.zig").CircularList;
@@ -142,6 +142,11 @@ pub const heap = struct {};
 pub const tree_map = struct {};
 pub const bidirectional_map = struct {};
 pub const ordered_map = struct {};
+
+/// sliceの `(src_idx, src_idx + length]` の要素を `(dst_idx, dst_idx + length]` に複製する。
+pub fn copyInSlice(slice: anytype, src_idx: usize, dst_idx: usize, length: usize) void {
+    @memmove(slice[dst_idx .. dst_idx + length], slice[src_idx .. src_idx + length]);
+}
 
 pub fn extendSize(allocator: Allocator, slice: anytype) Allocator.Error!@TypeOf(slice) {
     const initial_length = 8;

@@ -4,37 +4,57 @@ const NotError = lib.types.error_union.Value;
 const NotOptional = lib.types.optional.NonOptional;
 const Deref = lib.types.pointer.Deref;
 
-fn print(comptime fmt: []const u8, args: anytype) void {
-    std.debug.print(fmt ++ "\n", args);
+pub fn expect(value: anytype) Expect(@TypeOf(value)) {
+    return .{ .value = value };
 }
 
 pub fn Expect(T: type) type {
-    return struct {
+    return union(enum) {
         const E = @This();
         value: T,
-        error_stain: ?anyerror = null,
+        error_stain: anyerror,
 
         fn checkError(self: E) !void {
-            if (self.error_stain) |e| return e;
+            switch (self) {
+                .error_stain => |e| return e,
+                else => {},
+            }
         }
 
         pub fn ptr(self: E) Expect(Deref(T)) {
+            switch (self) {
+                .error_stain => |e| return .{ .error_stain = e },
+                else => {},
+            }
+
             return .{ .value = self.value.* };
         }
 
         pub fn opt(self: E) Expect(NotOptional(T)) {
+            switch (self) {
+                .error_stain => |e| return .{ .error_stain = e },
+                else => {},
+            }
+
             if (self.value) |v| {
                 return .{ .value = v };
             } else {
-                return .{ .value = undefined, .error_stain = error.OptionalIsNull };
+                p("expected value, actual = null", .{});
+                return .{ .error_stain = error.OptionalIsNull };
             }
         }
 
         pub fn err(self: E) Expect(NotError(T)) {
+            switch (self) {
+                .error_stain => |e| return .{ .error_stain = e },
+                else => {},
+            }
+
             if (self.value) |v| {
                 return .{ .value = v };
             } else |e| {
-                return .{ .value = undefined, .error_stain = e };
+                p("expected value, actual = {any}({d})", .{ e, @intFromError(e) });
+                return .{ .error_stain = e };
             }
         }
 
@@ -42,7 +62,7 @@ pub fn Expect(T: type) type {
             try self.checkError();
 
             if (self.value != expected) {
-                print("expect failed: value = {any}, expected = {any}", .{ self.value, expected });
+                p("value = {any}, expected = {any}", .{ self.value, expected });
 
                 return error.NotExpected;
             }
@@ -52,7 +72,7 @@ pub fn Expect(T: type) type {
             try self.checkError();
 
             if (self.value != null) {
-                print("expect failed: value = {any}, expected = null", .{self.value});
+                p("value = {any}, expected = null", .{self.value});
 
                 return error.NotExpected;
             }
@@ -63,7 +83,7 @@ pub fn Expect(T: type) type {
             try self.checkError();
 
             if (@TypeOf(self.value) != expected) {
-                print("expect failed: value = {}({s}), expected = {s}", .{
+                p("value = {}({s}), expected type = {s}", .{
                     self.value,
                     toString(@TypeOf(self.value)),
                     toString(expected),
@@ -78,7 +98,7 @@ pub fn Expect(T: type) type {
             const actual: []const Item = self.value;
 
             if (!lib.common.equal(expected, actual)) {
-                print("expect failed: expected = {any}, actual = {any}", .{ expected, actual });
+                p("expected = {any}, actual = {any}", .{ expected, actual });
 
                 return error.NotExpected;
             }
@@ -89,7 +109,7 @@ pub fn Expect(T: type) type {
 
             const actual: []const u8 = self.value;
             if (!lib.common.equal(expected, actual)) {
-                print("expect failed: expected = {s}, actual = {s}", .{ expected, actual });
+                p("expected = {s}, actual = {s}", .{ expected, actual });
 
                 return error.NotExpected;
             }
@@ -99,21 +119,19 @@ pub fn Expect(T: type) type {
             try self.checkError();
 
             if (self.value) |actual| {
-                print("expect failed: expected = {any}({d}), actual = {any}", .{ expected, @intFromError(expected), actual });
-
+                p("expected = {any}({d}), actual = {any}", .{ expected, @intFromError(expected), actual });
                 return error.NotExpected;
             } else |e| if (e != expected) {
-                print(
-                    "expect failed: expected = {any}({d}), actual = {any}({d})",
+                p(
+                    "expected = {any}({d}), actual = {any}({d})",
                     .{ expected, @intFromError(expected), e, @intFromError(e) },
                 );
-
                 return error.NotExpected;
             }
         }
     };
 }
 
-pub fn expect(value: anytype) Expect(@TypeOf(value)) {
-    return .{ .value = value };
+fn p(comptime fmt: []const u8, args: anytype) void {
+    std.debug.print("expect failed: " ++ fmt ++ "\n", args);
 }

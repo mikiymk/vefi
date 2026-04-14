@@ -4,11 +4,7 @@ const lib = @import("../../root.zig");
 const Allocator = std.mem.Allocator;
 const assert = lib.assert.assert;
 const Range = lib.collection.Range;
-
-/// sliceの `(src_idx, src_idx + length]` の要素を `(dst_idx, dst_idx + length]` に複製する。
-fn copyInSlice(slice: anytype, src_idx: usize, dst_idx: usize, length: usize) void {
-    @memmove(slice[dst_idx .. dst_idx + length], slice[src_idx .. src_idx + length]);
-}
+const copyInSlice = lib.collection.copyInSlice;
 
 /// # 動的配列 (Dynamic Array)
 /// - アロケーターを使ってメモリーを確保する
@@ -72,6 +68,9 @@ pub fn Array(T: type) type {
         /// 配列の長さが足りないときは拡張した長さの配列を再確保する。
         /// 再確保ができない場合はエラーを返す。
         pub fn add(self: *@This(), allocator: Allocator, index: usize, item: T) AllocIndexError!void {
+            if (self.length < index) {
+                return error.OutOfBounds;
+            }
             if (self.items.len <= self.length) {
                 try self.extendSize(allocator);
             }
@@ -95,21 +94,6 @@ pub fn Array(T: type) type {
         /// 配列をスライスとして取得する。
         pub fn asSlice(self: @This()) []const T {
             return self.items[0..self.length];
-        }
-
-        /// 配列のキャパシティーを指定したサイズ以上に拡張する。
-        pub fn reserve(self: *@This(), allocator: Allocator, min_size: usize) Allocator.Error!void {
-            const allocate_size = blk: {
-                var s: usize = 8;
-                while (true) {
-                    if (min_size <= s) break :blk s;
-                    s <<= 1;
-                }
-            };
-            if (allocate_size < self.items.len)
-                return;
-
-            self.items = try allocator.realloc(self.items, allocate_size);
         }
 
         /// メモリを再確保して配列の長さを拡張する。
