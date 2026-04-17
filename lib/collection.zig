@@ -115,7 +115,7 @@ const Allocator = std.mem.Allocator;
 
 pub const Array_Array = @import("collection/array/Array.zig").Array;
 pub const Array_CircularArray = @import("collection/array/CircularArray.zig").CircularArray;
-// pub const List_List = @import("collection/list/SinglyList.zig").SinglyList;
+pub const List_List = @import("collection/list/List.zig").List;
 // pub const List_SentinelList = @import("collection/list/SentinelList.zig").SentinelList;
 // pub const List_CircularList = @import("collection/list/CircularList.zig").CircularList;
 // pub const List_DoublyList = @import("collection/list/DoublyList.zig").DoublyList;

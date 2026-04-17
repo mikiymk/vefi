@@ -10,18 +10,17 @@ pub fn expect(value: anytype) Expect(@TypeOf(value)) {
 
 pub fn Expect(T: type) type {
     return union(enum) {
-        const E = @This();
         value: T,
         error_stain: anyerror,
 
-        fn checkError(self: E) !void {
+        fn checkError(self: @This()) !void {
             switch (self) {
                 .error_stain => |e| return e,
                 else => {},
             }
         }
 
-        pub fn ptr(self: E) Expect(Deref(T)) {
+        pub fn ptr(self: @This()) Expect(Deref(T)) {
             switch (self) {
                 .error_stain => |e| return .{ .error_stain = e },
                 else => {},
@@ -30,7 +29,7 @@ pub fn Expect(T: type) type {
             return .{ .value = self.value.* };
         }
 
-        pub fn opt(self: E) Expect(NotOptional(T)) {
+        pub fn opt(self: @This()) Expect(NotOptional(T)) {
             switch (self) {
                 .error_stain => |e| return .{ .error_stain = e },
                 else => {},
@@ -44,7 +43,7 @@ pub fn Expect(T: type) type {
             }
         }
 
-        pub fn err(self: E) Expect(NotError(T)) {
+        pub fn err(self: @This()) Expect(NotError(T)) {
             switch (self) {
                 .error_stain => |e| return .{ .error_stain = e },
                 else => {},
@@ -58,7 +57,7 @@ pub fn Expect(T: type) type {
             }
         }
 
-        pub fn is(self: E, expected: T) !void {
+        pub fn is(self: @This(), expected: T) !void {
             try self.checkError();
 
             if (self.value != expected) {
@@ -68,7 +67,7 @@ pub fn Expect(T: type) type {
             }
         }
 
-        pub fn isNull(self: E) !void {
+        pub fn isNull(self: @This()) !void {
             try self.checkError();
 
             if (self.value != null) {
@@ -78,7 +77,7 @@ pub fn Expect(T: type) type {
             }
         }
 
-        pub fn isType(self: E, expected: type) !void {
+        pub fn isType(self: @This(), expected: type) !void {
             const toString = lib.types.typeName;
             try self.checkError();
 
@@ -93,7 +92,7 @@ pub fn Expect(T: type) type {
             }
         }
 
-        pub fn isSlice(self: E, Item: type, expected: []const Item) !void {
+        pub fn isSlice(self: @This(), Item: type, expected: []const Item) !void {
             try self.checkError();
             const actual: []const Item = self.value;
 
@@ -104,7 +103,7 @@ pub fn Expect(T: type) type {
             }
         }
 
-        pub fn isString(self: E, expected: []const u8) !void {
+        pub fn isString(self: @This(), expected: []const u8) !void {
             try self.checkError();
 
             const actual: []const u8 = self.value;
@@ -115,7 +114,7 @@ pub fn Expect(T: type) type {
             }
         }
 
-        pub fn isError(self: E, expected: anyerror) !void {
+        pub fn isError(self: @This(), expected: anyerror) !void {
             try self.checkError();
 
             if (self.value) |actual| {

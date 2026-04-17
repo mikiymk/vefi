@@ -2,6 +2,7 @@ const std = @import("std");
 const lib = @import("../../root.zig");
 
 const Allocator = std.mem.Allocator;
+const Writer = std.Io.Writer;
 const assert = lib.assert.assert;
 const Range = lib.collection.Range;
 const copyInSlice = lib.collection.copyInSlice;
@@ -116,8 +117,7 @@ pub fn Array(T: type) type {
             return .{ .array = self };
         }
 
-        const Writer = std.Io.Writer;
-        // 文字列に変換する
+        /// 文字列に変換する
         pub fn format(self: @This(), writer: *Writer) Writer.Error!void {
             try writer.writeAll("Array(" ++ @typeName(T) ++ "){");
             for (self.items[0..self.length], 0..) |value, i| {

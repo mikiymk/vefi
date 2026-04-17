@@ -222,7 +222,7 @@ pub fn CircularArray(T: type) type {
         }
 
         const Writer = std.Io.Writer;
-        // 文字列に変換する
+        /// 文字列に変換する
         pub fn format(self: @This(), writer: *Writer) Writer.Error!void {
             try writer.writeAll("CircularArray(" ++ @typeName(T) ++ "){");
 
