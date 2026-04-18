@@ -12,13 +12,11 @@ test {
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
-    _ = allocator;
 
     // sort
-    lib.sort;
     var array: [100]usize = undefined;
     var target = lib.sort.LoggedSortTarget{ .slice = &array };
 
-    target.reset(.ascend);
-    lib.sort.bubbleSort(target);
+    target.reset(.shuffle);
+    try lib.sort.mergeSort(allocator, &target);
 }
