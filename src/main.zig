@@ -14,9 +14,17 @@ pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
     // sort
-    var array: [100]usize = undefined;
+    var array: [10]usize = undefined;
     var target = lib.sort.LoggedSortTarget{ .slice = &array };
 
-    target.reset(.shuffle);
-    try lib.sort.mergeSort(allocator, &target);
+    for (0..100) |_| {
+        target.reset(.shuffle);
+        std.debug.print("{any}\n", .{target.slice});
+        try lib.sort.quickSort(allocator, &target);
+        std.debug.print("{any}\n", .{target.slice});
+        if (!target.isSorted()) {
+            std.debug.print("not sorted\n", .{});
+            return;
+        }
+    }
 }
