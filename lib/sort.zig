@@ -4,6 +4,18 @@ const Allocator = std.mem.Allocator;
 /// テスト用配列の長さ
 const array_length = 100;
 
+var rng: ?std.Random.Xoshiro256 = null;
+var rand: std.Random = undefined;
+/// at_least <= i <= at_most
+fn random(T: type, at_least: T, at_most: T) T {
+    if (rng == null) {
+        rng = std.Random.Xoshiro256.init(@bitCast(std.time.timestamp()));
+        rand = rng.?.random();
+    }
+
+    return rand.intRangeAtMost(T, at_least, at_most);
+}
+
 /// 比較と入れ替えの回数をカウントする
 pub const LoggedSortTarget = struct {
     const T = usize;
@@ -128,12 +140,9 @@ pub const LoggedSortTarget = struct {
             .shuffle => {
                 self.reset(.ascend);
 
-                var rng = std.Random.Xoshiro256.init(@bitCast(std.time.timestamp()));
-                const random = rng.random();
-
                 var i = self.slice.len - 1;
                 while (0 < i) : (i -= 1) {
-                    const j = random.intRangeAtMost(usize, 0, i);
+                    const j = random(usize, 0, i);
                     const tmp = self.slice[i];
                     self.slice[i] = self.slice[j];
                     self.slice[j] = tmp;
@@ -261,27 +270,25 @@ test "sort test" {
     std.debug.print("merge sort (in place/binary search/juggling rotation)\n", .{});
     try testSortAlgorithm(allocator, mergeSortInPlace3);
     std.debug.print("quick sort (lomuto partition)\n", .{});
-    try testSortAlgorithm(allocator, quickSort);
+    try testSortAlgorithm(allocator, quickSort1);
+    std.debug.print("quick sort (hoare partition)\n", .{});
+    try testSortAlgorithm(allocator, quickSort2);
 }
 
 /// バブルソート。
 /// すべての要素について、隣と比較して逆順なら入れ替える。
 /// 要素数-1回繰り返す。
-pub fn bubbleSort1(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
-    _ = allocator;
+pub fn bubbleSort1(_: Allocator, target: *LoggedSortTarget) error{}!void {
     for (0..target.length()) |_| {
         for (1..target.length()) |i| {
-            if (target.lessThan(i, i - 1)) {
-                target.swap(i, i - 1);
-            }
+            if (target.lessThan(i, i - 1)) target.swap(i, i - 1);
         }
     }
 }
 
 /// バブルソート。
 /// ソート済みが確定しているところは比較を行わない。
-pub fn bubbleSort2(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
-    _ = allocator;
+pub fn bubbleSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
     for (0..target.length()) |i| {
         for (1..target.length() - i) |j| {
             if (target.lessThan(j, j - 1)) {
@@ -293,8 +300,7 @@ pub fn bubbleSort2(allocator: Allocator, target: *LoggedSortTarget) Allocator.Er
 
 /// バブルソート。
 /// 最後の入れ替え位置より後ろは比較しない。
-pub fn bubbleSort3(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
-    _ = allocator;
+pub fn bubbleSort3(_: Allocator, target: *LoggedSortTarget) error{}!void {
     var len: usize = target.length();
     while (1 < len) {
         var last_swap_index: usize = 0;
@@ -310,8 +316,7 @@ pub fn bubbleSort3(allocator: Allocator, target: *LoggedSortTarget) Allocator.Er
 
 /// シェイカーソート。
 /// 前から後ろ、後ろから前を交互に繰り返す。
-pub fn shakerSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
-    _ = allocator;
+pub fn shakerSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
     if (target.length() < 2) return;
 
     var top_index: usize = 0;
@@ -360,8 +365,7 @@ fn combSortDivBy13(num: usize) usize {
 
 /// コムソート。
 /// 比較する2つの間隔を開けてソートする。
-pub fn combSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
-    _ = allocator;
+pub fn combSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
     var gap = combSortDivBy13(target.length());
     while (true) : (gap = combSortDivBy13(gap)) {
         var len: usize = target.length();
@@ -382,8 +386,7 @@ pub fn combSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error
 
 /// ノームソート。
 /// 位置を移動して前後の順序を並べる。
-pub fn gnomeSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
-    _ = allocator;
+pub fn gnomeSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
     var i: usize = 1;
     while (i < target.length()) {
         if (target.lessThan(i, i - 1)) {
@@ -401,8 +404,7 @@ pub fn gnomeSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Erro
 
 /// 選択ソート。
 /// 最小の値を選択して先頭から配置する。
-pub fn selectionSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
-    _ = allocator;
+pub fn selectionSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
     for (0..target.length()) |i| {
         var min_index: usize = i;
         for (i..target.length()) |j| {
@@ -419,8 +421,7 @@ pub fn selectionSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.
 
 /// 挿入ソート。
 /// 最小の値を選択して先頭から配置する。
-pub fn insertionSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
-    _ = allocator;
+pub fn insertionSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
     for (0..target.length()) |i| {
         var j = i;
         while (0 < j and target.lessThan(j, j - 1)) : (j -= 1) {
@@ -458,8 +459,7 @@ fn shellSortGap3(num: usize) usize {
 
 /// シェルソート。
 /// 間隔を空けて挿入ソートをする。
-pub fn shellSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
-    _ = allocator;
+pub fn shellSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
     var gap = target.length();
     while (true) {
         gap = shellSortGap3(gap);
@@ -607,8 +607,7 @@ fn mergeSortInPlace1Internal(target: *LoggedSortTarget, start: usize, end: usize
 
 /// In-Placeなマージソート。
 /// 分割して結合を繰り返す。追加のメモリを必要としない。
-pub fn mergeSortInPlace1(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
-    _ = allocator;
+pub fn mergeSortInPlace1(_: Allocator, target: *LoggedSortTarget) error{}!void {
     mergeSortInPlace1Internal(target, 0, target.length());
 }
 
@@ -679,8 +678,7 @@ fn mergeSortInPlace2Internal(target: *LoggedSortTarget, start: usize, end: usize
 
 /// In-Placeなマージソート。
 /// 分割して結合を繰り返す。追加のメモリを必要としない。
-pub fn mergeSortInPlace2(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
-    _ = allocator;
+pub fn mergeSortInPlace2(_: Allocator, target: *LoggedSortTarget) error{}!void {
     mergeSortInPlace2Internal(target, 0, target.length());
 }
 
@@ -747,7 +745,7 @@ pub fn mergeSortInPlace3(allocator: Allocator, target: *LoggedSortTarget) Alloca
 }
 
 /// クイックソートで小さい値を前、大きい値を後ろに移動し、ピボット位置を返す。
-/// ロムート法。
+/// Lomuto法。
 fn quickSort1Partition(target: *LoggedSortTarget, start: usize, end: usize) usize {
     // 最後の要素をピボットにする
     const pivot = target.get(end - 1);
@@ -763,52 +761,57 @@ fn quickSort1Partition(target: *LoggedSortTarget, start: usize, end: usize) usiz
     return i;
 }
 
-/// クイックソートで小さい値を前、大きい値を後ろに移動し、ピボット位置を返す。
-/// ホーア法。
-fn quickSort2Partition(target: *LoggedSortTarget, start: usize, end: usize) usize {
-    const pivot = target.get((start + end) / 2);
-
-    // 値を分ける
-    var low: usize = start;
-    var high: usize = end;
-    while (true) {
-        std.debug.print("1 low{}({}) high{}({})\n", .{ low, target.slice[low], high, target.slice[high] });
-        while (low < end and target.lessThanIdxVal(low, pivot)) : (low += 1) {}
-        while (start < high and !target.lessThanIdxVal(high, pivot)) : (high -= 1) {}
-        std.debug.print("2 low{}({}) high{}({})\n", .{ low, target.slice[low], high, target.slice[high] });
-        std.debug.print("{any}\n", .{target.slice});
-
-        if (low >= high) {
-            return high;
-        }
-
-        std.debug.print("swap {} {}\n", .{ low, high });
-        target.swap(low, high);
-        low += 1;
-        high -= 1;
-    }
-
-    std.debug.print("3 low{}({}) high{}({})\n", .{ low, target.slice[low], high, target.slice[high] });
-}
-
 /// 分割されたクイックソート。
 /// startは含む、endは含まない。
-fn quickSortInternal(target: *LoggedSortTarget, start: usize, end: usize) void {
+fn quickSort1Internal(target: *LoggedSortTarget, start: usize, end: usize) void {
     // 要素が2未満(0または1)の場合
     if (end - start < 2) return;
 
     const partition = quickSort1Partition(target, start, end);
-    if (partition != end) {
-        quickSortInternal(target, start, partition);
-    }
-    if (start != partition) {
-        quickSortInternal(target, partition + 1, end);
-    }
+    quickSort1Internal(target, start, partition);
+    quickSort1Internal(target, partition + 1, end);
 }
 
 /// クイックソート。
 /// ある値より大きい値と小さい値に分類するのを繰り返す。
-pub fn quickSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
-    _ = allocator;
-    quickSortInternal(target, 0, target.length());
+pub fn quickSort1(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    quickSort1Internal(target, 0, target.length());
+}
+
+/// クイックソートで小さい値を前、大きい値を後ろに移動し、ピボット位置を返す。
+/// Hoare法。
+fn quickSort2Partition(target: *LoggedSortTarget, start: usize, end: usize) usize {
+    var lo: usize = start;
+    var hi: usize = end - 1;
+    const pivot = target.get((start + end) / 2);
+    while (true) {
+        while (target.lessThanIdxVal(lo, pivot)) : (lo += 1) {}
+        while (start < hi and target.lessThanValIdx(pivot, hi)) : (hi -= 1) {}
+
+        if (lo >= hi) {
+            return hi;
+        }
+
+        target.swap(lo, hi);
+        lo += 1;
+        hi -= 1;
+    }
+}
+
+/// 分割されたクイックソート。
+/// startは含む、endは含まない。
+fn quickSort2Internal(target: *LoggedSortTarget, start: usize, end: usize) void {
+    // 要素数が0または1の場合
+    if (end <= start + 1) return;
+
+    const partition = quickSort2Partition(target, start, end);
+    if (partition + 1 != end)
+        quickSort2Internal(target, start, partition + 1);
+    quickSort2Internal(target, partition + 1, end);
+}
+
+/// クイックソート。
+/// ある値より大きい値と小さい値に分類するのを繰り返す。
+pub fn quickSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    quickSort2Internal(target, 0, target.length());
 }
