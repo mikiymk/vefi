@@ -1,9 +1,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-/// テスト用配列の長さ
-const array_length = 100;
-
 var rng: ?std.Random.Xoshiro256 = null;
 var rand: std.Random = undefined;
 /// at_least <= i <= at_most
@@ -184,19 +181,7 @@ pub const LoggedSortTarget = struct {
     }
 
     pub fn format(self: @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
-        const count_length = std.fmt.comptimePrint("{}", .{std.math.log10(array_length * array_length) + 1});
-
-        try writer.print("size: {d} read: {d:" ++
-            count_length ++
-            "} write: {d:" ++
-            count_length ++
-            "} compare: {d:" ++
-            count_length ++
-            "} alloc: {d:" ++
-            count_length ++
-            "} space: {d:" ++
-            count_length ++
-            "} {s}", .{
+        try writer.print("size: {d:5} read: {d:8} write: {d:8} compare: {d:8} alloc: {d:8} space: {d:8} {s}", .{
             self.slice.len,
             self.read_count,
             self.write_count,
@@ -208,28 +193,26 @@ pub const LoggedSortTarget = struct {
     }
 };
 
-fn testSortAlgorithm(allocator: Allocator, func: *const fn (allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void) Allocator.Error!void {
-    var array: [array_length]usize = undefined;
-    var target = LoggedSortTarget{ .slice = array[0..array_length] };
-
+const SortFn = fn (allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void;
+fn testSortAlgorithm(target: *LoggedSortTarget, allocator: Allocator, func: *const SortFn) Allocator.Error!void {
     target.reset(.shuffle);
-    try func(allocator, &target);
+    try func(allocator, target);
     std.debug.print("shuffle        {f}\n", .{target});
 
     target.reset(.ascend);
-    try func(allocator, &target);
+    try func(allocator, target);
     std.debug.print("ascend         {f}\n", .{target});
 
     target.reset(.descend);
-    try func(allocator, &target);
+    try func(allocator, target);
     std.debug.print("descend        {f}\n", .{target});
 
     target.reset(.nearly_ascend);
-    try func(allocator, &target);
+    try func(allocator, target);
     std.debug.print("nearly ascend  {f}\n", .{target});
 
     target.reset(.nearly_descend);
-    try func(allocator, &target);
+    try func(allocator, target);
     std.debug.print("nearly descend {f}\n", .{target});
 
     var empty_target = LoggedSortTarget{ .slice = &.{} };
@@ -238,41 +221,68 @@ fn testSortAlgorithm(allocator: Allocator, func: *const fn (allocator: Allocator
 
 test "sort test" {
     const allocator = std.testing.allocator;
+    const array_length = 100;
+    var array: [array_length]usize = undefined;
+    var target = LoggedSortTarget{ .slice = array[0..array_length] };
 
     std.debug.print("bubble sort 1\n", .{});
-    try testSortAlgorithm(allocator, bubbleSort1);
+    try testSortAlgorithm(&target, allocator, bubbleSort1);
     std.debug.print("bubble sort 2\n", .{});
-    try testSortAlgorithm(allocator, bubbleSort2);
+    try testSortAlgorithm(&target, allocator, bubbleSort2);
     std.debug.print("bubble sort 3\n", .{});
-    try testSortAlgorithm(allocator, bubbleSort3);
+    try testSortAlgorithm(&target, allocator, bubbleSort3);
     std.debug.print("shaker sort\n", .{});
-    try testSortAlgorithm(allocator, shakerSort);
+    try testSortAlgorithm(&target, allocator, shakerSort);
     std.debug.print("comb sort\n", .{});
-    try testSortAlgorithm(allocator, combSort);
+    try testSortAlgorithm(&target, allocator, combSort);
     std.debug.print("gnome sort\n", .{});
-    try testSortAlgorithm(allocator, gnomeSort);
+    try testSortAlgorithm(&target, allocator, gnomeSort);
     std.debug.print("selection sort\n", .{});
-    try testSortAlgorithm(allocator, selectionSort);
+    try testSortAlgorithm(&target, allocator, selectionSort);
     std.debug.print("insertion sort\n", .{});
-    try testSortAlgorithm(allocator, insertionSort);
+    try testSortAlgorithm(&target, allocator, insertionSort);
     std.debug.print("shell sort\n", .{});
-    try testSortAlgorithm(allocator, shellSort);
+    try testSortAlgorithm(&target, allocator, shellSort);
     // std.debug.print("tree sort\n", .{});
-    // try testSortAlgorithm(allocator, treeSort);
+    // try testSortAlgorithm(target,allocator, treeSort);
     // std.debug.print("library sort\n", .{});
-    // try testSortAlgorithm(allocator, librarySort);
+    // try testSortAlgorithm(target,allocator, librarySort);
     std.debug.print("merge sort\n", .{});
-    try testSortAlgorithm(allocator, mergeSort);
+    try testSortAlgorithm(&target, allocator, mergeSort);
     std.debug.print("merge sort (in place/order search/reverse rotation)\n", .{});
-    try testSortAlgorithm(allocator, mergeSortInPlace1);
+    try testSortAlgorithm(&target, allocator, mergeSortInPlace1);
     std.debug.print("merge sort (in place/binary search/reverse rotation)\n", .{});
-    try testSortAlgorithm(allocator, mergeSortInPlace2);
+    try testSortAlgorithm(&target, allocator, mergeSortInPlace2);
     std.debug.print("merge sort (in place/binary search/juggling rotation)\n", .{});
-    try testSortAlgorithm(allocator, mergeSortInPlace3);
+    try testSortAlgorithm(&target, allocator, mergeSortInPlace3);
     std.debug.print("quick sort (lomuto partition)\n", .{});
-    try testSortAlgorithm(allocator, quickSort1);
+    try testSortAlgorithm(&target, allocator, quickSort1);
     std.debug.print("quick sort (hoare partition)\n", .{});
-    try testSortAlgorithm(allocator, quickSort2);
+    try testSortAlgorithm(&target, allocator, quickSort2);
+    std.debug.print("heap sort (williams)\n", .{});
+    try testSortAlgorithm(&target, allocator, heapSort1);
+    std.debug.print("heap sort (floyd)\n", .{});
+    try testSortAlgorithm(&target, allocator, heapSort2);
+    std.debug.print("heap sort (bottom up)\n", .{});
+    try testSortAlgorithm(&target, allocator, heapSort3);
+    std.debug.print("stooge sort\n", .{});
+    try testSortAlgorithm(&target, allocator, stoogeSort);
+    std.debug.print("slow sort\n", .{});
+    try testSortAlgorithm(&target, allocator, slowSort);
+    std.debug.print("odd-even sort\n", .{});
+    try testSortAlgorithm(&target, allocator, oddEvenSort);
+}
+
+test "slow sort test" {
+    const allocator = std.testing.allocator;
+    const array_length = 8;
+    var array: [array_length]usize = undefined;
+    var target = LoggedSortTarget{ .slice = array[0..array_length] };
+
+    std.debug.print("bogo sort\n", .{});
+    try testSortAlgorithm(&target, allocator, bogoSort);
+    std.debug.print("bozo sort\n", .{});
+    try testSortAlgorithm(&target, allocator, bozoSort);
 }
 
 /// バブルソート。
@@ -814,4 +824,235 @@ fn quickSort2Internal(target: *LoggedSortTarget, start: usize, end: usize) void 
 /// ある値より大きい値と小さい値に分類するのを繰り返す。
 pub fn quickSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
     quickSort2Internal(target, 0, target.length());
+}
+
+/// indexの左の子を見つける。
+fn heapSortLeftChild(index: usize) usize {
+    return index * 2 + 1;
+}
+
+/// indexの右の子を見つける。
+fn heapSortRightChild(index: usize) usize {
+    return index * 2 + 2;
+}
+
+/// indexの親を見つける。
+fn heapSortParent(index: usize) usize {
+    return (index - 1) / 2;
+}
+
+/// S[0]からS[i-1]のヒープにS[i]を追加してS[0]からS[i]のヒープを再構成する。
+fn heapSortShiftUp(target: *LoggedSortTarget, index: usize) void {
+    var node = index;
+    while (node > 0) {
+        const parent = heapSortParent(node);
+        if (target.lessThan(parent, node)) { // 親と比較して逆順なら入れ替える。
+            target.swap(parent, node);
+            node = parent;
+        } else { // 正順なら終了。
+            break;
+        }
+    }
+}
+
+/// ルートをiとするヒープを作成する。
+/// Left(i)とRight(i)はヒープ。
+fn heapSortShiftDown(target: *LoggedSortTarget, index: usize, heap_size: usize) void {
+    var current_index = index;
+    while (true) {
+        var max = current_index;
+        const left_child = heapSortLeftChild(current_index);
+        const right_child = heapSortRightChild(current_index);
+
+        if (left_child < heap_size and target.lessThan(max, left_child)) {
+            max = left_child;
+        }
+        if (right_child < heap_size and target.lessThan(max, right_child)) {
+            max = right_child;
+        }
+
+        if (max == current_index) return;
+        target.swap(max, current_index);
+        current_index = max;
+    }
+}
+
+/// ヒープソート。
+/// データ構造のヒープを使用する。
+/// Williamのアルゴリズム。
+pub fn heapSort1(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    var i: usize = 1;
+
+    while (i < target.length()) : (i += 1) {
+        heapSortShiftUp(target, i);
+    }
+
+    i -= 1;
+    while (i > 0) : (i -= 1) {
+        target.swap(0, i);
+        heapSortShiftDown(target, 0, i);
+    }
+}
+
+/// ヒープソート。
+/// データ構造のヒープを使用する。
+/// Floydのアルゴリズム。
+pub fn heapSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    if (target.length() < 2) return;
+
+    {
+        var start = target.length() / 2;
+        while (0 < start) {
+            start -= 1;
+            heapSort3ShiftDown(target, start, target.length());
+        }
+    }
+
+    {
+        var end = target.length() - 1;
+        while (0 < end) : (end -= 1) {
+            target.swap(0, end);
+            heapSortShiftDown(target, 0, end);
+        }
+    }
+}
+
+fn heapSort3LeafSearch(target: *LoggedSortTarget, index: usize, heap_size: usize) usize {
+    var j = index;
+    while (heapSortRightChild(j) < heap_size) {
+        const left = heapSortLeftChild(j);
+        const right = heapSortRightChild(j);
+        j = if (target.lessThan(left, right)) right else left;
+    }
+    if (heapSortLeftChild(j) < heap_size) {
+        j = heapSortLeftChild(j);
+    }
+    return j;
+}
+
+fn heapSort3ShiftDown(target: *LoggedSortTarget, index: usize, heap_size: usize) void {
+    var j = heapSort3LeafSearch(target, index, heap_size);
+    while (target.lessThan(j, index)) {
+        j = heapSortParent(j);
+    }
+    while (index < j) {
+        target.swap(index, j);
+        j = heapSortParent(j);
+    }
+}
+
+/// ヒープソート。
+/// データ構造のヒープを使用する。
+/// Floydのアルゴリズム。
+pub fn heapSort3(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    if (target.length() < 2) return;
+
+    {
+        var start = target.length() / 2;
+        while (0 < start) {
+            start -= 1;
+            heapSort3ShiftDown(target, start, target.length());
+        }
+    }
+
+    {
+        var end = target.length() - 1;
+        while (0 < end) : (end -= 1) {
+            target.swap(0, end);
+            heapSort3ShiftDown(target, 0, end);
+        }
+    }
+}
+
+fn bogoSortShuffle(target: *LoggedSortTarget) void {
+    var i = target.length() - 1;
+    while (0 < i) : (i -= 1) {
+        const j = random(usize, 0, i);
+        target.swap(i, j);
+    }
+}
+
+fn bogoSortSorted(target: *LoggedSortTarget) bool {
+    if (target.length() < 2) return true;
+    for (0..target.length() - 1) |i| {
+        if (target.lessThan(i + 1, i)) return false;
+    }
+    return true;
+}
+
+pub fn bogoSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    if (target.length() < 2) return;
+    while (true) {
+        bogoSortShuffle(target);
+        if (bogoSortSorted(target)) break;
+    }
+}
+
+pub fn bozoSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    if (target.length() < 2) return;
+    while (true) {
+        const i = random(usize, 0, target.length() - 1);
+        const j = random(usize, 0, target.length() - 1);
+        target.swap(i, j);
+        if (bogoSortSorted(target)) break;
+    }
+}
+
+fn stoogeSortInternal(target: *LoggedSortTarget, start: usize, end: usize) void {
+    if (target.lessThan(end - 1, start)) {
+        target.swap(end - 1, start);
+    }
+
+    if (2 < end - start) {
+        const t = (end - start + 2) / 3;
+        const t2 = ((end - start) * 2 + 2) / 3;
+        stoogeSortInternal(target, start, start + t2);
+        stoogeSortInternal(target, start + t, end);
+        stoogeSortInternal(target, start, start + t2);
+    }
+}
+
+pub fn stoogeSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    if (target.length() < 2) return;
+    stoogeSortInternal(target, 0, target.length());
+}
+
+fn slowSortInternal(target: *LoggedSortTarget, start: usize, end: usize) void {
+    if (end < start + 2) return;
+    const mid = (start + end - 1) / 2;
+    slowSortInternal(target, start, mid + 1);
+    slowSortInternal(target, mid + 1, end);
+    if (target.lessThan(end - 1, mid)) {
+        target.swap(end - 1, mid);
+    }
+    slowSortInternal(target, start, end - 1);
+}
+
+pub fn slowSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    slowSortInternal(target, 0, target.length());
+}
+
+pub fn oddEvenSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    var swapped = true;
+    while (swapped) {
+        swapped = false;
+        {
+            var i: usize = 1;
+            while (i < target.length()) : (i += 2) {
+                if (target.lessThan(i, i - 1)) {
+                    target.swap(i, i - 1);
+                    swapped = true;
+                }
+            }
+        }
+        {
+            var i: usize = 2;
+            while (i < target.length()) : (i += 2) {
+                if (target.lessThan(i, i - 1)) {
+                    target.swap(i, i - 1);
+                    swapped = true;
+                }
+            }
+        }
+    }
 }

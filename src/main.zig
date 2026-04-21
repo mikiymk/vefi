@@ -17,10 +17,10 @@ pub fn main() !void {
     var array: [100]usize = undefined;
     var target = lib.sort.LoggedSortTarget{ .slice = &array };
 
-    for (0..100) |_| {
+    for (0..1) |_| {
         target.reset(.shuffle);
         std.debug.print("{any}\n", .{target.slice});
-        try lib.sort.quickSort2(allocator, &target);
+        try lib.sort.slowSort(allocator, &target);
         std.debug.print("{any}\n", .{target.slice});
         if (!target.isSorted()) {
             std.debug.print("not sorted\n", .{});
