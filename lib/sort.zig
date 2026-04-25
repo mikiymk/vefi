@@ -1,16 +1,15 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-var rng: ?std.Random.Xoshiro256 = null;
-var rand: std.Random = undefined;
+var rand: ?std.Random = null;
 /// at_least <= i <= at_most
 fn random(T: type, at_least: T, at_most: T) T {
-    if (rng == null) {
-        rng = std.Random.Xoshiro256.init(@bitCast(std.time.timestamp()));
-        rand = rng.?.random();
+    if (rand == null) {
+        var rng = std.Random.Xoshiro256.init(@bitCast(std.time.timestamp()));
+        rand = rng.random();
     }
 
-    return rand.intRangeAtMost(T, at_least, at_most);
+    return rand.?.intRangeAtMost(T, at_least, at_most);
 }
 
 /// 比較と入れ替えの回数をカウントする
