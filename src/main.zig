@@ -6,21 +6,30 @@ const BigInteger = @import("bigint.zig").BigInteger;
 const fizz_buzz = @import("fizzbuzz.zig");
 const prime = @import("prime.zig");
 
+const Allocator = std.mem.Allocator;
+
 test {
     _ = @import("bigint.zig");
 }
 
-/// デバッグログの表示を制御する。
-pub const log_level: std.log.Level = .debug;
+pub const std_options = std.Options{
+    // デバッグログの表示を制御する。
+    .log_level = .info,
+};
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
-    // sort
-    var array: [10]usize = undefined;
-    var target = lib.sort.LoggedSortTarget{ .slice = &array };
+    // try sortLogging(allocator);
+    try lib.sort.testSorts(allocator);
+}
 
-    for (0..100) |_| {
+const LoggedSortTarget = lib.sort.LoggedSortTarget;
+fn sortLogging(allocator: Allocator) !void {
+    var target = LoggedSortTarget{};
+    try target.resize(allocator, 10);
+
+    for (0..10) |_| {
         target.reset(.shuffle);
         std.debug.print("ソート開始 {any}\n", .{target.slice});
         try lib.sort.smoothSort2(allocator, &target);
