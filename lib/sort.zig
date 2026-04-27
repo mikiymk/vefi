@@ -1,34 +1,32 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
-const p = std.debug.print;
 
-var rng: ?std.Random.Xoshiro256 = null;
-var rand: std.Random = undefined;
+const debug = std.log.debug;
+
+// ある程度ランダムな整数を生成する。
+var rng: std.Random.Xoshiro256 = undefined;
+var rg: ?std.Random = null;
 /// at_least <= i < less_than
 fn random(T: type, at_least: T, less_than: T) T {
-    if (rng == null) {
+    return (rg orelse b: {
         rng = std.Random.Xoshiro256.init(@bitCast(std.time.timestamp()));
-        rand = rng.?.random();
-    }
-
-    return rand.intRangeLessThan(T, at_least, less_than);
+        const new_rg = rng.random();
+        rg = new_rg;
+        break :b new_rg;
+    })
+        .intRangeLessThan(T, at_least, less_than);
 }
 
 /// 比較と入れ替えの回数をカウントする
 pub const LoggedSortTarget = struct {
-    const T = usize;
-    slice: []T,
+    const Type = usize;
+    slice: []Type,
     /// 読み込み回数
     read_count: usize = 0,
     /// 書き込み回数
     write_count: usize = 0,
     /// 比較回数
     compare_count: usize = 0,
-    /// アロケーション回数
-    alloc_count: usize = 0,
-    current_allocated: usize = 0,
-    /// 最大メモリ空間
-    max_allocated: usize = 0,
 
     pub fn length(self: @This()) usize {
         return self.slice.len;
@@ -42,25 +40,25 @@ pub const LoggedSortTarget = struct {
     }
 
     /// S[i] < b なら真を返す。
-    pub fn lessThanIV(self: *@This(), i: usize, b: T) bool {
+    pub fn lessThanIV(self: *@This(), i: usize, b: Type) bool {
         self.read_count += 1;
         self.compare_count += 1;
         return self.slice[i] < b;
     }
 
     /// a < S[j] なら真を返す。
-    pub fn lessThanVI(self: *@This(), a: T, j: usize) bool {
+    pub fn lessThanVI(self: *@This(), a: Type, j: usize) bool {
         self.read_count += 1;
         self.compare_count += 1;
         return a < self.slice[j];
     }
 
-    pub fn get(self: *@This(), i: usize) T {
+    pub fn get(self: *@This(), i: usize) Type {
         self.read_count += 1;
         return self.slice[i];
     }
 
-    pub fn set(self: *@This(), i: usize, v: T) void {
+    pub fn set(self: *@This(), i: usize, v: Type) void {
         self.write_count += 1;
         self.slice[i] = v;
     }
@@ -83,23 +81,6 @@ pub const LoggedSortTarget = struct {
         self.slice[b] = tmp;
     }
 
-    /// 配列を作成する。
-    pub fn alloc(self: *@This(), allocator: Allocator, size: usize) Allocator.Error![]T {
-        self.alloc_count += 1;
-        self.current_allocated += size;
-        if (self.max_allocated < self.current_allocated) {
-            self.max_allocated = self.current_allocated;
-        }
-
-        return allocator.alloc(T, size);
-    }
-
-    /// 配列を解放する。
-    pub fn free(self: *@This(), allocator: Allocator, slice: []T) void {
-        self.current_allocated -= slice.len;
-        allocator.free(slice);
-    }
-
     pub const ShuffleAlgorithm = enum {
         /// すべてランダムに並びかえる。
         shuffle,
@@ -120,9 +101,6 @@ pub const LoggedSortTarget = struct {
         self.read_count = 0;
         self.write_count = 0;
         self.compare_count = 0;
-        self.alloc_count = 0;
-        self.current_allocated = 0;
-        self.max_allocated = 0;
 
         switch (shuffle_algorithm) {
             .shuffle => {
@@ -175,116 +153,179 @@ pub const LoggedSortTarget = struct {
         }
         return true;
     }
+};
 
-    pub fn format(self: @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
-        try writer.print("size: {d:5} read: {d:8} write: {d:8} compare: {d:8} alloc: {d:8} space: {d:8} {s}", .{
-            self.slice.len,
-            self.read_count,
-            self.write_count,
-            self.compare_count,
-            self.alloc_count,
-            self.max_allocated,
-            if (self.isSorted()) "sorted" else "not sorted",
-        });
+/// アロケーション回数などを記録する。
+const LoggedAllocator = struct {
+    child_allocator: Allocator,
+    /// アロケーション回数
+    alloc_count: usize = 0,
+    current_allocated: usize = 0,
+    /// 最大メモリ空間
+    max_allocated: usize = 0,
+
+    fn init(child_allocator: Allocator) @This() {
+        return .{ .child_allocator = child_allocator };
+    }
+
+    /// カウントをリセットする。
+    fn reset(self: *@This()) void {
+        self.alloc_count = 0;
+        self.current_allocated = 0;
+        self.max_allocated = 0;
+    }
+
+    /// アロケーターを作成する。
+    pub fn allocator(self: *LoggedAllocator) Allocator {
+        return .{
+            .ptr = self,
+            .vtable = &.{
+                .alloc = alloc,
+                .resize = resize,
+                .remap = remap,
+                .free = free,
+            },
+        };
+    }
+
+    fn alloc(ctx: *anyopaque, n: usize, alignment: std.mem.Alignment, ra: usize) ?[*]u8 {
+        const self: *@This() = @ptrCast(@alignCast(ctx));
+        self.alloc_count += 1;
+        self.current_allocated += n;
+        self.max_allocated = @max(self.current_allocated, self.max_allocated);
+        return self.child_allocator.vtable.alloc(self.child_allocator.ptr, n, alignment, ra);
+    }
+
+    fn resize(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, new_len: usize, ra: usize) bool {
+        const self: *@This() = @ptrCast(@alignCast(ctx));
+        const success = self.child_allocator.vtable.resize(self.child_allocator.ptr, buf, alignment, new_len, ra);
+
+        if (success) {
+            self.alloc_count += 1;
+            self.current_allocated -= buf.len;
+            self.current_allocated += new_len;
+            self.max_allocated = @max(self.current_allocated, self.max_allocated);
+        }
+        return success;
+    }
+
+    fn remap(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, new_len: usize, ra: usize) ?[*]u8 {
+        const self: *@This() = @ptrCast(@alignCast(ctx));
+
+        const result = self.child_allocator.vtable.remap(self.child_allocator.ptr, buf, alignment, new_len, ra);
+        if (result != null) {
+            self.alloc_count += 1;
+            self.current_allocated -= buf.len;
+            self.current_allocated += new_len;
+            self.max_allocated = @max(self.current_allocated, self.max_allocated);
+        }
+        return result;
+    }
+
+    fn free(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, ra: usize) void {
+        const self: *@This() = @ptrCast(@alignCast(ctx));
+        self.current_allocated -= buf.len;
+        self.child_allocator.vtable.free(self.child_allocator.ptr, buf, alignment, ra);
     }
 };
 
 const SortFn = fn (allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void;
-fn testSortAlgorithm(target: *LoggedSortTarget, allocator: Allocator, func: *const SortFn) Allocator.Error!void {
-    target.reset(.shuffle);
-    try func(allocator, target);
-    p("shuffle        {f}\n", .{target});
+fn testSortAlgorithm(target: *LoggedSortTarget, logged_allocator: *LoggedAllocator, func: *const SortFn) Allocator.Error!void {
+    {
+        var empty_target = LoggedSortTarget{ .slice = &.{} };
+        logged_allocator.reset();
+        const allocator = logged_allocator.allocator();
+        try func(allocator, &empty_target);
+    }
 
-    target.reset(.ascend);
-    try func(allocator, target);
-    p("ascend         {f}\n", .{target});
+    const Condition = struct { []const u8, LoggedSortTarget.ShuffleAlgorithm };
+    const conditions = [_]Condition{
+        .{ "shuffle", .shuffle },
+        .{ "ascend", .ascend },
+        .{ "descend", .descend },
+        .{ "nearly ascend", .nearly_ascend },
+        .{ "nearly descend", .nearly_descend },
+        .{ "flat", .flat },
+    };
 
-    target.reset(.descend);
-    try func(allocator, target);
-    p("descend        {f}\n", .{target});
+    for (conditions) |c| {
+        const name, const e = c;
 
-    target.reset(.nearly_ascend);
-    try func(allocator, target);
-    p("nearly ascend  {f}\n", .{target});
+        target.reset(e);
+        logged_allocator.reset();
+        const allocator = logged_allocator.allocator();
 
-    target.reset(.nearly_descend);
-    try func(allocator, target);
-    p("nearly descend {f}\n", .{target});
+        try func(allocator, target);
 
-    target.reset(.flat);
-    try func(allocator, target);
-    p("flat           {f}\n", .{target});
-
-    var empty_target = LoggedSortTarget{ .slice = &.{} };
-    try func(allocator, &empty_target);
+        std.debug.print("{s:<14} size: {d:5} read: {d:8} write: {d:8} compare: {d:8} alloc: {d:8} space: {d:8} {s}\n", .{
+            name,                           target.slice.len,
+            target.read_count,              target.write_count,
+            target.compare_count,           logged_allocator.alloc_count,
+            logged_allocator.max_allocated, if (target.isSorted()) "sorted" else "not sorted",
+        });
+    }
 }
 
 test "sort test" {
-    const allocator = std.testing.allocator;
+    const ta = std.testing.allocator;
+    var la = LoggedAllocator.init(ta);
     const array_length = 100;
     var array: [array_length]usize = undefined;
     var target = LoggedSortTarget{ .slice = array[0..array_length] };
 
-    p("bubble sort 1\n", .{});
-    try testSortAlgorithm(&target, allocator, bubbleSort1);
-    p("bubble sort 2\n", .{});
-    try testSortAlgorithm(&target, allocator, bubbleSort2);
-    p("bubble sort 3\n", .{});
-    try testSortAlgorithm(&target, allocator, bubbleSort3);
-    p("shaker sort\n", .{});
-    try testSortAlgorithm(&target, allocator, shakerSort);
-    p("comb sort\n", .{});
-    try testSortAlgorithm(&target, allocator, combSort);
-    p("gnome sort\n", .{});
-    try testSortAlgorithm(&target, allocator, gnomeSort);
-    p("selection sort\n", .{});
-    try testSortAlgorithm(&target, allocator, selectionSort);
-    p("insertion sort\n", .{});
-    try testSortAlgorithm(&target, allocator, insertionSort);
-    p("shell sort\n", .{});
-    try testSortAlgorithm(&target, allocator, shellSort);
-    // p("tree sort\n", .{});
-    // try testSortAlgorithm(target,allocator, treeSort);
-    // p("library sort\n", .{});
-    // try testSortAlgorithm(target,allocator, librarySort);
-    p("merge sort\n", .{});
-    try testSortAlgorithm(&target, allocator, mergeSort);
-    p("merge sort (in place/order search/reverse rotation)\n", .{});
-    try testSortAlgorithm(&target, allocator, mergeSortInPlace1);
-    p("merge sort (in place/binary search/reverse rotation)\n", .{});
-    try testSortAlgorithm(&target, allocator, mergeSortInPlace2);
-    p("merge sort (in place/binary search/juggling rotation)\n", .{});
-    try testSortAlgorithm(&target, allocator, mergeSortInPlace3);
-    p("quick sort (lomuto partition)\n", .{});
-    try testSortAlgorithm(&target, allocator, quickSort1);
-    p("quick sort (hoare partition)\n", .{});
-    try testSortAlgorithm(&target, allocator, quickSort2);
-    p("heap sort (williams)\n", .{});
-    try testSortAlgorithm(&target, allocator, heapSort1);
-    p("heap sort (floyd)\n", .{});
-    try testSortAlgorithm(&target, allocator, heapSort2);
-    p("heap sort (bottom up)\n", .{});
-    try testSortAlgorithm(&target, allocator, heapSort3);
-    p("smooth sort\n", .{});
-    try testSortAlgorithm(&target, allocator, smoothSort1);
-    p("stooge sort\n", .{});
-    try testSortAlgorithm(&target, allocator, stoogeSort);
-    p("slow sort\n", .{});
-    try testSortAlgorithm(&target, allocator, slowSort);
-    p("odd-even sort\n", .{});
-    try testSortAlgorithm(&target, allocator, oddEvenSort);
+    const Algorithm = struct { []const u8, *const SortFn };
+    const algorithms = [_]Algorithm{
+        .{ "bubble sort 1", bubbleSort1 },
+        .{ "bubble sort 2", bubbleSort2 },
+        .{ "bubble sort 3", bubbleSort3 },
+        .{ "shaker sort", shakerSort },
+        .{ "comb sort", combSort },
+        .{ "gnome sort", gnomeSort },
+        .{ "selection sort", selectionSort },
+        .{ "insertion sort", insertionSort },
+        .{ "shell sort", shellSort },
+        // .{ "tree sort", treeSort },
+        // .{ "library sort", librarySort },
+        .{ "merge sort", mergeSort },
+        .{ "merge sort (in place/order search/reverse rotation)", mergeSortInPlace1 },
+        .{ "merge sort (in place/binary search/reverse rotation)", mergeSortInPlace2 },
+        .{ "merge sort (in place/binary search/juggling rotation)", mergeSortInPlace3 },
+        .{ "quick sort (lomuto partition)", quickSort1 },
+        .{ "quick sort (hoare partition)", quickSort2 },
+        .{ "heap sort (williams)", heapSort1 },
+        .{ "heap sort (floyd)", heapSort2 },
+        .{ "heap sort (bottom up)", heapSort3 },
+        .{ "smooth sort", smoothSort1 },
+        .{ "stooge sort", stoogeSort },
+        .{ "slow sort", slowSort },
+        .{ "odd-even sort", oddEvenSort },
+    };
+
+    for (algorithms) |a| {
+        const name, const func = a;
+        std.debug.print("{s}\n", .{name});
+        try testSortAlgorithm(&target, &la, func);
+    }
 }
 
 test "slow sort test" {
-    const allocator = std.testing.allocator;
+    const ta = std.testing.allocator;
+    var la = LoggedAllocator.init(ta);
     const array_length = 8;
     var array: [array_length]usize = undefined;
     var target = LoggedSortTarget{ .slice = array[0..array_length] };
 
-    p("bogo sort\n", .{});
-    try testSortAlgorithm(&target, allocator, bogoSort);
-    p("bozo sort\n", .{});
-    try testSortAlgorithm(&target, allocator, bozoSort);
+    const Algorithm = struct { []const u8, *const SortFn };
+    const algorithms = [_]Algorithm{
+        .{ "bogo sort", bogoSort },
+        .{ "bozo sort", bozoSort },
+    };
+
+    for (algorithms) |a| {
+        const name, const func = a;
+        std.debug.print("{s}\n", .{name});
+        try testSortAlgorithm(&target, &la, func);
+    }
 }
 
 /// バブルソート。
@@ -506,8 +547,8 @@ fn mergeSortMerge(allocator: Allocator, target: *LoggedSortTarget, start: usize,
     var left = start;
     var right = mid;
 
-    const buffer = try target.alloc(allocator, end - start);
-    defer target.free(allocator, buffer);
+    const buffer = try allocator.alloc(LoggedSortTarget.Type, end - start);
+    defer allocator.free(buffer);
     var i: usize = 0;
 
     while (left < mid and right < end) {
@@ -966,51 +1007,44 @@ pub fn heapSort3(_: Allocator, target: *LoggedSortTarget) error{}!void {
     }
 }
 
-// スムーズソートは難しそう。
-// 方法1. 単純に外部に木を使用して実装する。
-// 方法2. ターゲット配列上にヒープを構築する。
-// 方法3. 使用メモリをO(1)に削減するアルゴリズム。
 // 参考ページ https://www.keithschwarz.com/smoothsort/
 
+var smooth_leonardo_array: [92]usize = undefined; // max(usize) < L[92] なのでそれ以上の要素数は不要。
 /// 指定した数以下のレオナルド数をすべて求めて配列にして返す。
 /// L[0] = 1, L[1] = 1, L[n] = L[n-1] + L[n-2] + 1;
-fn leonardo(allocator: Allocator, num: usize) Allocator.Error![]usize {
+fn smoothSortLeonardo(num: usize) []usize {
     if (num < 1) return &.{};
-    var array = std.ArrayList(usize).empty;
-    try array.append(allocator, 1); // L[0] = 1
-    try array.append(allocator, 1); // L[1] = 1
 
-    var l0: usize = 1; // L[n-2]
-    var l1: usize = 1; // L[n-1]
-    var l2 = l0 + l1 + 1; // L[n] = L[n-2] + L[n-1] + 1
-    while (l2 <= num) {
-        try array.append(allocator, l2);
-        l0 = l1;
-        l1 = l2;
-        l2 = l0 + l1 + 1;
+    smooth_leonardo_array[0] = 1;
+    smooth_leonardo_array[1] = 1;
+
+    var n: usize = 2;
+    while (true) {
+        const ln = smooth_leonardo_array[n - 2] + smooth_leonardo_array[n - 1] + 1;
+        if (num < ln) break;
+        smooth_leonardo_array[n] = ln;
+        n += 1;
     }
 
-    p("計算済みレオナルド数: {any}\n", .{array.items});
-    return array.toOwnedSlice(allocator);
+    debug("計算済みレオナルド数: {any}", .{smooth_leonardo_array[0..n]});
+    return smooth_leonardo_array[0..n];
 }
 
 /// 1つの木 S[start] から S[end-1] の範囲を再構築する。
 fn smoothSort1InsertTree(target: *LoggedSortTarget, la: []const usize, start: usize, tree_size: usize) void {
-    p("{any} 木を再構築 {} - {}\n", .{ target.slice, start, start + la[tree_size] });
-    if (tree_size < 2) {
-        return;
-    }
+    debug("{any} 木を再構築 {} - {}", .{ target.slice, start, start + la[tree_size] });
+    if (tree_size < 2) return;
 
     const parent_index = start + la[tree_size] - 1;
     const left_child_index = start + la[tree_size - 1] - 1;
     const right_child_index = start + la[tree_size] - 2;
 
-    p("{any} 木を再構築 親 {}(値:{}) 左{}(値:{}) 右 {}(値:{})\n", .{ target.slice, parent_index, target.slice[parent_index], left_child_index, target.slice[left_child_index], right_child_index, target.slice[right_child_index] });
+    debug("{any} 木を再構築 親 {}(値:{}) 左{}(値:{}) 右 {}(値:{})", .{ target.slice, parent_index, target.slice[parent_index], left_child_index, target.slice[left_child_index], right_child_index, target.slice[right_child_index] });
 
     var swap_child_index = left_child_index;
     var swap_child_tree_size = tree_size - 1;
     if (target.lessThan(left_child_index, right_child_index)) {
-        p("{any} 木を再構築 左 < 右\n", .{target.slice});
+        debug("{any} 木を再構築 左 < 右", .{target.slice});
         // 左の子 < 右の子なら右の子と交換する。
         swap_child_index = right_child_index;
         swap_child_tree_size = tree_size - 2;
@@ -1019,7 +1053,7 @@ fn smoothSort1InsertTree(target: *LoggedSortTarget, la: []const usize, start: us
     if (target.lessThan(parent_index, swap_child_index)) {
         // 親 < 子なら交換する。
         target.swap(parent_index, swap_child_index);
-        p("{any} 木を再構築 親 < 子\n", .{target.slice});
+        debug("{any} 木を再構築 親 < 子", .{target.slice});
         // 子をルートにして再帰処理
         smoothSort1InsertTree(target, la, swap_child_index + 1 - la[swap_child_tree_size], swap_child_tree_size);
     }
@@ -1040,59 +1074,64 @@ fn smoothSort1GrowForest(allocator: Allocator, tree_sizes: *std.ArrayList(usize)
     }
 }
 
+fn smoothSort1ShouldSwapRoot(target: *LoggedSortTarget, la: []const usize, current_root: usize, prev_root: usize, tree_size: usize) bool {
+    const should_swap = target.lessThan(current_root, prev_root);
+    if (1 < tree_size) {
+        // 現在の木に子があるなら、前のルート < 子の場合に交換しない。
+        const current_left_child = current_root - la[tree_size - 2] - 1;
+        const current_right_child = current_root - 1;
+        debug("{any} 現在の子 左: {}(値:{}) 右: {}(値:{})", .{ target.slice, current_left_child, target.slice[current_left_child], current_right_child, target.slice[current_right_child] });
+        return should_swap and
+            target.lessThan(current_left_child, prev_root) and
+            target.lessThan(current_right_child, prev_root);
+    }
+
+    return should_swap;
+}
+
 /// 森を再構築する。
 fn smoothSort1Rebalance(target: *LoggedSortTarget, la: []const usize, tree_sizes: std.ArrayList(usize), heap_size: usize) void {
-    p("{any} {any} 森を再構築 0 - {}\n", .{ target.slice, tree_sizes.items, heap_size });
+    debug("{any} {any} 森を再構築 0 - {}", .{ target.slice, tree_sizes.items, heap_size });
     var current_root = heap_size - 1;
     var tree_index = tree_sizes.items.len - 1;
 
     while (0 < tree_index) {
+        debug("{any} {any} 現在のルート: {}(値:{})", .{ target.slice, tree_sizes.items, current_root, target.slice[current_root] });
+        debug("{any} {any} インデックス: {}(サイズ:{})", .{ target.slice, tree_sizes.items, tree_index, tree_sizes.items[tree_index] });
         const tree_size = tree_sizes.items[tree_index];
         const prev_root = current_root - la[tree_size];
-        p("{any} {any} 現在のルート: {}(値:{}) 前のルート: {}(値:{})\n", .{ target.slice, tree_sizes.items, current_root, target.slice[current_root], prev_root, target.slice[prev_root] });
+        debug("{any} {any} 前のルート: {}(値:{})", .{ target.slice, tree_sizes.items, prev_root, target.slice[prev_root] });
 
-        var should_swap = target.lessThan(current_root, prev_root);
-        if (1 < tree_size) {
-            // 現在の木に子があるなら、前のルート < 子の場合に交換しない。
-            const current_left_child = current_root - la[tree_size - 2];
-            const current_right_child = current_root - 1;
-            p("{any} {any} 現在の子 左: {}(値:{}) 右: {}(値:{})\n", .{ target.slice, tree_sizes.items, current_left_child, target.slice[current_left_child], current_right_child, target.slice[current_right_child] });
-            should_swap = should_swap and
-                target.lessThan(current_left_child, prev_root) and
-                target.lessThan(current_right_child, prev_root);
-        }
-
-        if (should_swap) {
-            // 前の木のルートが大きいなら、交換する。
-            target.swap(prev_root, current_root);
-            p("{any} {any} 交換\n", .{ target.slice, tree_sizes.items });
-            // 現在の木を再構築する。
-            // smoothSort1InsertTree(target, la, prev_root + 1, tree_sizes.items[tree_index]);
-            current_root = prev_root;
-            tree_index -= 1;
-        } else {
+        if (!smoothSort1ShouldSwapRoot(target, la, current_root, prev_root, tree_size)) {
             // 交換しないなら終了。
             break;
         }
+
+        // 前の木のルートが大きいなら、交換する。
+        target.swap(prev_root, current_root);
+        debug("{any} {any} 交換", .{ target.slice, tree_sizes.items });
+        current_root = prev_root;
+        tree_index -= 1;
     }
 
-    p("{any} {any} 木を再構築 {} - {}\n", .{ target.slice, tree_sizes.items, current_root + 1 - la[tree_sizes.items[tree_index]], current_root + 1 });
+    debug("{any} {any} 木を再構築 {} - {}", .{ target.slice, tree_sizes.items, current_root + 1 - la[tree_sizes.items[tree_index]], current_root + 1 });
     // 一番前に来た場合は一番前の木を再構築する。
     smoothSort1InsertTree(target, la, current_root + 1 - la[tree_sizes.items[tree_index]], tree_sizes.items[tree_index]);
-    p("{any} {any} 木を再構築 終了\n", .{ target.slice, tree_sizes.items });
+    debug("{any} {any} 木を再構築 終了", .{ target.slice, tree_sizes.items });
 }
 
 /// 複数の木のリスト S[0] から S[end] までの範囲を再構築する。
 fn smoothSort1InsertForest(allocator: Allocator, target: *LoggedSortTarget, la: []const usize, tree_sizes: *std.ArrayList(usize), heap_size: usize) Allocator.Error!void {
-    p("{any} {any} サイズ + 1 -> ", .{ target.slice, tree_sizes.items });
+    debug("{any} {any} サイズ + 1", .{ target.slice, tree_sizes.items });
     try smoothSort1GrowForest(allocator, tree_sizes);
-    p("{any}\n", .{tree_sizes.items});
+    debug("{any} {any}", .{ target.slice, tree_sizes.items });
 
     smoothSort1Rebalance(target, la, tree_sizes.*, heap_size);
 }
 
 /// 最大の要素を取り出し、森を再構築する。
 fn smoothSort1ShrinkForest(allocator: Allocator, target: *LoggedSortTarget, la: []const usize, tree_sizes: *std.ArrayList(usize), heap_size: usize) Allocator.Error!void {
+    debug("{any} {any} サイズ - 1", .{ target.slice, tree_sizes.items });
     const last = tree_sizes.pop() orelse unreachable;
     // L[0] または L[1] の場合はそのまま削除する。
     if (1 < last) {
@@ -1106,27 +1145,175 @@ fn smoothSort1ShrinkForest(allocator: Allocator, target: *LoggedSortTarget, la: 
 
 pub fn smoothSort1(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
     // if (target.length() < 2) return;
-    const la = try leonardo(allocator, target.length());
-    defer allocator.free(la);
+    const la = smoothSortLeonardo(target.length());
     var tree_sizes = std.ArrayList(usize).empty;
     defer tree_sizes.deinit(allocator);
 
     {
         for (1..target.length() + 1) |heap_size| {
-            p("{any} {any} ヒープ化: 0 - {}\n", .{ target.slice, tree_sizes.items, heap_size });
+            debug("{any} {any} ヒープ化: 0 - {}", .{ target.slice, tree_sizes.items, heap_size });
             try smoothSort1InsertForest(allocator, target, la, &tree_sizes, heap_size);
-            p("{any} {any}\n", .{ target.slice, tree_sizes.items });
+            debug("{any} {any}", .{ target.slice, tree_sizes.items });
         }
     }
-
-    p("\n###\n\n", .{});
 
     {
         var heap_size = target.length();
         while (heap_size > 1) : (heap_size -= 1) {
-            p("{any} {any} 取り出し: 0 - {}\n", .{ target.slice, tree_sizes.items, heap_size });
+            debug("{any} {any} 取り出し: 0 - {}", .{ target.slice, tree_sizes.items, heap_size });
             try smoothSort1ShrinkForest(allocator, target, la, &tree_sizes, heap_size);
-            p("{any} {any}\n", .{ target.slice, tree_sizes.items });
+            debug("{any} {any}", .{ target.slice, tree_sizes.items });
+        }
+    }
+}
+
+/// 1つの木 S[start] から S[end-1] の範囲を再構築する。
+fn smoothSort2InsertTree(target: *LoggedSortTarget, la: []const usize, start: usize, tree_size: usize) void {
+    debug("{any} 木を再構築 {} - {}", .{ target.slice, start, start + la[tree_size] });
+    if (tree_size < 2) return;
+
+    const parent_index = start + la[tree_size] - 1;
+    const left_child_index = start + la[tree_size - 1] - 1;
+    const right_child_index = start + la[tree_size] - 2;
+
+    debug("{any} 木を再構築 親 {}(値:{}) 左{}(値:{}) 右 {}(値:{})", .{ target.slice, parent_index, target.slice[parent_index], left_child_index, target.slice[left_child_index], right_child_index, target.slice[right_child_index] });
+
+    var swap_child_index = left_child_index;
+    var swap_child_tree_size = tree_size - 1;
+    if (target.lessThan(left_child_index, right_child_index)) {
+        debug("{any} 木を再構築 左 < 右", .{target.slice});
+        // 左の子 < 右の子なら右の子と交換する。
+        swap_child_index = right_child_index;
+        swap_child_tree_size = tree_size - 2;
+    }
+
+    if (target.lessThan(parent_index, swap_child_index)) {
+        // 親 < 子なら交換する。
+        target.swap(parent_index, swap_child_index);
+        debug("{any} 木を再構築 親 < 子", .{target.slice});
+        // 子をルートにして再帰処理
+        smoothSort2InsertTree(target, la, swap_child_index + 1 - la[swap_child_tree_size], swap_child_tree_size);
+    }
+}
+
+/// 森を1つ成長させる。
+fn smoothSort2GrowForest(tree_sizes_vec: *usize, tree_sizes_zero_pointer: *usize) Allocator.Error!void {
+    if (tree_sizes_vec.* & 3 == 0b11) {
+        // もし最後2つの木が L[n-1] と L[n-2] なら、合体して L[n] にする。
+        // (m011, n) -> (m1, n+2)
+        tree_sizes_vec.* = (tree_sizes_vec.* >> 2) + 1;
+        tree_sizes_zero_pointer.* += 2;
+    } else if (tree_sizes_vec.* & 1 == 0b1 and tree_sizes_zero_pointer.* == 1) {
+        // もし最後の木が L[1] なら、 L[0] として追加する。
+        // (m01, 1) -> (m011, 0)
+        tree_sizes_vec.* = (tree_sizes_vec.* << 1) + 1;
+        tree_sizes_zero_pointer.* = 0;
+    } else {
+        // それ以外の場合は L[1] として追加する。
+        // (m1, n) -> (m100...01, 1)
+        if (tree_sizes_vec.* != 0) {
+            tree_sizes_vec.* = (tree_sizes_vec.* << @intCast(tree_sizes_zero_pointer.* - 1)) + 1;
+        } else {
+            tree_sizes_vec.* = 1;
+        }
+        tree_sizes_zero_pointer.* = 1;
+    }
+}
+
+/// 森を再構築する。
+fn smoothSort2Rebalance(target: *LoggedSortTarget, la: []const usize, tree_sizes_vec: *const usize, tree_sizes_zero_pointer: *const usize, heap_size: usize) void {
+    debug("{any} ({b}, {}) 森を再構築 0 - {}", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.*, heap_size });
+    var current_root = heap_size - 1;
+    var vec = tree_sizes_vec.*;
+    var tree_size = tree_sizes_zero_pointer.*;
+
+    while (1 < vec) {
+        if (vec & 1 == 0) {
+            // この大きさの木が存在しない場合
+            vec >>= 1;
+            tree_size += 1;
+            continue;
+        }
+
+        debug("{any} ({b}, {}) 現在のルート: {}(値:{})", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.*, current_root, target.slice[current_root] });
+        debug("{any} ({b}, {}) ベクトル: {} サイズ: {}", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.*, vec, tree_size });
+        const prev_root = current_root - la[tree_size];
+        debug("{any} ({b}, {}) 前のルート: {}(値:{})", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.*, prev_root, target.slice[prev_root] });
+
+        if (!smoothSort1ShouldSwapRoot(target, la, current_root, prev_root, tree_size)) {
+            // 交換しないなら終了。
+            break;
+        }
+
+        // 前の木のルートが大きいなら、交換する。
+        target.swap(prev_root, current_root);
+        debug("{any} ({b}, {}) 交換", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.* });
+        current_root = prev_root;
+        vec >>= 1;
+        tree_size += 1;
+    }
+
+    debug("{any} ({b}, {}) 木を再構築 {} - {}", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.*, current_root + 1 - la[tree_size], current_root + 1 });
+    // 一番前に来た場合は一番前の木を再構築する。
+    smoothSort2InsertTree(target, la, current_root + 1 - la[tree_size], tree_size);
+    debug("{any} ({b}, {}) 木を再構築 終了", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.* });
+}
+
+/// 複数の木のリスト S[0] から S[end] までの範囲を再構築する。
+fn smoothSort2InsertForest(target: *LoggedSortTarget, la: []const usize, tree_sizes_vec: *usize, tree_sizes_zero_pointer: *usize, heap_size: usize) Allocator.Error!void {
+    debug("{any} ({b}, {}) サイズ + 1", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.* });
+    try smoothSort2GrowForest(tree_sizes_vec, tree_sizes_zero_pointer);
+    debug("{any} ({b}, {}) ", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.* });
+
+    smoothSort2Rebalance(target, la, tree_sizes_vec, tree_sizes_zero_pointer, heap_size);
+}
+
+/// 最大の要素を取り出し、森を再構築する。
+fn smoothSort2ShrinkForest(target: *LoggedSortTarget, la: []const usize, tree_sizes_vec: *usize, tree_sizes_zero_pointer: *usize, heap_size: usize) Allocator.Error!void {
+    debug("{any} ({b}, {}) サイズ - 1", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.* });
+    const last = tree_sizes_zero_pointer.*;
+    if (2 <= last) {
+        // それ以外の場合は L[n] を L[n-1] と L[n-2] に分割して再構築する。
+        tree_sizes_vec.* = tree_sizes_vec.* - 1;
+        tree_sizes_vec.* = (tree_sizes_vec.* << 1) + 1;
+        tree_sizes_zero_pointer.* -= 1;
+        smoothSort2Rebalance(target, la, tree_sizes_vec, tree_sizes_zero_pointer, heap_size - la[last - 2] - 1);
+        tree_sizes_vec.* = (tree_sizes_vec.* << 1) + 1;
+        tree_sizes_zero_pointer.* -= 1;
+        smoothSort2Rebalance(target, la, tree_sizes_vec, tree_sizes_zero_pointer, heap_size - 1);
+    } else if (last == 1) {
+        // L[0] または L[1] の場合はそのまま削除する。
+        tree_sizes_vec.* = tree_sizes_vec.* - 1;
+        const ctz = @ctz(tree_sizes_vec.*);
+        tree_sizes_vec.* = tree_sizes_vec.* >> @intCast(ctz);
+        tree_sizes_zero_pointer.* = ctz + 1;
+    } else {
+        tree_sizes_vec.* = tree_sizes_vec.* >> 1;
+        tree_sizes_zero_pointer.* = 1;
+    }
+}
+
+pub fn smoothSort2(_: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
+    // if (target.length() < 2) return;
+    const la = smoothSortLeonardo(target.length());
+
+    var tree_sizes_vec: usize = 0;
+    var tree_sizes_zero_pointer: usize = 0;
+
+    {
+        for (1..target.length() + 1) |heap_size| {
+            debug("{any} ({b}, {}) ヒープ化: 0 - {}", .{ target.slice, tree_sizes_vec, tree_sizes_zero_pointer, heap_size });
+            try smoothSort2InsertForest(target, la, &tree_sizes_vec, &tree_sizes_zero_pointer, heap_size);
+            debug("{any} ({b}, {})", .{ target.slice, tree_sizes_vec, tree_sizes_zero_pointer });
+        }
+    }
+
+    {
+        var heap_size = target.length();
+        while (heap_size > 1) : (heap_size -= 1) {
+            debug("{any} ({b}, {}) 取り出し: 0 - {}", .{ target.slice, tree_sizes_vec, tree_sizes_zero_pointer, heap_size });
+            try smoothSort2ShrinkForest(target, la, &tree_sizes_vec, &tree_sizes_zero_pointer, heap_size);
+            debug("{any} ({b}, {})", .{ target.slice, tree_sizes_vec, tree_sizes_zero_pointer });
         }
     }
 }
