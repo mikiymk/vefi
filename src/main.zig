@@ -20,25 +20,8 @@ pub const std_options = std.Options{
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
-    // try sortLogging(allocator);
+    // try lib.sort.sortLogging(allocator);
     try lib.sort.testSorts(allocator);
 }
 
 const LoggedSortTarget = lib.sort.LoggedSortTarget;
-fn sortLogging(allocator: Allocator) !void {
-    var target = LoggedSortTarget{};
-    try target.resize(allocator, 10);
-
-    for (0..10) |_| {
-        target.reset(.shuffle);
-        std.debug.print("ソート開始 {any}\n", .{target.slice});
-        try lib.sort.smoothSort2(allocator, &target);
-        std.debug.print("ソート終了 {any} ", .{target.slice});
-        if (target.isSorted()) {
-            std.debug.print("ソート成功\n", .{});
-        } else {
-            std.debug.print("ソート失敗\n", .{});
-            return;
-        }
-    }
-}

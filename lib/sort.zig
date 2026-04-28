@@ -186,7 +186,7 @@ const LoggedAllocator = struct {
     }
 
     /// アロケーターを作成する。
-    pub fn allocator(self: *LoggedAllocator) Allocator {
+    pub fn allocator(self: *@This()) Allocator {
         return .{
             .ptr = self,
             .vtable = &.{
@@ -240,6 +240,26 @@ const LoggedAllocator = struct {
 };
 
 const SortFn = fn (allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void;
+
+pub fn sortLogging(allocator: Allocator) !void {
+    var target = LoggedSortTarget{};
+    defer target.deinit(allocator);
+    try target.resize(allocator, 100);
+
+    for (0..100) |_| {
+        target.reset(.shuffle);
+        std.debug.print("ソート開始 {any}\n", .{target.slice});
+        try quickSort1(allocator, &target);
+        std.debug.print("ソート終了 {any} ", .{target.slice});
+        if (target.isSorted()) {
+            std.debug.print("ソート成功\n", .{});
+        } else {
+            std.debug.print("ソート失敗\n", .{});
+            return;
+        }
+    }
+}
+
 const SortAlgorithm = struct { []const u8, *const SortFn };
 const sort_algorithms_1 = [_]SortAlgorithm{
     .{ "bubble sort 1", bubbleSort1 },
@@ -250,6 +270,7 @@ const sort_algorithms_1 = [_]SortAlgorithm{
     .{ "gnome sort", gnomeSort },
     .{ "selection sort", selectionSort },
     .{ "insertion sort", insertionSort },
+    .{ "binary insertion sort", binaryInsertionSort },
     .{ "shell sort", shellSort },
     // .{ "tree sort", treeSort },
     // .{ "library sort", librarySort },
@@ -265,6 +286,7 @@ const sort_algorithms_1 = [_]SortAlgorithm{
     .{ "smooth sort (array sizes)", smoothSort1 },
     .{ "smooth sort (bit sizes)", smoothSort2 },
     .{ "odd-even sort", oddEvenSort },
+    .{ "intro sort", introSort },
 };
 
 const sort_algorithms_2 = [_]SortAlgorithm{
@@ -302,7 +324,7 @@ fn testSortAlgorithm(target: *LoggedSortTarget, allocator: Allocator, func_name:
     }
 }
 
-const test_compare_length: bool = true;
+const test_compare_length: bool = false;
 pub fn testSorts(allocator: Allocator) !void {
     var target = LoggedSortTarget{};
     defer target.deinit(allocator);
@@ -354,6 +376,8 @@ test "sort test" {
     const allocator = std.testing.allocator;
     try testSorts(allocator);
 }
+
+// メモ: [a, b) は a を含み b を含まない値の範囲
 
 /// バブルソート。
 /// すべての要素について、隣と比較して逆順なら入れ替える。
@@ -608,12 +632,12 @@ fn mergeSortMerge(allocator: Allocator, target: *LoggedSortTarget, start: usize,
 }
 
 /// 分割されたマージソート。
-fn mergeSortRange(allocator: Allocator, target: *LoggedSortTarget, start: usize, end: usize) Allocator.Error!void {
+fn mergeSortInternal(allocator: Allocator, target: *LoggedSortTarget, start: usize, end: usize) Allocator.Error!void {
     if (end - start <= 1) return;
     const mid = (start + end) / 2;
     // 部分についてソートする。
-    try mergeSortRange(allocator, target, start, mid);
-    try mergeSortRange(allocator, target, mid, end);
+    try mergeSortInternal(allocator, target, start, mid);
+    try mergeSortInternal(allocator, target, mid, end);
     // ソートした2つをマージする。
     try mergeSortMerge(allocator, target, start, mid, end);
 }
@@ -621,7 +645,7 @@ fn mergeSortRange(allocator: Allocator, target: *LoggedSortTarget, start: usize,
 /// マージソート。
 /// 分割して結合を繰り返す。
 pub fn mergeSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
-    try mergeSortRange(allocator, target, 0, target.length());
+    try mergeSortInternal(allocator, target, 0, target.length());
 }
 
 /// S[l+i] > S[r] になる最小のl+iを見つける。
@@ -819,8 +843,7 @@ fn mergeSortInPlace3Internal(target: *LoggedSortTarget, start: usize, end: usize
 
 /// In-Placeなマージソート。
 /// 分割して結合を繰り返す。追加のメモリを必要としない。
-pub fn mergeSortInPlace3(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
-    _ = allocator;
+pub fn mergeSortInPlace3(_: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
     mergeSortInPlace3Internal(target, 0, target.length());
 }
 
@@ -848,8 +871,8 @@ fn quickSort1Internal(target: *LoggedSortTarget, start: usize, end: usize) void 
     if (end - start < 2) return;
 
     const partition = quickSort1Partition(target, start, end);
-    quickSort1Internal(target, start, partition);
-    quickSort1Internal(target, partition + 1, end);
+    quickSort2Internal(target, start, partition);
+    quickSort2Internal(target, partition + 1, end);
 }
 
 /// クイックソート。
@@ -884,10 +907,11 @@ fn quickSort2Internal(target: *LoggedSortTarget, start: usize, end: usize) void 
     // 要素数が0または1の場合
     if (end <= start + 1) return;
 
-    const partition = quickSort2Partition(target, start, end);
-    if (partition + 1 != end)
-        quickSort2Internal(target, start, partition + 1);
-    quickSort2Internal(target, partition + 1, end);
+    const partition = quickSort2Partition(target, start, end) + 1;
+    if (partition != end) {
+        quickSort2Internal(target, start, partition);
+        quickSort2Internal(target, partition, end);
+    }
 }
 
 /// クイックソート。
@@ -912,7 +936,7 @@ fn heapSortParent(index: usize) usize {
 }
 
 /// S[0]からS[i-1]のヒープにS[i]を追加してS[0]からS[i]のヒープを再構成する。
-fn heapSortShiftUp(target: *LoggedSortTarget, index: usize) void {
+fn heapSort1ShiftUp(target: *LoggedSortTarget, index: usize) void {
     var node = index;
     while (node > 0) {
         const parent = heapSortParent(node);
@@ -927,7 +951,7 @@ fn heapSortShiftUp(target: *LoggedSortTarget, index: usize) void {
 
 /// ルートをiとするヒープを作成する。
 /// Left(i)とRight(i)はヒープ。
-fn heapSortShiftDown(target: *LoggedSortTarget, index: usize, heap_size: usize) void {
+fn heapSort1ShiftDown(target: *LoggedSortTarget, index: usize, heap_size: usize) void {
     var current_index = index;
     while (true) {
         var max = current_index;
@@ -954,13 +978,13 @@ pub fn heapSort1(_: Allocator, target: *LoggedSortTarget) error{}!void {
     var i: usize = 1;
 
     while (i < target.length()) : (i += 1) {
-        heapSortShiftUp(target, i);
+        heapSort1ShiftUp(target, i);
     }
 
     i -= 1;
     while (i > 0) : (i -= 1) {
         target.swap(0, i);
-        heapSortShiftDown(target, 0, i);
+        heapSort1ShiftDown(target, 0, i);
     }
 }
 
@@ -974,7 +998,7 @@ pub fn heapSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
         var start = target.length() / 2;
         while (0 < start) {
             start -= 1;
-            heapSort3ShiftDown(target, start, target.length());
+            heapSort1ShiftDown(target, start, target.length());
         }
     }
 
@@ -982,7 +1006,7 @@ pub fn heapSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
         var end = target.length() - 1;
         while (0 < end) : (end -= 1) {
             target.swap(0, end);
-            heapSortShiftDown(target, 0, end);
+            heapSort1ShiftDown(target, 0, end);
         }
     }
 }
@@ -1438,6 +1462,159 @@ pub fn oddEvenSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
     }
 }
 
+/// イントロソートの挿入ソート部分。
+/// start .. end を挿入ソートで整列する。
+fn introSortInsertion(target: *LoggedSortTarget, start: usize, end: usize) void {
+    for (start..end) |i| {
+        var j = i;
+        while (start < j and target.lessThan(j, j - 1)) : (j -= 1) {
+            target.swap(j, j - 1);
+        }
+    }
+}
+
+/// イントロソートのヒープソート部分。
+/// start .. end をヒープソートで整列する。
+fn introSortHeap(target: *LoggedSortTarget, start: usize, end: usize) void {
+    const length = end - start;
+    if (length < 2) return;
+
+    {
+        var n = length / 2;
+        while (start < n) {
+            n -= 1;
+            heapSort3ShiftDown(target, n, length);
+        }
+    }
+
+    {
+        var n = length - 1;
+        while (start < n) : (n -= 1) {
+            target.swap(start, n);
+            heapSort3ShiftDown(target, start, n);
+        }
+    }
+}
+
+/// イントロソートのクイックソート部分。
+fn introSortInternal(target: *LoggedSortTarget, start: usize, end: usize, max_depth: usize) void {
+    if (end - start < 16) {
+        // 要素数が16以下の場合
+        introSortInsertion(target, start, end);
+    } else if (max_depth == 0) {
+        // 深さが log2 * 2 に到達した場合
+        introSortHeap(target, start, end);
+    } else {
+        const partition = quickSort2Partition(target, start, end) + 1;
+        if (partition != end) {
+            introSortInternal(target, start, partition, max_depth - 1);
+            introSortInternal(target, partition, end, max_depth - 1);
+        }
+    }
+}
+
+/// イントロソート。
+/// クイックソートの弱点をヒープソートと挿入ソートで補う。
+pub fn introSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    if (target.length() < 2) return;
+    const max_depth: usize = std.math.log2_int(usize, target.length()) * 2;
+    introSortInternal(target, 0, target.length(), max_depth);
+}
+
+/// S[s] から S[e-1] の間で S[i] < S[j] になる最小の j を見つけて返す。
+pub fn binaryInsertionSortBinarySearch(target: *LoggedSortTarget, start: usize, end: usize, i: usize) usize {
+    var l = start;
+    var r = end;
+    while (l < r) {
+        const m = (l + r) / 2;
+        if (target.lessThan(i, m)) {
+            // S[i] < S[m] なら m か m より左にある。
+            r = m;
+        } else {
+            // S[m] <= S[i] なら m より右にある。
+            l = m + 1;
+        }
+    }
+
+    return l;
+}
+
+/// 二分挿入ソート。
+/// 挿入ソートの挿入位置を二分探索で見つける。
+pub fn binaryInsertionSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    if (target.length() < 2) return;
+    for (1..target.length()) |i| {
+        const pos = binaryInsertionSortBinarySearch(target, 0, i, i);
+        // pos .. i-1 を右にシフトする。
+        var j = i;
+        while (pos < j) : (j -= 1) {
+            target.swap(j - 1, j);
+        }
+    }
+}
+
+// Tim Sort は整列した領域(run)ごとにマージする。
+
+/// run の最小要素数を求める。
+fn timSortMinRun(target: *LoggedSortTarget) usize {
+    // データ数を min run で割ったとき、2のべき乗か少し小さくなるように [32,64) で設定する。
+    // 上位6ビット + それ以下が1以上なら +1
+    const length = target.length();
+    var n = @bitSizeOf(usize) - @clz(length);
+    if (n <= 6) {
+        n = 6;
+    } else {
+        n -= 6;
+    }
+    const mask: usize = 0b111111 << n;
+
+    const remain_bits: usize = if (length & ~mask == 0) 0 else 1;
+    return ((length & mask) >> n) + remain_bits;
+}
+
+/// start から始まる整列した領域(run)の末尾を返す。
+fn timSortRun(target: *LoggedSortTarget, start: usize) usize {
+    var i = start;
+    while (i < target.length()) {
+        i += 1;
+    }
+}
+
+/// ティムソート。
+/// マージソートをもとに挿入ソートを使用して高速にする。
+pub fn timSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    _ = target;
+}
+
 // bucket sort
 // tim sort
-// intro sort
+// shear-sort
+// Tournament sort
+// Block sort
+// Tim sort
+// Patience sorting
+// Cube sort
+// Flux sort
+// Crum sort
+// Library sort
+// Strand sort
+// Cycle sort
+// Non-recursive quicksort
+
+// Bead sort
+// Merge-insertion sort
+// Spaghetti (Poll) sort
+// Sorting network
+// Bitonic sorter
+// Unshuffle Sort
+
+// 非比較ソート
+
+// Pigeonhole sort
+// Bucket sort
+// Counting sort
+// LSD Radix Sort
+// MSD Radix Sort
+// Spreadsort
+// Burstsort
+// Flashsort
