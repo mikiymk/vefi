@@ -244,12 +244,12 @@ const SortFn = fn (allocator: Allocator, target: *LoggedSortTarget) Allocator.Er
 pub fn sortLogging(allocator: Allocator) !void {
     var target = LoggedSortTarget{};
     defer target.deinit(allocator);
-    try target.resize(allocator, 100);
+    try target.resize(allocator, 20);
 
     for (0..100) |_| {
         target.reset(.shuffle);
         std.debug.print("ソート開始 {any}\n", .{target.slice});
-        try quickSort1(allocator, &target);
+        try timSort(allocator, &target);
         std.debug.print("ソート終了 {any} ", .{target.slice});
         if (target.isSorted()) {
             std.debug.print("ソート成功\n", .{});
@@ -275,9 +275,9 @@ const sort_algorithms_1 = [_]SortAlgorithm{
     // .{ "tree sort", treeSort },
     // .{ "library sort", librarySort },
     .{ "merge sort", mergeSort },
-    .{ "merge sort (in place/order search/reverse rotation)", mergeSortInPlace1 },
-    .{ "merge sort (in place/binary search/reverse rotation)", mergeSortInPlace2 },
-    .{ "merge sort (in place/binary search/juggling rotation)", mergeSortInPlace3 },
+    .{ "merge sort (in place) 1", mergeSortInPlace1 },
+    .{ "merge sort (in place) 2", mergeSortInPlace2 },
+    .{ "merge sort (in place) 3", mergeSortInPlace3 },
     .{ "quick sort (lomuto partition)", quickSort1 },
     .{ "quick sort (hoare partition)", quickSort2 },
     .{ "heap sort (williams)", heapSort1 },
@@ -287,6 +287,7 @@ const sort_algorithms_1 = [_]SortAlgorithm{
     .{ "smooth sort (bit sizes)", smoothSort2 },
     .{ "odd-even sort", oddEvenSort },
     .{ "intro sort", introSort },
+    .{ "tim sort", timSort },
 };
 
 const sort_algorithms_2 = [_]SortAlgorithm{
@@ -379,13 +380,56 @@ test "sort test" {
 
 // メモ: [a, b) は a を含み b を含まない値の範囲
 
+/// 要素を逆順にする。
+fn reverse(target: *LoggedSortTarget, left: usize, right: usize) void {
+    const size = right - left;
+    const mid = size / 2;
+    for (0..mid) |i| {
+        target.swap(left + i, right - i - 1);
+    }
+}
+
+/// 右側二分探索。
+/// [start, end) で S[i] < S[j] になる最小の j を見つけて返す。
+pub fn binarySearchRightmost(target: *LoggedSortTarget, start: usize, end: usize, i: usize) usize {
+    var l = start;
+    var r = end;
+    while (l < r) {
+        const m = (l + r) / 2;
+        if (target.lessThan(i, m)) { // S[i] < S[m] なら m か m より左にある。
+            r = m;
+        } else { // S[m] <= S[i] なら m より右にある。
+            l = m + 1;
+        }
+    }
+
+    return l;
+}
+
+/// 左側二分探索。
+/// [start, end) で S[i] <= S[j] になる最小の j を見つけて返す。
+pub fn binarySearchLeftmost(target: *LoggedSortTarget, start: usize, end: usize, i: usize) usize {
+    var l = start;
+    var r = end;
+    while (l < r) {
+        const m = (l + r) / 2;
+        if (target.lessThan(m, i)) { // S[m] < S[i] なら m より右にある。
+            l = m + 1;
+        } else { // S[i] <= S[m] なら m か m より左にある。
+            r = m;
+        }
+    }
+
+    return l;
+}
+
 /// バブルソート。
 /// すべての要素について、隣と比較して逆順なら入れ替える。
 /// 要素数-1回繰り返す。
 pub fn bubbleSort1(_: Allocator, target: *LoggedSortTarget) error{}!void {
     for (0..target.length()) |_| {
-        for (1..target.length()) |i| {
-            if (target.lessThan(i, i - 1)) target.swap(i, i - 1);
+        for (1..target.length()) |j| {
+            if (target.lessThan(j, j - 1)) target.swap(j, j - 1);
         }
     }
 }
@@ -395,9 +439,7 @@ pub fn bubbleSort1(_: Allocator, target: *LoggedSortTarget) error{}!void {
 pub fn bubbleSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
     for (0..target.length()) |i| {
         for (1..target.length() - i) |j| {
-            if (target.lessThan(j, j - 1)) {
-                target.swap(j, j - 1);
-            }
+            if (target.lessThan(j, j - 1)) target.swap(j, j - 1);
         }
     }
 }
@@ -665,20 +707,11 @@ fn mergeSortInPlace1SearchRight(target: *LoggedSortTarget, left: usize, right: u
     return i;
 }
 
-/// 要素を逆順にする。
-fn mergeSortInPlace1Reverse(target: *LoggedSortTarget, left: usize, right: usize) void {
-    const size = right - left;
-    const mid = size / 2;
-    for (0..mid) |i| {
-        target.swap(left + i, right - i - 1);
-    }
-}
-
 /// 範囲内をn個だけ右方向にずらす。
 fn mergeSortInPlace1RotateRight(target: *LoggedSortTarget, left: usize, right: usize, n: usize) void {
-    mergeSortInPlace1Reverse(target, left, right);
-    mergeSortInPlace1Reverse(target, left + n, right);
-    mergeSortInPlace1Reverse(target, left, left + n);
+    reverse(target, left, right);
+    reverse(target, left + n, right);
+    reverse(target, left, left + n);
 }
 
 /// 分割されたIn-Placeマージソート。
@@ -1521,30 +1554,12 @@ pub fn introSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
     introSortInternal(target, 0, target.length(), max_depth);
 }
 
-/// S[s] から S[e-1] の間で S[i] < S[j] になる最小の j を見つけて返す。
-pub fn binaryInsertionSortBinarySearch(target: *LoggedSortTarget, start: usize, end: usize, i: usize) usize {
-    var l = start;
-    var r = end;
-    while (l < r) {
-        const m = (l + r) / 2;
-        if (target.lessThan(i, m)) {
-            // S[i] < S[m] なら m か m より左にある。
-            r = m;
-        } else {
-            // S[m] <= S[i] なら m より右にある。
-            l = m + 1;
-        }
-    }
-
-    return l;
-}
-
 /// 二分挿入ソート。
 /// 挿入ソートの挿入位置を二分探索で見つける。
 pub fn binaryInsertionSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
     if (target.length() < 2) return;
     for (1..target.length()) |i| {
-        const pos = binaryInsertionSortBinarySearch(target, 0, i, i);
+        const pos = binarySearchRightmost(target, 0, i, i);
         // pos .. i-1 を右にシフトする。
         var j = i;
         while (pos < j) : (j -= 1) {
@@ -1554,45 +1569,276 @@ pub fn binaryInsertionSort(_: Allocator, target: *LoggedSortTarget) error{}!void
 }
 
 // Tim Sort は整列した領域(run)ごとにマージする。
+// https://github.com/python/cpython/blob/v2.3.7/Objects/listobject.c#L1670
 
 /// run の最小要素数を求める。
-fn timSortMinRun(target: *LoggedSortTarget) usize {
+fn timSortMinRun(length: usize) usize {
+    // デバッグ用
+    if (true) return 1;
     // データ数を min run で割ったとき、2のべき乗か少し小さくなるように [32,64) で設定する。
     // 上位6ビット + それ以下が1以上なら +1
-    const length = target.length();
-    var n = @bitSizeOf(usize) - @clz(length);
-    if (n <= 6) {
-        n = 6;
+    var n: u6 = @intCast(@bitSizeOf(usize) - @clz(length));
+    if (n < 6) {
+        n = 0;
     } else {
         n -= 6;
     }
-    const mask: usize = 0b111111 << n;
+    const mask = @as(usize, 0b111111) << n;
 
     const remain_bits: usize = if (length & ~mask == 0) 0 else 1;
     return ((length & mask) >> n) + remain_bits;
 }
 
+/// (start, end] の範囲を二分挿入ソートする。
+pub fn timSortBinaryInsertion(target: *LoggedSortTarget, start: usize, sorted: usize, end: usize) void {
+    if (end - start < 2) return;
+    for (sorted..end) |i| {
+        const pos = binarySearchRightmost(target, start, i, i);
+        // pos .. i-1 を右にシフトする。
+        debug("{any} 作成ラン 延長 探索 {}", .{ target.slice, pos });
+        debug("{any} 作成ラン 延長 シフト {} - {}", .{ target.slice, pos, i });
+        const i_value = target.get(i);
+        var j = i;
+        while (pos < j) : (j -= 1) {
+            target.move(j, j - 1);
+        }
+        target.set(j, i_value);
+    }
+}
+
 /// start から始まる整列した領域(run)の末尾を返す。
-fn timSortRun(target: *LoggedSortTarget, start: usize) usize {
-    var i = start;
+fn timSortRun(target: *LoggedSortTarget, start: usize, min_run: usize) usize {
+    debug("作成ラン 起点 {}", .{start});
+    if (start + 1 == target.length()) return start + 1;
+    const ascend: bool = target.lessThan(start, start + 1);
+    var i = start + 2;
     while (i < target.length()) {
+        if (ascend == target.lessThan(i, i - 1)) {
+            // 次の場合に終了する。
+            // a. 昇順ならば S[i - 1] <= S[i] (= !(S[i - 1] > S[i])) でない場合
+            // b. 降順ならば S[i - 1] > S[i] でない場合
+            break;
+        }
         i += 1;
+    }
+
+    debug("昇順？ {} 終点 {}", .{ ascend, i });
+
+    if (!ascend) { // 降順の場合は逆転させる。
+        debug("反転する {} {}", .{ start, i });
+        reverse(target, start, i);
+        debug("配列: {any}", .{target.slice});
+    }
+
+    if (i < start + min_run) {
+        // min run より小さい場合は二分挿入ソートで拡張する。
+        var end = start + min_run;
+        debug("延長する {} {}", .{ i, end });
+        if (target.length() <= end) end = target.length();
+        timSortBinaryInsertion(target, start, i, end);
+        i = end;
+        debug("配列: {any}", .{target.slice});
+    }
+
+    return i;
+}
+
+/// 二分探索で左端を見つける。
+/// S[j] < S[i] である最大の j を (start, end] で見つける。
+fn timSortGallopLeft(target: *LoggedSortTarget, start: usize, end: usize, i: usize) usize {
+    var prev: usize = 0;
+    var curr: usize = 1;
+    while (start + curr < end and target.lessThan(start + curr, i)) {
+        prev = curr;
+        curr *= 2;
+    }
+
+    return binarySearchLeftmost(target, start + prev, @min(start + curr, end), i);
+}
+
+// 二分探索で右端を見つける。
+// S[i] < S[j] である最小の j を (start, end] で見つける。
+fn timSortGallopRight(target: *LoggedSortTarget, start: usize, end: usize, i: usize) usize {
+    var prev: usize = 0;
+    var curr: usize = 1;
+    while (start + curr < end and target.lessThan(i, end - curr)) {
+        prev = curr;
+        curr *= 2;
+    }
+    return binarySearchRightmost(target, @max(end - curr, start), end - prev, i);
+}
+
+/// [start, mid) と [mid, end) をマージする。
+/// (mid - start) < (end - mid) の場合。
+fn timSortMergeLow(allocator: Allocator, target: *LoggedSortTarget, start: usize, mid: usize, end: usize) !void {
+    // [start, mid) を一時配列に移す。
+    const buffer = try allocator.alloc(LoggedSortTarget.Type, mid - start);
+    for (buffer, 0..) |*i, n| {
+        i.* = target.get(start + n);
+    }
+
+    var left: usize = 0;
+    var right = mid;
+    var i = start;
+
+    while (left < buffer.len and right < end) {
+        // B[l] <= S[r] なら B[l] 、それ以外で S[r] が先。
+        if (target.lessThanIV(right, buffer[left])) {
+            target.move(i, right);
+            right += 1;
+        } else {
+            target.set(i, buffer[left]);
+            left += 1;
+        }
+        i += 1;
+    }
+
+    // バッファの残りを入れる。
+    // 右側のみの場合はそのまま。
+    while (left < buffer.len) {
+        target.set(i, buffer[left]);
+        left += 1;
+        i += 1;
+    }
+}
+
+/// [start, mid) と [mid, end) をマージする。
+/// (mid - start) >= (end - mid) の場合。
+fn timSortMergeHigh(allocator: Allocator, target: *LoggedSortTarget, start: usize, mid: usize, end: usize) !void {
+    // [mid, end) を一時配列に移す。
+    const buffer = try allocator.alloc(LoggedSortTarget.Type, end - mid);
+    for (buffer, 0..) |*i, n| {
+        i.* = target.get(mid + n);
+    }
+
+    // 右からマージする。
+    var left = mid;
+    var right = buffer.len;
+    var i = end;
+
+    while (start < left and 0 < right) {
+        // S[r] < S[l] なら S[l] 、それ以外で S[r] が右。
+        if (target.lessThanVI(buffer[right - 1], left - 1)) {
+            target.move(i - 1, left - 1);
+            left -= 1;
+        } else {
+            target.set(i - 1, buffer[right - 1]);
+            right -= 1;
+        }
+        i -= 1;
+    }
+
+    // バッファの残りを入れる。
+    // 左側が残った場合はそのまま。
+    while (0 < right) {
+        target.set(i - 1, buffer[right - 1]);
+        right -= 1;
+        i -= 1;
+    }
+}
+
+/// (start, mid] と (mid, end] をマージする。
+fn timSortMerge(allocator: Allocator, target: *LoggedSortTarget, start: usize, mid: usize, end: usize) !void {
+    const l = start;
+    const r = end;
+    // const l = timSortGallopLeft(target, start, mid, mid);
+    // const r = timSortGallopRight(target, mid, end, mid - 1);
+    debug("ギャロップ 左側 {} -> {} 右側 {} -> {}", .{ start, l, end, r });
+    debug("左側範囲 {}-{}({}) 右側範囲 {}-{}({})", .{ l, mid, mid - l, mid, r, r - mid });
+
+    if (mid - l < r - mid) {
+        debug("左側が小さい", .{});
+        try timSortMergeLow(allocator, target, l, mid, r);
+    } else {
+        debug("右側が小さい", .{});
+        try timSortMergeHigh(allocator, target, l, mid, r);
+    }
+}
+
+/// ランのスタックが不変条件を満たすまでマージする。
+fn timSortValidateRuns(allocator: Allocator, target: *LoggedSortTarget, run_stack: *std.ArrayList(struct { usize, usize })) !void {
+    while (3 <= run_stack.items.len) {
+        const x_start, const x_end = run_stack.pop() orelse unreachable;
+        const y_start, const y_end = run_stack.pop() orelse unreachable;
+        const z_start, const z_end = run_stack.pop() orelse unreachable;
+
+        const x = x_end - x_start;
+        const y = y_end - y_start;
+        const z = z_end - z_start;
+
+        debug("先頭ラン X {} Y {} Z {}", .{ x, y, z });
+
+        // 並びはこうなるはず
+        // { ... | z | y | x }
+        if (!(x + y < z and x < y)) {
+            if (x < z) {
+                debug("マージ Y {}-{} X {}-{}", .{ y_start, y_end, x_start, x_end });
+                try timSortMerge(allocator, target, y_start, y_end, x_end);
+                try run_stack.append(allocator, .{ z_start, z_end });
+                try run_stack.append(allocator, .{ y_start, x_end });
+            } else {
+                debug("マージ Z {}-{} Y {}-{}", .{ z_start, z_end, y_start, y_end });
+                try timSortMerge(allocator, target, z_start, z_end, y_end);
+                try run_stack.append(allocator, .{ z_start, y_end });
+                try run_stack.append(allocator, .{ x_start, x_end });
+            }
+        } else {
+            try run_stack.append(allocator, .{ z_start, z_end });
+            try run_stack.append(allocator, .{ y_start, y_end });
+            try run_stack.append(allocator, .{ x_start, x_end });
+
+            return;
+        }
     }
 }
 
 /// ティムソート。
 /// マージソートをもとに挿入ソートを使用して高速にする。
-pub fn timSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
-    _ = target;
+pub fn timSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
+    if (target.length() < 2) return;
+
+    const min_run = timSortMinRun(target.length());
+    debug("配列 {any}", .{target.slice});
+    debug("最小 Run {}", .{min_run});
+    var run_stack = std.ArrayList(struct { usize, usize }).empty;
+    defer run_stack.deinit(allocator);
+
+    var run_start: usize = 0;
+    var run_end: usize = 0;
+
+    while (run_end < target.length()) {
+        // ランを追加する。
+        run_start = run_end;
+        run_end = timSortRun(target, run_start, min_run);
+        debug("配列 {any}", .{target.slice});
+        debug("ラン 範囲 {} {}", .{ run_start, run_end });
+        try run_stack.append(allocator, .{ run_start, run_end });
+
+        // 不変条件 (x + y < z and x < y) を満たすようにマージする。
+        try timSortValidateRuns(allocator, target, &run_stack);
+
+        debug("配列: {any}", .{target.slice});
+        debug("ラン: {any}", .{run_stack.items});
+    }
+
+    // 残りを1つのランになるまでマージする。
+    while (2 <= run_stack.items.len) {
+        const x_start, const x_end = run_stack.pop() orelse unreachable;
+        const y_start, const y_end = run_stack.pop() orelse unreachable;
+        debug("マージ Y {}-{} X {}-{}", .{ y_start, y_end, x_start, x_end });
+        try timSortMerge(allocator, target, y_start, y_end, x_end);
+        try run_stack.append(allocator, .{ y_start, x_end });
+
+        debug("配列: {any}", .{target.slice});
+        debug("ラン: {any}", .{run_stack.items});
+    }
 }
 
 // bucket sort
-// tim sort
 // shear-sort
 // Tournament sort
 // Block sort
-// Tim sort
-// Patience sorting
+// Patience sort
 // Cube sort
 // Flux sort
 // Crum sort
