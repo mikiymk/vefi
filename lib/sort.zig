@@ -19,7 +19,7 @@ fn random(T: type, at_least: T, less_than: T) T {
 
 /// 比較と入れ替えの回数をカウントする
 pub const LoggedSortTarget = struct {
-    const Type = usize;
+    const Type = struct { v: usize, i: usize };
     slice: []Type = &.{},
     /// 読み込み回数
     read_count: usize = 0,
@@ -40,21 +40,21 @@ pub const LoggedSortTarget = struct {
     pub fn lessThan(self: *@This(), i: usize, j: usize) bool {
         self.read_count += 2;
         self.compare_count += 1;
-        return self.slice[i] < self.slice[j];
+        return self.slice[i].v < self.slice[j].v;
     }
 
     /// S[i] < b なら真を返す。
     pub fn lessThanIV(self: *@This(), i: usize, b: Type) bool {
         self.read_count += 1;
         self.compare_count += 1;
-        return self.slice[i] < b;
+        return self.slice[i].v < b.v;
     }
 
     /// a < S[j] なら真を返す。
     pub fn lessThanVI(self: *@This(), a: Type, j: usize) bool {
         self.read_count += 1;
         self.compare_count += 1;
-        return a < self.slice[j];
+        return a.v < self.slice[j].v;
     }
 
     pub fn get(self: *@This(), i: usize) Type {
@@ -98,6 +98,10 @@ pub const LoggedSortTarget = struct {
         nearly_descend,
         /// すべて同じ値にする。
         flat,
+        /// それぞれ2つずつの値の昇順にする。
+        double_ascend,
+        /// それぞれ2つずつの値の降順にする。
+        double_descend,
 
         fn name(self: @This()) []const u8 {
             return switch (self) {
@@ -107,6 +111,8 @@ pub const LoggedSortTarget = struct {
                 .nearly_ascend => "nearly ascend",
                 .nearly_descend => "nearly descend",
                 .flat => "flat",
+                .double_ascend => "double ascend",
+                .double_descend => "double descend",
             };
         }
     };
@@ -136,10 +142,10 @@ pub const LoggedSortTarget = struct {
                 }
             },
             .ascend => {
-                for (self.slice, 0..) |*v, i| v.* = i;
+                for (self.slice, 0..) |*v, i| v.v = i;
             },
             .descend => {
-                for (self.slice, 0..) |*v, i| v.* = self.slice.len - i - 1;
+                for (self.slice, 0..) |*v, i| v.v = self.slice.len - i - 1;
             },
             .nearly_ascend, .nearly_descend => {
                 self.reset(if (shuffle_algorithm == .nearly_ascend) .ascend else .descend);
@@ -151,15 +157,30 @@ pub const LoggedSortTarget = struct {
                 }
             },
             .flat => {
-                for (self.slice) |*v| v.* = 1;
+                for (self.slice) |*v| v.v = 1;
+            },
+            .double_ascend => {
+                for (self.slice, 0..) |*v, i| v.v = i / 2;
+            },
+            .double_descend => {
+                for (self.slice, 0..) |*v, i| v.v = (self.slice.len - i - 1) / 2;
             },
         }
+        for (self.slice, 0..) |*v, i| v.i = i;
     }
 
     fn isSorted(self: @This()) bool {
         if (self.slice.len < 2) return true;
         for (self.slice[0 .. self.slice.len - 1], self.slice[1..]) |a, b| {
-            if (a > b) return false;
+            if (a.v > b.v) return false;
+        }
+        return true;
+    }
+
+    fn isStableSorted(self: @This()) bool {
+        if (self.slice.len < 2) return true;
+        for (self.slice[0 .. self.slice.len - 1], self.slice[1..]) |a, b| {
+            if (a.v > b.v or (a.v == b.v and a.i > b.i)) return false;
         }
         return true;
     }
@@ -244,7 +265,7 @@ const SortFn = fn (allocator: Allocator, target: *LoggedSortTarget) Allocator.Er
 pub fn sortLogging(allocator: Allocator) !void {
     var target = LoggedSortTarget{};
     defer target.deinit(allocator);
-    try target.resize(allocator, 20);
+    try target.resize(allocator, 1000);
 
     for (0..100) |_| {
         target.reset(.shuffle);
@@ -272,7 +293,7 @@ const sort_algorithms_1 = [_]SortAlgorithm{
     .{ "insertion sort", insertionSort },
     .{ "binary insertion sort", binaryInsertionSort },
     .{ "shell sort", shellSort },
-    // .{ "tree sort", treeSort },
+    .{ "tree sort", treeSort },
     // .{ "library sort", librarySort },
     .{ "merge sort", mergeSort },
     .{ "merge sort (in place) 1", mergeSortInPlace1 },
@@ -308,6 +329,8 @@ fn testSortAlgorithm(target: *LoggedSortTarget, allocator: Allocator, func_name:
         .nearly_ascend,
         .nearly_descend,
         .flat,
+        .double_ascend,
+        .double_descend,
     };
 
     var logged_allocator = LoggedAllocator.init(allocator);
@@ -317,10 +340,11 @@ fn testSortAlgorithm(target: *LoggedSortTarget, allocator: Allocator, func_name:
         const la = logged_allocator.allocator();
         try func(la, target);
 
-        std.debug.print("{s}, {s:<14}, size: {d:5}, read: {d:8}, write: {d:8}, compare: {d:8}, alloc: {d:8}, space: {d:8}, {s}\n", .{
-            func_name,                    algorithm.name(),               target.slice.len,
-            target.read_count,            target.write_count,             target.compare_count,
-            logged_allocator.alloc_count, logged_allocator.max_allocated, if (target.isSorted()) "sorted" else "not sorted",
+        std.debug.print("{s}, {s:<14}, size: {d:5}, read: {d:8}, write: {d:8}, compare: {d:8}, alloc: {d:8}, space: {d:8}, {s}{s}\n", .{
+            func_name,                                         algorithm.name(),               target.slice.len,
+            target.read_count,                                 target.write_count,             target.compare_count,
+            logged_allocator.alloc_count,                      logged_allocator.max_allocated, if (target.isStableSorted()) "stable " else "",
+            if (target.isSorted()) "sorted" else "not sorted",
         });
     }
 }
@@ -338,7 +362,7 @@ pub fn testSorts(allocator: Allocator) !void {
         try func(allocator, &target);
 
         // 各長さで検証
-        for (if (test_compare_length) [_]usize{ 0, 1, 10, 100, 1000, 10000 } else [_]usize{100}) |length| {
+        for (if (test_compare_length) [_]usize{ 0, 1, 10, 100, 1000, 10000 } else [_]usize{1000}) |length| {
             try target.resize(allocator, length);
             try testSortAlgorithm(&target, allocator, name, func);
         }
@@ -620,12 +644,52 @@ pub fn shellSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
     }
 }
 
+const TreeSortTree = struct {
+    node: LoggedSortTarget.Type,
+    left: ?*TreeSortTree = null,
+    right: ?*TreeSortTree = null,
+};
+
+/// ツリーに挿入する。
+fn treeSortInsert(allocator: Allocator, target: *LoggedSortTarget, search_tree: *?*TreeSortTree, i: usize) !void {
+    if (search_tree.*) |tree| {
+        if (target.lessThanIV(i, tree.node)) {
+            try treeSortInsert(allocator, target, &tree.left, i);
+        } else {
+            try treeSortInsert(allocator, target, &tree.right, i);
+        }
+    } else {
+        const tree = try allocator.create(TreeSortTree);
+        tree.* = TreeSortTree{ .node = target.get(i) };
+        search_tree.* = tree;
+    }
+}
+
+/// ツリーの要素を配置しなおす。
+fn treeSortInOrder(allocator: Allocator, target: *LoggedSortTarget, search_tree: *?*TreeSortTree, n: *usize) void {
+    if (search_tree.*) |tree| {
+        treeSortInOrder(allocator, target, &tree.left, n);
+        target.set(n.*, tree.node);
+        n.* += 1;
+        treeSortInOrder(allocator, target, &tree.right, n);
+        allocator.destroy(tree);
+    } else {
+        return;
+    }
+}
+
 /// ツリーソート。
 /// 二分探索木を使用してソートする。
 pub fn treeSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
-    // 木構造を使う
-    _ = allocator;
-    _ = target;
+    var search_tree: ?*TreeSortTree = null;
+
+    for (0..target.length()) |i| {
+        try treeSortInsert(allocator, target, &search_tree, i);
+        debug("{any}", .{search_tree});
+    }
+
+    var n: usize = 0;
+    treeSortInOrder(allocator, target, &search_tree, &n);
 }
 
 /// 図書館ソート。
@@ -1574,7 +1638,7 @@ pub fn binaryInsertionSort(_: Allocator, target: *LoggedSortTarget) error{}!void
 /// run の最小要素数を求める。
 fn timSortMinRun(length: usize) usize {
     // デバッグ用
-    if (true) return 1;
+    // if (true) return 1;
     // データ数を min run で割ったとき、2のべき乗か少し小さくなるように [32,64) で設定する。
     // 上位6ビット + それ以下が1以上なら +1
     var n: u6 = @intCast(@bitSizeOf(usize) - @clz(length));
@@ -1665,7 +1729,7 @@ fn timSortGallopRight(target: *LoggedSortTarget, start: usize, end: usize, i: us
         prev = curr;
         curr *= 2;
     }
-    return binarySearchRightmost(target, @max(end - curr, start), end - prev, i);
+    return binarySearchRightmost(target, @max(end -| curr, start), end -| prev, i);
 }
 
 /// [start, mid) と [mid, end) をマージする。
@@ -1681,16 +1745,91 @@ fn timSortMergeLow(allocator: Allocator, target: *LoggedSortTarget, start: usize
     var right = mid;
     var i = start;
 
+    var left_count: usize = 0;
+    var right_count: usize = 0;
+    const min_gallop = 7;
+
     while (left < buffer.len and right < end) {
         // B[l] <= S[r] なら B[l] 、それ以外で S[r] が先。
         if (target.lessThanIV(right, buffer[left])) {
             target.move(i, right);
             right += 1;
+
+            left_count = 0;
+            right_count += 1;
         } else {
             target.set(i, buffer[left]);
             left += 1;
+
+            left_count += 1;
+            right_count = 0;
         }
         i += 1;
+
+        if (min_gallop < left_count) {
+            // 左側をギャロッピング
+            const left_length = b: {
+                // S[j] <= S[r] である最大の j を [left, buffer.len] で見つける。
+                var prev: usize = 0;
+                var curr: usize = 1;
+                while (left + curr < buffer.len and target.lessThanVI(buffer[left + curr], right)) {
+                    prev = curr;
+                    curr *= 2;
+                }
+
+                var l = left + prev;
+                var r = @min(left + curr, buffer.len);
+                while (l < r) {
+                    const m = (l + r) / 2;
+                    // !(S[r] < B[m]) == S[r] >= B[m]
+                    if (!target.lessThanIV(right, buffer[m])) {
+                        l = m + 1;
+                    } else {
+                        r = m;
+                    }
+                }
+                break :b l;
+            };
+
+            while (left < left_length) {
+                target.set(i, buffer[left]);
+                left += 1;
+                i += 1;
+            }
+
+            left_count = 0;
+        } else if (min_gallop < right_count) {
+            // 右側をギャロッピング
+            const right_length = b: {
+                // S[j] < S[r] である最大の j を [left, buffer.len] で見つける。
+                var prev: usize = 0;
+                var curr: usize = 1;
+                while (right + curr < end and target.lessThanIV(right + curr, buffer[left])) {
+                    prev = curr;
+                    curr *= 2;
+                }
+
+                var l = right + prev;
+                var r = @min(right + curr, end);
+                while (l < r) {
+                    const m = (l + r) / 2;
+                    if (target.lessThanIV(m, buffer[left])) {
+                        l = m + 1;
+                    } else {
+                        r = m;
+                    }
+                }
+                break :b l;
+            };
+
+            while (right < right_length) {
+                target.move(i, right);
+                right += 1;
+                i += 1;
+            }
+
+            right_count = 0;
+        }
     }
 
     // バッファの残りを入れる。
@@ -1739,10 +1878,10 @@ fn timSortMergeHigh(allocator: Allocator, target: *LoggedSortTarget, start: usiz
 
 /// (start, mid] と (mid, end] をマージする。
 fn timSortMerge(allocator: Allocator, target: *LoggedSortTarget, start: usize, mid: usize, end: usize) !void {
-    const l = start;
-    const r = end;
-    // const l = timSortGallopLeft(target, start, mid, mid);
-    // const r = timSortGallopRight(target, mid, end, mid - 1);
+    // const l = start;
+    // const r = end;
+    const l = timSortGallopLeft(target, start, mid, mid);
+    const r = timSortGallopRight(target, mid, end, mid - 1);
     debug("ギャロップ 左側 {} -> {} 右側 {} -> {}", .{ start, l, end, r });
     debug("左側範囲 {}-{}({}) 右側範囲 {}-{}({})", .{ l, mid, mid - l, mid, r, r - mid });
 
@@ -1834,7 +1973,27 @@ pub fn timSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!
     }
 }
 
+// fn mergeInsertionSortInternal(allocator: Allocator, target: *LoggedSortTarget, start: usize, end: usize) !void {
+//     // 範囲を2つに分け、ペアを大きい方と小さい方に分ける。
+//     var i = start + 1;
+//     while (i < end) : (i += 2) {
+//         if (target.lessThan(i, i - 1)) {
+//             target.swap(i - 1, i);
+//         }
+//     }
+// }
+
+// pub fn mergeInsertionSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
+//     // 1. Group the elements of X into ⌊ n / 2 ⌋ pairs of elements, arbitrarily, leaving one element unpaired if there is an odd number of elements.
+//     // 2. Perform ⌊ n / 2 ⌋ comparisons, one per pair, to determine the larger of the two elements in each pair.
+//     // 3. Recursively sort the ⌊ n / 2 ⌋ larger elements from each pair, creating a sorted sequence S of ⌊ n / 2 ⌋ of the input elements, in ascending order, using the merge-insertion sort.
+//     // 4. Insert at the start of S the element that was paired with the first and smallest element of S.
+//     // 5. Insert the remaining ⌈ n / 2 ⌉ − 1 elements of X ∖ S into S, one at a time, with a specially chosen insertion ordering described below. Use binary search in subsequences of S (as described below) to determine the position at which each element should be inserted.
+//     try mergeInsertionSortInternal(allocator, target, 0, target.length());
+// }
+
 // bucket sort
+// power sort
 // shear-sort
 // Tournament sort
 // Block sort
