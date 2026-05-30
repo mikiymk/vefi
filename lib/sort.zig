@@ -296,11 +296,12 @@ const sort_algorithms_1 = [_]SortAlgorithm{
     .{ "tree sort", treeSort },
     // .{ "library sort", librarySort },
     .{ "merge sort", mergeSort },
-    .{ "merge sort (in place) 1", mergeSortInPlace1 },
-    .{ "merge sort (in place) 2", mergeSortInPlace2 },
-    .{ "merge sort (in place) 3", mergeSortInPlace3 },
+    .{ "merge sort (in place)", mergeSortInPlace1 },
+    .{ "merge sort (in place/binary search)", mergeSortInPlace2 },
+    .{ "merge sort (in place/juggling rotate)", mergeSortInPlace3 },
     .{ "quick sort (lomuto partition)", quickSort1 },
     .{ "quick sort (hoare partition)", quickSort2 },
+    .{ "quick sort (hoare partition)", quickSort3 },
     .{ "heap sort (williams)", heapSort1 },
     .{ "heap sort (floyd)", heapSort2 },
     .{ "heap sort (bottom up)", heapSort3 },
@@ -424,6 +425,22 @@ fn reverse(target: *LoggedSortTarget, left: usize, right: usize) void {
     for (0..mid) |i| {
         target.swap(left + i, right - i - 1);
     }
+}
+
+/// 右側線形探索。
+/// [start, end) で S[i] < S[j] になる最小の j を見つけて返す。
+fn linearSearchRightmost(target: *LoggedSortTarget, start: usize, end: usize, i: usize) usize {
+    var n: usize = start;
+    while (n < end and !target.lessThan(i, n)) : (n += 1) {}
+    return n;
+}
+
+/// 左側線形探索。
+/// [start, end) で S[i] <= S[j] になる最小の j を見つけて返す。
+fn linearSearchLeftmost(target: *LoggedSortTarget, start: usize, end: usize, i: usize) usize {
+    var n: usize = start;
+    while (n < end and target.lessThan(n, i)) : (n += 1) {}
+    return n;
 }
 
 /// 右側二分探索。
@@ -894,6 +911,9 @@ pub fn librarySort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Er
 }
 
 fn mergeSortMerge(target: *LoggedSortTarget, start: usize, mid: usize, end: usize, buffer: []LoggedSortTarget.Type) void {
+    // 既にソートされている場合 (S[l_end] <= S[r_start]) はマージしない。
+    if (!target.lessThan(mid, mid - 1)) return;
+
     var left = start;
     var right = mid;
 
@@ -947,23 +967,6 @@ pub fn mergeSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Erro
     mergeSortInternal(target, 0, target.length(), buffer);
 }
 
-/// S[l+i] > S[r] になる最小のl+iを見つける。
-/// 見つからなければrを返す。
-/// 順番に探す。
-fn mergeSortInPlace1SearchLeft(target: *LoggedSortTarget, start: usize, end: usize) usize {
-    var i: usize = 0;
-    while (start + i < end and !target.lessThan(end, start + i)) : (i += 1) {}
-    return i;
-}
-
-/// S[l] <= S[r+i] になる最小のr+iを見つける。
-/// 見つからなければendを返す。
-fn mergeSortInPlace1SearchRight(target: *LoggedSortTarget, left: usize, right: usize, end: usize) usize {
-    var i: usize = 0;
-    while (right + i < end and target.lessThan(right + i, left)) : (i += 1) {}
-    return i;
-}
-
 /// 範囲内をn個だけ右方向にずらす。
 fn mergeSortInPlace1RotateRight(target: *LoggedSortTarget, left: usize, right: usize, n: usize) void {
     reverse(target, left, right);
@@ -984,18 +987,19 @@ fn mergeSortInPlace1Internal(target: *LoggedSortTarget, start: usize, end: usize
     var right = mid;
     while (true) {
         // 1. 左を進める
-        left += mergeSortInPlace1SearchLeft(target, left, right);
+        left = linearSearchRightmost(target, left, right, right);
         // 2. 左が終わりなら終了
         if (left == right) break;
         // 3. 右を進める
-        const n = mergeSortInPlace1SearchRight(target, left, right, end);
-        right += n;
+        const new_right = linearSearchLeftmost(target, right, end, left);
+        const right_offset = new_right - right;
+        right = new_right;
         // 4. 右回転
-        mergeSortInPlace1RotateRight(target, left, right, n);
+        mergeSortInPlace1RotateRight(target, left, right, right_offset); // 1と同じものを使う
         // 5. 右が終わりなら終了
         if (right == end) break;
         // 6. 右からの分だけ左を進める
-        left += n;
+        left += right_offset;
     }
 }
 
@@ -1003,43 +1007,6 @@ fn mergeSortInPlace1Internal(target: *LoggedSortTarget, start: usize, end: usize
 /// 分割して結合を繰り返す。追加のメモリを必要としない。
 pub fn mergeSortInPlace1(_: Allocator, target: *LoggedSortTarget) error{}!void {
     mergeSortInPlace1Internal(target, 0, target.length());
-}
-
-/// S[l+i] > S[r] になる最小のl+iを見つける。
-/// 見つからなければrを返す。
-/// 二分探索を使う。
-fn mergeSortInPlace2SearchLeft(target: *LoggedSortTarget, start: usize, end: usize) usize {
-    var a = start;
-    var b = end;
-    while (a < b) {
-        const m = (a + b) / 2;
-        if (target.lessThan(end, m)) {
-            b = m;
-        } else {
-            a = m + 1;
-        }
-    }
-
-    return a - start;
-}
-
-/// S[l] <= S[r+i] になる最小のr+iを見つける。
-/// 見つからなければendを返す。
-/// 二分探索を使う。
-fn mergeSortInPlace2SearchRight(target: *LoggedSortTarget, left: usize, right: usize, end: usize) usize {
-    var a = right;
-    var b = end;
-    while (a < b) {
-        const m = (a + b) / 2;
-        // !(m < left) == (left <= m)
-        if (!target.lessThan(m, left)) {
-            b = m;
-        } else {
-            a = m + 1;
-        }
-    }
-
-    return a - right;
 }
 
 /// 分割されたIn-Placeマージソート。
@@ -1055,18 +1022,19 @@ fn mergeSortInPlace2Internal(target: *LoggedSortTarget, start: usize, end: usize
     var right = mid;
     while (true) {
         // 1. 左を進める
-        left += mergeSortInPlace2SearchLeft(target, left, right);
+        left = binarySearchRightmost(target, left, right, right);
         // 2. 左が終わりなら終了
         if (left == right) break;
         // 3. 右を進める
-        const n = mergeSortInPlace2SearchRight(target, left, right, end);
-        right += n;
+        const new_right = binarySearchLeftmost(target, right, end, left);
+        const right_offset = new_right - right;
+        right = new_right;
         // 4. 右回転
-        mergeSortInPlace1RotateRight(target, left, right, n); // 1と同じものを使う
+        mergeSortInPlace1RotateRight(target, left, right, right_offset); // 1と同じものを使う
         // 5. 右が終わりなら終了
         if (right == end) break;
         // 6. 右からの分だけ左を進める
-        left += n;
+        left += right_offset;
     }
 }
 
@@ -1076,14 +1044,13 @@ pub fn mergeSortInPlace2(_: Allocator, target: *LoggedSortTarget) error{}!void {
     mergeSortInPlace2Internal(target, 0, target.length());
 }
 
-/// 最大公約数を求める。
-/// 必ず a < b にする。
+/// ユークリッド互除法で最大公約数を求める。
 fn mergeSortInPlace3Gcd(a: usize, b: usize) usize {
     return if (a == 0) b else mergeSortInPlace3Gcd(b % a, a);
 }
 
 /// 範囲内をn個だけ右方向にずらす。
-/// 反転を使わない。
+/// ジャグリングアルゴリズムを使う。
 fn mergeSortInPlace3RotateRight(target: *LoggedSortTarget, left: usize, right: usize, size: usize) void {
     const length = right - left;
     const move_left_size = length - size;
@@ -1093,7 +1060,7 @@ fn mergeSortInPlace3RotateRight(target: *LoggedSortTarget, left: usize, right: u
         const tmp = target.get(left + i);
         var current_index = i;
         var next_index: usize = undefined;
-        while (current_index < length) {
+        while (true) {
             next_index = (current_index + move_left_size) % length;
             if (next_index == i) break;
             target.move(left + current_index, left + next_index);
@@ -1116,18 +1083,19 @@ fn mergeSortInPlace3Internal(target: *LoggedSortTarget, start: usize, end: usize
     var right = mid;
     while (true) {
         // 1. 左を進める
-        left += mergeSortInPlace2SearchLeft(target, left, right);
+        left = binarySearchRightmost(target, left, right, right);
         // 2. 左が終わりなら終了
         if (left == right) break;
         // 3. 右を進める
-        const n = mergeSortInPlace2SearchRight(target, left, right, end);
-        right += n;
+        const new_right = binarySearchLeftmost(target, right, end, left);
+        const right_offset = new_right - right;
+        right = new_right;
         // 4. 右回転
-        mergeSortInPlace3RotateRight(target, left, right, n); // 1と同じものを使う
+        mergeSortInPlace3RotateRight(target, left, right, right_offset); // 1と同じものを使う
         // 5. 右が終わりなら終了
         if (right == end) break;
         // 6. 右からの分だけ左を進める
-        left += n;
+        left += right_offset;
     }
 }
 
@@ -1159,8 +1127,8 @@ fn quickSort1Partition(target: *LoggedSortTarget, start: usize, end: usize) usiz
 fn quickSort1Internal(target: *LoggedSortTarget, start: usize, end: usize) void {
     if (end <= start + 1) return;
     const partition = quickSort1Partition(target, start, end);
-    quickSort2Internal(target, start, partition);
-    quickSort2Internal(target, partition + 1, end);
+    quickSort1Internal(target, start, partition);
+    quickSort1Internal(target, partition + 1, end);
 }
 
 /// クイックソート。
@@ -1171,14 +1139,51 @@ pub fn quickSort1(_: Allocator, target: *LoggedSortTarget) error{}!void {
 
 /// クイックソートで小さい値を前、大きい値を後ろに移動し、ピボット位置を返す。
 /// Hoare法。
+/// [start, end] ← endも含む注意
 fn quickSort2Partition(target: *LoggedSortTarget, start: usize, end: usize) usize {
-    var lo: usize = start;
-    var hi: usize = end - 1;
+    var i = start;
+    var j = end;
     const pivot = target.get((start + end) / 2);
     while (true) {
-        while (target.lessThanIV(lo, pivot)) : (lo += 1) {}
-        while (start < hi and target.lessThanVI(pivot, hi)) : (hi -= 1) {}
+        while (target.lessThanIV(i, pivot)) i += 1;
+        while (target.lessThanVI(pivot, j)) j -= 1;
 
+        if (i >= j) return j;
+
+        target.swap(i, j);
+        i += 1;
+        j -= 1;
+    }
+}
+
+/// 分割されたクイックソート。
+/// [start, end] ← endも含む注意
+fn quickSort2Internal(target: *LoggedSortTarget, start: usize, end: usize) void {
+    // 要素数が0または1の場合
+    if (end <= start) return;
+
+    const partition = quickSort2Partition(target, start, end);
+    quickSort2Internal(target, start, partition);
+    quickSort2Internal(target, partition + 1, end);
+}
+
+/// クイックソート。
+/// ある値より大きい値と小さい値に分類するのを繰り返す。
+pub fn quickSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    if (target.length() <= 1) return;
+    quickSort2Internal(target, 0, target.length() - 1);
+}
+
+/// クイックソートで小さい値を前、大きい値を後ろに移動し、ピボット位置を返す。
+/// Hoare法。
+fn quickSort3Partition(target: *LoggedSortTarget, start: usize, end: usize) usize {
+    var lo = start;
+    var hi = end - 1;
+    const pivot = target.get((start + end) / 2);
+    while (true) {
+        while (lo < end and target.lessThanIV(lo, pivot)) lo += 1;
+        while (start < hi and target.lessThanVI(pivot, hi)) hi -= 1;
+        // ↑この条件を消せる？
         if (lo >= hi) {
             return hi;
         }
@@ -1191,21 +1196,21 @@ fn quickSort2Partition(target: *LoggedSortTarget, start: usize, end: usize) usiz
 
 /// 分割されたクイックソート。
 /// startは含む、endは含まない。
-fn quickSort2Internal(target: *LoggedSortTarget, start: usize, end: usize) void {
+fn quickSort3Internal(target: *LoggedSortTarget, start: usize, end: usize) void {
     // 要素数が0または1の場合
     if (end <= start + 1) return;
 
-    const partition = quickSort2Partition(target, start, end) + 1;
-    if (partition != end) {
-        quickSort2Internal(target, start, partition);
-        quickSort2Internal(target, partition, end);
+    const partition = quickSort3Partition(target, start, end);
+    if (partition + 1 != end) { // ← これをなんとかしたい
+        quickSort3Internal(target, start, partition + 1);
+        quickSort3Internal(target, partition + 1, end);
     }
 }
 
 /// クイックソート。
 /// ある値より大きい値と小さい値に分類するのを繰り返す。
-pub fn quickSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
-    quickSort2Internal(target, 0, target.length());
+pub fn quickSort3(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    quickSort3Internal(target, 0, target.length());
 }
 
 /// indexの左の子を見つける。
@@ -1700,7 +1705,7 @@ fn introSortInternal(target: *LoggedSortTarget, start: usize, end: usize, max_de
         // 深さが log2 * 2 に到達した場合
         introSortHeap(target, start, end);
     } else {
-        const partition = quickSort2Partition(target, start, end) + 1;
+        const partition = quickSort3Partition(target, start, end) + 1;
         if (partition != end) {
             introSortInternal(target, start, partition, max_depth - 1);
             introSortInternal(target, partition, end, max_depth - 1);
