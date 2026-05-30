@@ -1179,14 +1179,11 @@ pub fn quickSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
 fn quickSort3Partition(target: *LoggedSortTarget, start: usize, end: usize) usize {
     var lo = start;
     var hi = end - 1;
-    const pivot = target.get((start + end) / 2);
+    const pivot = target.get((start + end - 1) / 2);
     while (true) {
-        while (lo < end and target.lessThanIV(lo, pivot)) lo += 1;
-        while (start < hi and target.lessThanVI(pivot, hi)) hi -= 1;
-        // ↑この条件を消せる？
-        if (lo >= hi) {
-            return hi;
-        }
+        while (target.lessThanIV(lo, pivot)) lo += 1;
+        while (target.lessThanVI(pivot, hi)) hi -= 1;
+        if (lo >= hi) return hi + 1;
 
         target.swap(lo, hi);
         lo += 1;
@@ -1201,10 +1198,8 @@ fn quickSort3Internal(target: *LoggedSortTarget, start: usize, end: usize) void 
     if (end <= start + 1) return;
 
     const partition = quickSort3Partition(target, start, end);
-    if (partition + 1 != end) { // ← これをなんとかしたい
-        quickSort3Internal(target, start, partition + 1);
-        quickSort3Internal(target, partition + 1, end);
-    }
+    quickSort3Internal(target, start, partition);
+    quickSort3Internal(target, partition, end);
 }
 
 /// クイックソート。
@@ -1705,11 +1700,9 @@ fn introSortInternal(target: *LoggedSortTarget, start: usize, end: usize, max_de
         // 深さが log2 * 2 に到達した場合
         introSortHeap(target, start, end);
     } else {
-        const partition = quickSort3Partition(target, start, end) + 1;
-        if (partition != end) {
-            introSortInternal(target, start, partition, max_depth - 1);
-            introSortInternal(target, partition, end, max_depth - 1);
-        }
+        const partition = quickSort3Partition(target, start, end);
+        introSortInternal(target, start, partition, max_depth - 1);
+        introSortInternal(target, partition, end, max_depth - 1);
     }
 }
 
