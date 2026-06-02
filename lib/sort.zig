@@ -84,12 +84,14 @@ pub const LoggedSortTarget = struct {
         ascend,
         /// 降順にソートする。
         descend,
-        /// ほぼ昇順にソートする。 すべての値がソート済み位置±1にある。
+        /// ほぼ昇順にソートする。 すべての値がソート済み位置から1以内にある。
         nearly_ascend,
-        /// ほぼ降順にソートする。 すべての値がソート済み位置±1にある。
+        /// ほぼ降順にソートする。 すべての値がソート済み位置から1以内にある。
         nearly_descend,
         /// すべて同じ値にする。
         flat,
+        /// それぞれ2つずつの値のランダム順にする。
+        double_shuffle,
         /// それぞれ2つずつの値の昇順にする。
         double_ascend,
         /// それぞれ2つずつの値の降順にする。
@@ -103,6 +105,7 @@ pub const LoggedSortTarget = struct {
                 .nearly_ascend => "nearly ascend",
                 .nearly_descend => "nearly descend",
                 .flat => "flat",
+                .double_shuffle => "double shuffle",
                 .double_ascend => "double ascend",
                 .double_descend => "double descend",
             };
@@ -117,23 +120,12 @@ pub const LoggedSortTarget = struct {
 
     /// リセット用
     fn reset(self: *@This(), shuffle_algorithm: ShuffleAlgorithm) void {
-        self.read_count = 0;
-        self.write_count = 0;
-        self.compare_count = 0;
-
         if (self.slice.len == 0) return;
 
         switch (shuffle_algorithm) {
             .shuffle => {
                 self.reset(.ascend);
-
-                var i = self.slice.len - 1;
-                while (0 < i) : (i -= 1) {
-                    const j = random(usize, 0, i + 1);
-                    const tmp = self.slice[i];
-                    self.slice[i] = self.slice[j];
-                    self.slice[j] = tmp;
-                }
+                shuffle(self);
             },
             .ascend => {
                 for (self.slice, 0..) |*v, i| v.v = i;
@@ -151,7 +143,11 @@ pub const LoggedSortTarget = struct {
                 }
             },
             .flat => {
-                for (self.slice) |*v| v.v = 1;
+                for (self.slice) |*v| v.v = 0;
+            },
+            .double_shuffle => {
+                self.reset(.double_ascend);
+                shuffle(self);
             },
             .double_ascend => {
                 for (self.slice, 0..) |*v, i| v.v = i / 2;
@@ -161,6 +157,11 @@ pub const LoggedSortTarget = struct {
             },
         }
         for (self.slice, 0..) |*v, i| v.i = i;
+
+        // カウントをリセットする。
+        self.read_count = 0;
+        self.write_count = 0;
+        self.compare_count = 0;
     }
 
     /// ソート済みか判定する。
@@ -175,20 +176,31 @@ pub const LoggedSortTarget = struct {
     /// ソート済みかつ安定ソートされているか判定する。
     fn isStableSorted(self: @This()) bool {
         if (self.slice.len < 2) return true;
+        if (!self.isSorted()) return false;
         for (self.slice[0 .. self.slice.len - 1], self.slice[1..]) |a, b| {
-            if (a.v > b.v or (a.v == b.v and a.i > b.i)) return false;
+            if (a.v == b.v and a.i > b.i) return false;
         }
         return true;
+    }
+
+    /// 文字列に変換する
+    pub fn format(self: @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
+        try writer.writeAll(".{");
+        for (self.slice, 0..) |value, i| {
+            try writer.print("{s}{}", .{ if (i == 0) " " else ", ", value.v });
+        }
+        try writer.writeAll(" }");
     }
 };
 
 /// アロケーション回数などを記録する。
 const LoggedAllocator = struct {
     child_allocator: Allocator,
-    /// アロケーション回数
+    /// メモリ確保を要求した回数
     alloc_count: usize = 0,
+    /// 現在のメモリ空間サイズ。 max_allocatedを求めるために使用する。
     current_allocated: usize = 0,
-    /// 最大メモリ空間
+    /// 最大メモリ空間サイズ。
     max_allocated: usize = 0,
 
     pub fn init(child_allocator: Allocator) @This() {
@@ -196,7 +208,7 @@ const LoggedAllocator = struct {
     }
 
     /// カウントをリセットする。
-    pub fn reset(self: *@This()) void {
+    pub fn reset_count(self: *@This()) void {
         self.alloc_count = 0;
         self.current_allocated = 0;
         self.max_allocated = 0;
@@ -262,12 +274,12 @@ const SortFn = fn (allocator: Allocator, target: *LoggedSortTarget) Allocator.Er
 pub fn sortLogging(allocator: Allocator) !void {
     var target = LoggedSortTarget{};
     defer target.deinit(allocator);
-    try target.resize(allocator, 1000);
+    try target.resize(allocator, 10);
 
     for (0..100) |_| {
         target.reset(.shuffle);
         std.debug.print("ソート開始 {any}\n", .{target.slice});
-        try timSort(allocator, &target);
+        try quickSort3(allocator, &target);
         std.debug.print("ソート終了 {any} ", .{target.slice});
         if (target.isSorted()) {
             std.debug.print("ソート成功\n", .{});
@@ -301,7 +313,7 @@ const sort_algorithms_1 = [_]SortAlgorithm{
     .{ "merge sort (in place/juggling rotate)", mergeSortInPlace3 },
     .{ "quick sort (lomuto partition)", quickSort1 },
     .{ "quick sort (hoare partition)", quickSort2 },
-    .{ "quick sort (hoare partition)", quickSort3 },
+    .{ "quick sort (3-way partition)", quickSort3 },
     .{ "heap sort (williams)", heapSort1 },
     .{ "heap sort (floyd)", heapSort2 },
     .{ "heap sort (bottom up)", heapSort3 },
@@ -331,6 +343,7 @@ fn testSortAlgorithm(target: *LoggedSortTarget, allocator: Allocator, func_name:
         .nearly_ascend,
         .nearly_descend,
         .flat,
+        .double_shuffle,
         .double_ascend,
         .double_descend,
     };
@@ -338,7 +351,7 @@ fn testSortAlgorithm(target: *LoggedSortTarget, allocator: Allocator, func_name:
     var logged_allocator = LoggedAllocator.init(allocator);
     for (shuffle_algorithms) |algorithm| {
         target.reset(algorithm);
-        logged_allocator.reset();
+        logged_allocator.reset_count();
         const la = logged_allocator.allocator();
         try func(la, target);
 
@@ -477,6 +490,7 @@ pub fn binarySearchLeftmost(target: *LoggedSortTarget, start: usize, end: usize,
     return l;
 }
 
+/// Fisher-Yates のシャッフルアルゴリズムでランダムに並び変える。
 fn shuffle(target: *LoggedSortTarget) void {
     var i = target.length() - 1;
     while (0 < i) : (i -= 1) {
@@ -1139,44 +1153,7 @@ pub fn quickSort1(_: Allocator, target: *LoggedSortTarget) error{}!void {
 
 /// クイックソートで小さい値を前、大きい値を後ろに移動し、ピボット位置を返す。
 /// Hoare法。
-/// [start, end] ← endも含む注意
 fn quickSort2Partition(target: *LoggedSortTarget, start: usize, end: usize) usize {
-    var i = start;
-    var j = end;
-    const pivot = target.get((start + end) / 2);
-    while (true) {
-        while (target.lessThanIV(i, pivot)) i += 1;
-        while (target.lessThanVI(pivot, j)) j -= 1;
-
-        if (i >= j) return j;
-
-        target.swap(i, j);
-        i += 1;
-        j -= 1;
-    }
-}
-
-/// 分割されたクイックソート。
-/// [start, end] ← endも含む注意
-fn quickSort2Internal(target: *LoggedSortTarget, start: usize, end: usize) void {
-    // 要素数が0または1の場合
-    if (end <= start) return;
-
-    const partition = quickSort2Partition(target, start, end);
-    quickSort2Internal(target, start, partition);
-    quickSort2Internal(target, partition + 1, end);
-}
-
-/// クイックソート。
-/// ある値より大きい値と小さい値に分類するのを繰り返す。
-pub fn quickSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
-    if (target.length() <= 1) return;
-    quickSort2Internal(target, 0, target.length() - 1);
-}
-
-/// クイックソートで小さい値を前、大きい値を後ろに移動し、ピボット位置を返す。
-/// Hoare法。
-fn quickSort3Partition(target: *LoggedSortTarget, start: usize, end: usize) usize {
     var lo = start;
     var hi = end - 1;
     const pivot = target.get((start + end - 1) / 2);
@@ -1193,13 +1170,59 @@ fn quickSort3Partition(target: *LoggedSortTarget, start: usize, end: usize) usiz
 
 /// 分割されたクイックソート。
 /// startは含む、endは含まない。
-fn quickSort3Internal(target: *LoggedSortTarget, start: usize, end: usize) void {
+fn quickSort2Internal(target: *LoggedSortTarget, start: usize, end: usize) void {
     // 要素数が0または1の場合
     if (end <= start + 1) return;
 
-    const partition = quickSort3Partition(target, start, end);
-    quickSort3Internal(target, start, partition);
-    quickSort3Internal(target, partition, end);
+    const partition = quickSort2Partition(target, start, end);
+    quickSort2Internal(target, start, partition);
+    quickSort2Internal(target, partition, end);
+}
+
+/// クイックソート。
+/// ある値より大きい値と小さい値に分類するのを繰り返す。
+pub fn quickSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    quickSort2Internal(target, 0, target.length());
+}
+
+/// クイックソートで小さい値を前、大きい値を後ろに移動し、ピボット位置を返す。
+/// 三叉パーティション。
+fn quickSort3Partition(target: *LoggedSortTarget, start: usize, end: usize) struct { usize, usize } {
+    var lo = start;
+    var mi = start;
+    var hi = end - 1;
+    const pivot = target.get((start + end - 1) / 2);
+
+    debug("ピボット {}", .{pivot.v});
+    debug("{f} low:{} mid:{} high:{}", .{ target, lo, mi, hi });
+    while (mi <= hi) {
+        if (target.lessThanIV(mi, pivot)) {
+            target.swap(lo, mi);
+            lo += 1;
+            mi += 1;
+        } else if (target.lessThanVI(pivot, mi)) {
+            target.swap(mi, hi);
+            hi -= 1;
+        } else {
+            mi += 1;
+        }
+        debug("{f} low:{} mid:{} high:{}", .{ target, lo, mi, hi });
+    }
+    return .{ lo, hi + 1 };
+}
+
+/// 分割されたクイックソート。
+/// startは含む、endは含まない。
+fn quickSort3Internal(target: *LoggedSortTarget, start: usize, end: usize) void {
+    debug("{f}", .{target});
+    debug("範囲 {} - {} 要素数 {}", .{ start, end, end - start });
+    // 要素数が0または1の場合
+    if (end <= start + 1) return;
+
+    const partition1, const partition2 = quickSort3Partition(target, start, end);
+    debug("パーティション {}, {}", .{ partition1, partition2 });
+    quickSort3Internal(target, start, partition1);
+    quickSort3Internal(target, partition2, end);
 }
 
 /// クイックソート。
@@ -1700,7 +1723,7 @@ fn introSortInternal(target: *LoggedSortTarget, start: usize, end: usize, max_de
         // 深さが log2 * 2 に到達した場合
         introSortHeap(target, start, end);
     } else {
-        const partition = quickSort3Partition(target, start, end);
+        const partition = quickSort2Partition(target, start, end);
         introSortInternal(target, start, partition, max_depth - 1);
         introSortInternal(target, partition, end, max_depth - 1);
     }

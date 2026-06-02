@@ -15,6 +15,7 @@ test {
 pub const std_options = std.Options{
     // デバッグログの表示を制御する。
     .log_level = .info,
+    // .log_level = .debug,
 };
 
 pub fn main() !void {
