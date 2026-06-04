@@ -322,6 +322,7 @@ const sort_algorithms_1 = [_]SortAlgorithm{
     .{ "odd-even sort", oddEvenSort },
     .{ "intro sort", introSort },
     .{ "tim sort", timSort },
+    .{ "shear sort", shearSort },
 };
 
 const sort_algorithms_2 = [_]SortAlgorithm{
@@ -1136,7 +1137,7 @@ fn quickSort1Partition(target: *LoggedSortTarget, start: usize, end: usize) usiz
     return i;
 }
 
-/// 分割されたクイックソート。
+/// 分割されたロムート法クイックソート。
 /// startは含む、endは含まない。
 fn quickSort1Internal(target: *LoggedSortTarget, start: usize, end: usize) void {
     if (end <= start + 1) return;
@@ -1147,6 +1148,7 @@ fn quickSort1Internal(target: *LoggedSortTarget, start: usize, end: usize) void 
 
 /// クイックソート。
 /// ある値より大きい値と小さい値に分類するのを繰り返す。
+/// ロムート法。
 pub fn quickSort1(_: Allocator, target: *LoggedSortTarget) error{}!void {
     quickSort1Internal(target, 0, target.length());
 }
@@ -1168,7 +1170,7 @@ fn quickSort2Partition(target: *LoggedSortTarget, start: usize, end: usize) usiz
     }
 }
 
-/// 分割されたクイックソート。
+/// 分割されたホーア法クイックソート。
 /// startは含む、endは含まない。
 fn quickSort2Internal(target: *LoggedSortTarget, start: usize, end: usize) void {
     // 要素数が0または1の場合
@@ -1181,11 +1183,12 @@ fn quickSort2Internal(target: *LoggedSortTarget, start: usize, end: usize) void 
 
 /// クイックソート。
 /// ある値より大きい値と小さい値に分類するのを繰り返す。
+/// ホーア法。
 pub fn quickSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
     quickSort2Internal(target, 0, target.length());
 }
 
-/// クイックソートで小さい値を前、大きい値を後ろに移動し、ピボット位置を返す。
+/// クイックソートで小さい値を前、等しい値を真ん中、大きい値を後ろに移動し、ピボット位置を返す。
 /// 三叉パーティション。
 fn quickSort3Partition(target: *LoggedSortTarget, start: usize, end: usize) struct { usize, usize } {
     var lo = start;
@@ -1211,7 +1214,7 @@ fn quickSort3Partition(target: *LoggedSortTarget, start: usize, end: usize) stru
     return .{ lo, hi + 1 };
 }
 
-/// 分割されたクイックソート。
+/// 分割された三叉クイックソート。
 /// startは含む、endは含まない。
 fn quickSort3Internal(target: *LoggedSortTarget, start: usize, end: usize) void {
     debug("{f}", .{target});
@@ -1227,6 +1230,7 @@ fn quickSort3Internal(target: *LoggedSortTarget, start: usize, end: usize) void 
 
 /// クイックソート。
 /// ある値より大きい値と小さい値に分類するのを繰り返す。
+/// 三叉パーティション
 pub fn quickSort3(_: Allocator, target: *LoggedSortTarget) error{}!void {
     quickSort3Internal(target, 0, target.length());
 }
@@ -1287,7 +1291,6 @@ fn heapSort1ShiftDown(target: *LoggedSortTarget, index: usize, heap_size: usize)
 /// Williamのアルゴリズム。
 pub fn heapSort1(_: Allocator, target: *LoggedSortTarget) error{}!void {
     var i: usize = 1;
-
     while (i < target.length()) : (i += 1) {
         heapSort1ShiftUp(target, i);
     }
@@ -1335,6 +1338,7 @@ fn heapSort3LeafSearch(target: *LoggedSortTarget, index: usize, heap_size: usize
     return j;
 }
 
+/// ボトムアップでシフトダウンする。
 fn heapSort3ShiftDown(target: *LoggedSortTarget, index: usize, heap_size: usize) void {
     var j = heapSort3LeafSearch(target, index, heap_size);
     while (target.lessThan(j, index)) {
@@ -1388,25 +1392,20 @@ fn smoothSortLeonardo(num: usize) []usize {
         n += 1;
     }
 
-    debug("計算済みレオナルド数: {any}", .{smooth_leonardo_array[0..n]});
     return smooth_leonardo_array[0..n];
 }
 
 /// 1つの木 S[start] から S[end-1] の範囲を再構築する。
 fn smoothSort1InsertTree(target: *LoggedSortTarget, la: []const usize, start: usize, tree_size: usize) void {
-    debug("{any} 木を再構築 {} - {}", .{ target.slice, start, start + la[tree_size] });
     if (tree_size < 2) return;
 
     const parent_index = start + la[tree_size] - 1;
     const left_child_index = start + la[tree_size - 1] - 1;
     const right_child_index = start + la[tree_size] - 2;
 
-    debug("{any} 木を再構築 親 {}(値:{}) 左{}(値:{}) 右 {}(値:{})", .{ target.slice, parent_index, target.slice[parent_index], left_child_index, target.slice[left_child_index], right_child_index, target.slice[right_child_index] });
-
     var swap_child_index = left_child_index;
     var swap_child_tree_size = tree_size - 1;
     if (target.lessThan(left_child_index, right_child_index)) {
-        debug("{any} 木を再構築 左 < 右", .{target.slice});
         // 左の子 < 右の子なら右の子と交換する。
         swap_child_index = right_child_index;
         swap_child_tree_size = tree_size - 2;
@@ -1415,7 +1414,6 @@ fn smoothSort1InsertTree(target: *LoggedSortTarget, la: []const usize, start: us
     if (target.lessThan(parent_index, swap_child_index)) {
         // 親 < 子なら交換する。
         target.swap(parent_index, swap_child_index);
-        debug("{any} 木を再構築 親 < 子", .{target.slice});
         // 子をルートにして再帰処理
         smoothSort1InsertTree(target, la, swap_child_index + 1 - la[swap_child_tree_size], swap_child_tree_size);
     }
@@ -1436,13 +1434,13 @@ fn smoothSort1GrowForest(allocator: Allocator, tree_sizes: *std.ArrayList(usize)
     }
 }
 
+/// 前の木と現在の木を比べてルート同士を交換するか判定する。
 fn smoothSort1ShouldSwapRoot(target: *LoggedSortTarget, la: []const usize, current_root: usize, prev_root: usize, tree_size: usize) bool {
     const should_swap = target.lessThan(current_root, prev_root);
     if (1 < tree_size) {
         // 現在の木に子があるなら、前のルート < 子の場合に交換しない。
         const current_left_child = current_root - la[tree_size - 2] - 1;
         const current_right_child = current_root - 1;
-        debug("{any} 現在の子 左: {}(値:{}) 右: {}(値:{})", .{ target.slice, current_left_child, target.slice[current_left_child], current_right_child, target.slice[current_right_child] });
         return should_swap and
             target.lessThan(current_left_child, prev_root) and
             target.lessThan(current_right_child, prev_root);
@@ -1453,16 +1451,12 @@ fn smoothSort1ShouldSwapRoot(target: *LoggedSortTarget, la: []const usize, curre
 
 /// 森を再構築する。
 fn smoothSort1Rebalance(target: *LoggedSortTarget, la: []const usize, tree_sizes: std.ArrayList(usize), heap_size: usize) void {
-    debug("{any} {any} 森を再構築 0 - {}", .{ target.slice, tree_sizes.items, heap_size });
     var current_root = heap_size - 1;
     var tree_index = tree_sizes.items.len - 1;
 
     while (0 < tree_index) {
-        debug("{any} {any} 現在のルート: {}(値:{})", .{ target.slice, tree_sizes.items, current_root, target.slice[current_root] });
-        debug("{any} {any} インデックス: {}(サイズ:{})", .{ target.slice, tree_sizes.items, tree_index, tree_sizes.items[tree_index] });
         const tree_size = tree_sizes.items[tree_index];
         const prev_root = current_root - la[tree_size];
-        debug("{any} {any} 前のルート: {}(値:{})", .{ target.slice, tree_sizes.items, prev_root, target.slice[prev_root] });
 
         if (!smoothSort1ShouldSwapRoot(target, la, current_root, prev_root, tree_size)) {
             // 交換しないなら終了。
@@ -1471,29 +1465,22 @@ fn smoothSort1Rebalance(target: *LoggedSortTarget, la: []const usize, tree_sizes
 
         // 前の木のルートが大きいなら、交換する。
         target.swap(prev_root, current_root);
-        debug("{any} {any} 交換", .{ target.slice, tree_sizes.items });
         current_root = prev_root;
         tree_index -= 1;
     }
 
-    debug("{any} {any} 木を再構築 {} - {}", .{ target.slice, tree_sizes.items, current_root + 1 - la[tree_sizes.items[tree_index]], current_root + 1 });
     // 一番前に来た場合は一番前の木を再構築する。
     smoothSort1InsertTree(target, la, current_root + 1 - la[tree_sizes.items[tree_index]], tree_sizes.items[tree_index]);
-    debug("{any} {any} 木を再構築 終了", .{ target.slice, tree_sizes.items });
 }
 
 /// 複数の木のリスト S[0] から S[end] までの範囲を再構築する。
 fn smoothSort1InsertForest(allocator: Allocator, target: *LoggedSortTarget, la: []const usize, tree_sizes: *std.ArrayList(usize), heap_size: usize) Allocator.Error!void {
-    debug("{any} {any} サイズ + 1", .{ target.slice, tree_sizes.items });
     try smoothSort1GrowForest(allocator, tree_sizes);
-    debug("{any} {any}", .{ target.slice, tree_sizes.items });
-
     smoothSort1Rebalance(target, la, tree_sizes.*, heap_size);
 }
 
 /// 最大の要素を取り出し、森を再構築する。
 fn smoothSort1ShrinkForest(allocator: Allocator, target: *LoggedSortTarget, la: []const usize, tree_sizes: *std.ArrayList(usize), heap_size: usize) Allocator.Error!void {
-    debug("{any} {any} サイズ - 1", .{ target.slice, tree_sizes.items });
     const last = tree_sizes.pop() orelse unreachable;
     // L[0] または L[1] の場合はそのまま削除する。
     if (1 < last) {
@@ -1505,45 +1492,37 @@ fn smoothSort1ShrinkForest(allocator: Allocator, target: *LoggedSortTarget, la: 
     }
 }
 
+/// スムーズソート。
+/// ツリーの長さ列にスタックを使用する。
 pub fn smoothSort1(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
-    // if (target.length() < 2) return;
     const la = smoothSortLeonardo(target.length());
+
     var tree_sizes = std.ArrayList(usize).empty;
     defer tree_sizes.deinit(allocator);
 
-    {
-        for (1..target.length() + 1) |heap_size| {
-            debug("{any} {any} ヒープ化: 0 - {}", .{ target.slice, tree_sizes.items, heap_size });
-            try smoothSort1InsertForest(allocator, target, la, &tree_sizes, heap_size);
-            debug("{any} {any}", .{ target.slice, tree_sizes.items });
-        }
+    for (1..target.length() + 1) |heap_size| {
+        try smoothSort1InsertForest(allocator, target, la, &tree_sizes, heap_size);
     }
 
     {
         var heap_size = target.length();
         while (heap_size > 1) : (heap_size -= 1) {
-            debug("{any} {any} 取り出し: 0 - {}", .{ target.slice, tree_sizes.items, heap_size });
             try smoothSort1ShrinkForest(allocator, target, la, &tree_sizes, heap_size);
-            debug("{any} {any}", .{ target.slice, tree_sizes.items });
         }
     }
 }
 
 /// 1つの木 S[start] から S[end-1] の範囲を再構築する。
 fn smoothSort2InsertTree(target: *LoggedSortTarget, la: []const usize, start: usize, tree_size: usize) void {
-    debug("{any} 木を再構築 {} - {}", .{ target.slice, start, start + la[tree_size] });
     if (tree_size < 2) return;
 
     const parent_index = start + la[tree_size] - 1;
     const left_child_index = start + la[tree_size - 1] - 1;
     const right_child_index = start + la[tree_size] - 2;
 
-    debug("{any} 木を再構築 親 {}(値:{}) 左{}(値:{}) 右 {}(値:{})", .{ target.slice, parent_index, target.slice[parent_index], left_child_index, target.slice[left_child_index], right_child_index, target.slice[right_child_index] });
-
     var swap_child_index = left_child_index;
     var swap_child_tree_size = tree_size - 1;
     if (target.lessThan(left_child_index, right_child_index)) {
-        debug("{any} 木を再構築 左 < 右", .{target.slice});
         // 左の子 < 右の子なら右の子と交換する。
         swap_child_index = right_child_index;
         swap_child_tree_size = tree_size - 2;
@@ -1552,7 +1531,6 @@ fn smoothSort2InsertTree(target: *LoggedSortTarget, la: []const usize, start: us
     if (target.lessThan(parent_index, swap_child_index)) {
         // 親 < 子なら交換する。
         target.swap(parent_index, swap_child_index);
-        debug("{any} 木を再構築 親 < 子", .{target.slice});
         // 子をルートにして再帰処理
         smoothSort2InsertTree(target, la, swap_child_index + 1 - la[swap_child_tree_size], swap_child_tree_size);
     }
@@ -1584,7 +1562,6 @@ fn smoothSort2GrowForest(tree_sizes_vec: *usize, tree_sizes_zero_pointer: *usize
 
 /// 森を再構築する。
 fn smoothSort2Rebalance(target: *LoggedSortTarget, la: []const usize, tree_sizes_vec: *const usize, tree_sizes_zero_pointer: *const usize, heap_size: usize) void {
-    debug("{any} ({b}, {}) 森を再構築 0 - {}", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.*, heap_size });
     var current_root = heap_size - 1;
     var vec = tree_sizes_vec.*;
     var tree_size = tree_sizes_zero_pointer.*;
@@ -1597,10 +1574,7 @@ fn smoothSort2Rebalance(target: *LoggedSortTarget, la: []const usize, tree_sizes
             continue;
         }
 
-        debug("{any} ({b}, {}) 現在のルート: {}(値:{})", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.*, current_root, target.slice[current_root] });
-        debug("{any} ({b}, {}) ベクトル: {} サイズ: {}", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.*, vec, tree_size });
         const prev_root = current_root - la[tree_size];
-        debug("{any} ({b}, {}) 前のルート: {}(値:{})", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.*, prev_root, target.slice[prev_root] });
 
         if (!smoothSort1ShouldSwapRoot(target, la, current_root, prev_root, tree_size)) {
             // 交換しないなら終了。
@@ -1609,30 +1583,23 @@ fn smoothSort2Rebalance(target: *LoggedSortTarget, la: []const usize, tree_sizes
 
         // 前の木のルートが大きいなら、交換する。
         target.swap(prev_root, current_root);
-        debug("{any} ({b}, {}) 交換", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.* });
         current_root = prev_root;
         vec >>= 1;
         tree_size += 1;
     }
 
-    debug("{any} ({b}, {}) 木を再構築 {} - {}", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.*, current_root + 1 - la[tree_size], current_root + 1 });
     // 一番前に来た場合は一番前の木を再構築する。
     smoothSort2InsertTree(target, la, current_root + 1 - la[tree_size], tree_size);
-    debug("{any} ({b}, {}) 木を再構築 終了", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.* });
 }
 
 /// 複数の木のリスト S[0] から S[end] までの範囲を再構築する。
 fn smoothSort2InsertForest(target: *LoggedSortTarget, la: []const usize, tree_sizes_vec: *usize, tree_sizes_zero_pointer: *usize, heap_size: usize) void {
-    debug("{any} ({b}, {}) サイズ + 1", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.* });
     smoothSort2GrowForest(tree_sizes_vec, tree_sizes_zero_pointer);
-    debug("{any} ({b}, {}) ", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.* });
-
     smoothSort2Rebalance(target, la, tree_sizes_vec, tree_sizes_zero_pointer, heap_size);
 }
 
 /// 最大の要素を取り出し、森を再構築する。
 fn smoothSort2ShrinkForest(target: *LoggedSortTarget, la: []const usize, tree_sizes_vec: *usize, tree_sizes_zero_pointer: *usize, heap_size: usize) void {
-    debug("{any} ({b}, {}) サイズ - 1", .{ target.slice, tree_sizes_vec.*, tree_sizes_zero_pointer.* });
     const last = tree_sizes_zero_pointer.*;
     if (2 <= last) {
         // それ以外の場合は L[n] を L[n-1] と L[n-2] に分割して再構築する。
@@ -1655,27 +1622,22 @@ fn smoothSort2ShrinkForest(target: *LoggedSortTarget, la: []const usize, tree_si
     }
 }
 
+/// スムーズソート。
+/// ツリーの長さ列にビット列とシフト数を使用する。
 pub fn smoothSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
-    // if (target.length() < 2) return;
     const la = smoothSortLeonardo(target.length());
 
     var tree_sizes_vec: usize = 0;
     var tree_sizes_zero_pointer: usize = 0;
 
-    {
-        for (1..target.length() + 1) |heap_size| {
-            debug("{any} ({b}, {}) ヒープ化: 0 - {}", .{ target.slice, tree_sizes_vec, tree_sizes_zero_pointer, heap_size });
-            smoothSort2InsertForest(target, la, &tree_sizes_vec, &tree_sizes_zero_pointer, heap_size);
-            debug("{any} ({b}, {})", .{ target.slice, tree_sizes_vec, tree_sizes_zero_pointer });
-        }
+    for (1..target.length() + 1) |heap_size| {
+        smoothSort2InsertForest(target, la, &tree_sizes_vec, &tree_sizes_zero_pointer, heap_size);
     }
 
     {
         var heap_size = target.length();
         while (heap_size > 1) : (heap_size -= 1) {
-            debug("{any} ({b}, {}) 取り出し: 0 - {}", .{ target.slice, tree_sizes_vec, tree_sizes_zero_pointer, heap_size });
             smoothSort2ShrinkForest(target, la, &tree_sizes_vec, &tree_sizes_zero_pointer, heap_size);
-            debug("{any} ({b}, {})", .{ target.slice, tree_sizes_vec, tree_sizes_zero_pointer });
         }
     }
 }
@@ -1691,25 +1653,65 @@ fn introSortInsertion(target: *LoggedSortTarget, start: usize, end: usize) void 
     }
 }
 
+/// indexの左の子を見つける。
+fn introSortLeftChild(offset: usize, index: usize) usize {
+    return offset + (index - offset) * 2 + 1;
+}
+
+/// indexの右の子を見つける。
+fn introSortRightChild(offset: usize, index: usize) usize {
+    return offset + (index - offset) * 2 + 2;
+}
+
+/// indexの親を見つける。
+fn introSortParent(offset: usize, index: usize) usize {
+    return offset + (index - offset - 1) / 2;
+}
+
+fn introSortLeafSearch(target: *LoggedSortTarget, offset: usize, index: usize, heap_size: usize) usize {
+    var j = index;
+    while (introSortRightChild(offset, j) < heap_size) {
+        const left = introSortLeftChild(offset, j);
+        const right = introSortRightChild(offset, j);
+        j = if (target.lessThan(left, right)) right else left;
+    }
+    if (introSortLeftChild(offset, j) < heap_size) {
+        j = introSortLeftChild(offset, j);
+    }
+    return j;
+}
+
+/// ボトムアップでシフトダウンする。
+fn introSortShiftDown(target: *LoggedSortTarget, offset: usize, index: usize, heap_size: usize) void {
+    var j = introSortLeafSearch(target, offset, index, heap_size);
+    while (target.lessThan(j, index)) {
+        j = introSortParent(offset, j);
+    }
+    while (index < j) {
+        target.swap(index, j);
+        j = introSortParent(offset, j);
+    }
+}
+
 /// イントロソートのヒープソート部分。
-/// start .. end をヒープソートで整列する。
+/// [start, end) をヒープソートで整列する。
 fn introSortHeap(target: *LoggedSortTarget, start: usize, end: usize) void {
     const length = end - start;
     if (length < 2) return;
 
     {
-        var n = length / 2;
-        while (start < n) {
-            n -= 1;
-            heapSort3ShiftDown(target, n, length);
+        var heap_start = start + length / 2;
+        while (start < heap_start) {
+            heap_start -= 1;
+            introSortShiftDown(target, start, heap_start, end);
         }
     }
 
     {
-        var n = length - 1;
-        while (start < n) : (n -= 1) {
-            target.swap(start, n);
-            heapSort3ShiftDown(target, start, n);
+        var heap_end = end - 1;
+        while (start < heap_end) : (heap_end -= 1) {
+            target.swap(start, heap_end);
+            introSortShiftDown(target, start, start, heap_end);
         }
     }
 }
@@ -1735,6 +1737,12 @@ pub fn introSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
     if (target.length() < 2) return;
     const max_depth: usize = std.math.log2_int(usize, target.length()) * 2;
     introSortInternal(target, 0, target.length(), max_depth);
+}
+
+/// シェアソート。
+/// 配列を2次元行列として行ごと、列ごとにソートする。
+pub fn shearSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    _ = target;
 }
 
 // Tim Sort は整列した領域(run)ごとにマージする。
