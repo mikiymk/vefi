@@ -99,7 +99,7 @@ fn testSortAlgorithm(target: *LoggedSortTarget, allocator: Allocator, func_name:
     var logged_allocator = LoggedAllocator.init(allocator);
     for (shuffle_algorithms) |algorithm| {
         target.reset(algorithm);
-        logged_allocator.reset_count();
+        logged_allocator.resetCount();
         const la = logged_allocator.allocator();
         try func(la, target);
 
@@ -112,6 +112,23 @@ fn testSortAlgorithm(target: *LoggedSortTarget, allocator: Allocator, func_name:
         sort_succeed = sort_succeed and target.isSorted();
     }
     return sort_succeed;
+}
+
+fn testSortAlgorithm2(allocator: Allocator, func: *const SortFn, array_length: usize, expect_stable: bool) !void {
+    var target = LoggedSortTarget{};
+    defer target.deinit(allocator);
+    try target.resize(allocator, array_length);
+    target.reset(.shuffle);
+
+    try func(allocator, &target);
+
+    if (!target.isSorted()) {
+        return error.NotSorted;
+    }
+
+    if (expect_stable and !target.isStableSorted()) {
+        return error.NotStableSorted;
+    }
 }
 
 const test_compare_length: bool = false;
@@ -172,11 +189,6 @@ pub fn testSorts(allocator: Allocator) !void {
     }
 }
 
-test "sort test" {
-    const allocator = std.testing.allocator;
-    try testSorts(allocator);
-}
-
 // メモ: [a, b) は a を含み b を含まない値の範囲
 
 /// 要素を逆順にする。
@@ -186,56 +198,6 @@ fn reverse(target: *LoggedSortTarget, left: usize, right: usize) void {
     for (0..mid) |i| {
         target.swap(left + i, right - i - 1);
     }
-}
-
-/// 右側線形探索。
-/// [start, end) で S[i] < S[j] になる最小の j を見つけて返す。
-fn linearSearchRightmost(target: *LoggedSortTarget, start: usize, end: usize, i: usize) usize {
-    var n: usize = start;
-    while (n < end and !target.lessThanII(i, n)) : (n += 1) {}
-    return n;
-}
-
-/// 左側線形探索。
-/// [start, end) で S[i] <= S[j] になる最小の j を見つけて返す。
-fn linearSearchLeftmost(target: *LoggedSortTarget, start: usize, end: usize, i: usize) usize {
-    var n: usize = start;
-    while (n < end and target.lessThanII(n, i)) : (n += 1) {}
-    return n;
-}
-
-/// 右側二分探索。
-/// [start, end) で S[i] < S[j] になる最小の j を見つけて返す。
-pub fn binarySearchRightmost(target: *LoggedSortTarget, start: usize, end: usize, i: usize) usize {
-    var l = start;
-    var r = end;
-    while (l < r) {
-        const m = (l + r) / 2;
-        if (target.lessThanII(i, m)) { // S[i] < S[m] なら m か m より左にある。
-            r = m;
-        } else { // S[m] <= S[i] なら m より右にある。
-            l = m + 1;
-        }
-    }
-
-    return l;
-}
-
-/// 左側二分探索。
-/// [start, end) で S[i] <= S[j] になる最小の j を見つけて返す。
-pub fn binarySearchLeftmost(target: *LoggedSortTarget, start: usize, end: usize, i: usize) usize {
-    var l = start;
-    var r = end;
-    while (l < r) {
-        const m = (l + r) / 2;
-        if (target.lessThanII(m, i)) { // S[m] < S[i] なら m より右にある。
-            l = m + 1;
-        } else { // S[i] <= S[m] なら m か m より左にある。
-            r = m;
-        }
-    }
-
-    return l;
 }
 
 fn isSorted(target: *LoggedSortTarget) bool {
@@ -317,6 +279,13 @@ pub fn bubbleSort1(_: Allocator, target: *LoggedSortTarget) error{}!void {
     }
 }
 
+test bubbleSort1 {
+    const allocator = std.testing.allocator;
+    const sort_fn = bubbleSort1;
+    try testSortAlgorithm2(allocator, sort_fn, 0, true);
+    try testSortAlgorithm2(allocator, sort_fn, 100, true);
+}
+
 /// バブルソート。
 /// ソート済みが確定しているところは比較を行わない。
 pub fn bubbleSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
@@ -325,6 +294,13 @@ pub fn bubbleSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
             if (target.lessThanII(j, j - 1)) target.swap(j, j - 1);
         }
     }
+}
+
+test bubbleSort2 {
+    const allocator = std.testing.allocator;
+    const sort_fn = bubbleSort2;
+    try testSortAlgorithm2(allocator, sort_fn, 0, true);
+    try testSortAlgorithm2(allocator, sort_fn, 100, true);
 }
 
 /// バブルソート。
@@ -501,7 +477,7 @@ pub fn insertionSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
 pub fn binaryInsertionSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
     if (target.length() < 2) return;
     for (1..target.length()) |i| {
-        const pos = binarySearchRightmost(target, 0, i, i);
+        const pos = lib.algorithm.search.binarySearchRightmost(target, 0, i, i);
         // pos .. i-1 を右にシフトする。
         const tmp = target.get(i);
         var j = i;
@@ -740,11 +716,11 @@ fn mergeSortInPlace1Internal(target: *LoggedSortTarget, start: usize, end: usize
     var right = mid;
     while (true) {
         // 1. 左を進める
-        left = linearSearchRightmost(target, left, right, right);
+        left = lib.algorithm.search.linearSearchRightmost(target, left, right, right);
         // 2. 左が終わりなら終了
         if (left == right) break;
         // 3. 右を進める
-        const new_right = linearSearchLeftmost(target, right, end, left);
+        const new_right = lib.algorithm.search.linearSearchLeftmost(target, right, end, left);
         const right_offset = new_right - right;
         right = new_right;
         // 4. 右回転
@@ -775,11 +751,11 @@ fn mergeSortInPlace2Internal(target: *LoggedSortTarget, start: usize, end: usize
     var right = mid;
     while (true) {
         // 1. 左を進める
-        left = binarySearchRightmost(target, left, right, right);
+        left = lib.algorithm.search.binarySearchRightmost(target, left, right, right);
         // 2. 左が終わりなら終了
         if (left == right) break;
         // 3. 右を進める
-        const new_right = binarySearchLeftmost(target, right, end, left);
+        const new_right = lib.algorithm.search.binarySearchLeftmost(target, right, end, left);
         const right_offset = new_right - right;
         right = new_right;
         // 4. 右回転
@@ -836,11 +812,11 @@ fn mergeSortInPlace3Internal(target: *LoggedSortTarget, start: usize, end: usize
     var right = mid;
     while (true) {
         // 1. 左を進める
-        left = binarySearchRightmost(target, left, right, right);
+        left = lib.algorithm.search.binarySearchRightmost(target, left, right, right);
         // 2. 左が終わりなら終了
         if (left == right) break;
         // 3. 右を進める
-        const new_right = binarySearchLeftmost(target, right, end, left);
+        const new_right = lib.algorithm.search.binarySearchLeftmost(target, right, end, left);
         const right_offset = new_right - right;
         right = new_right;
         // 4. 右回転
@@ -1508,7 +1484,7 @@ fn timSortMinRun(length: usize) usize {
 pub fn timSortBinaryInsertion(target: *LoggedSortTarget, start: usize, sorted: usize, end: usize) void {
     if (end <= start + 1) return;
     for (sorted..end) |i| {
-        const pos = binarySearchRightmost(target, start, i, i);
+        const pos = lib.algorithm.search.binarySearchRightmost(target, start, i, i);
         // pos .. i-1 を右にシフトする。
         debug("{any} 作成ラン 延長 探索 {}", .{ target.slice, pos });
         debug("{any} 作成ラン 延長 シフト {} - {}", .{ target.slice, pos, i });
@@ -1568,7 +1544,7 @@ fn timSortGallopLeft(target: *LoggedSortTarget, start: usize, end: usize, i: usi
         curr *= 2;
     }
 
-    return binarySearchLeftmost(target, start + prev, @min(start + curr, end), i);
+    return lib.algorithm.search.binarySearchLeftmost(target, start + prev, @min(start + curr, end), i);
 }
 
 // 二分探索で右端を見つける。
@@ -1580,7 +1556,7 @@ fn timSortGallopRight(target: *LoggedSortTarget, start: usize, end: usize, i: us
         prev = curr;
         curr *= 2;
     }
-    return binarySearchRightmost(target, @max(end -| curr, start), end -| prev, i);
+    return lib.algorithm.search.binarySearchRightmost(target, @max(end -| curr, start), end -| prev, i);
 }
 
 /// [start, mid) と [mid, end) をマージする。

@@ -24,7 +24,7 @@ pub fn init(child_allocator: Allocator) @This() {
 }
 
 /// カウントをリセットする。
-pub fn reset_count(self: *@This()) void {
+pub fn resetCount(self: *@This()) void {
     self.alloc_count = 0;
     self.current_allocated = 0;
     self.max_allocated = 0;
