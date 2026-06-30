@@ -3,16 +3,14 @@ const Allocator = std.mem.Allocator;
 
 const debug = std.log.debug;
 
-// ある程度ランダムな整数を生成する。
-const RNG = std.Random.Xoshiro256;
-var rng: ?RNG = null;
-/// at_least <= i < less_than
-fn random(T: type, at_least: T, less_than: T) T {
-    if (rng == null) {
-        rng = RNG.init(@intCast(std.time.timestamp()));
-    }
+const lib = @import("../root.zig");
 
-    return rng.?.random().intRangeLessThan(T, at_least, less_than);
+test {
+    std.testing.refAllDecls(@This());
+}
+
+fn random(T: type, at_least: T, less_than: T) T {
+    return lib.algorithm.random.random().intRangeLessThan(T, at_least, less_than);
 }
 
 /// 比較と入れ替えの回数をカウントする
@@ -45,24 +43,24 @@ pub const LoggedSortTarget = struct {
     }
 
     /// a < b なら真を返す。
-    pub fn compare(self: *@This(), a: Type, b: Type) bool {
+    pub fn lessThanVV(self: *@This(), a: Type, b: Type) bool {
         self.compare_count += 1;
         return a.v < b.v;
     }
 
     /// S[i] < S[j] なら真を返す。
-    pub fn lessThan(self: *@This(), i: usize, j: usize) bool {
-        return self.compare(self.get(i), self.get(j));
+    pub fn lessThanII(self: *@This(), i: usize, j: usize) bool {
+        return self.lessThanVV(self.get(i), self.get(j));
     }
 
     /// S[i] < b なら真を返す。
     pub fn lessThanIV(self: *@This(), i: usize, b: Type) bool {
-        return self.compare(self.get(i), b);
+        return self.lessThanVV(self.get(i), b);
     }
 
     /// a < S[j] なら真を返す。
     pub fn lessThanVI(self: *@This(), a: Type, j: usize) bool {
-        return self.compare(a, self.get(j));
+        return self.lessThanVV(a, self.get(j));
     }
 
     /// 位置iに位置jの値を入れる。
@@ -445,7 +443,7 @@ fn reverse(target: *LoggedSortTarget, left: usize, right: usize) void {
 /// [start, end) で S[i] < S[j] になる最小の j を見つけて返す。
 fn linearSearchRightmost(target: *LoggedSortTarget, start: usize, end: usize, i: usize) usize {
     var n: usize = start;
-    while (n < end and !target.lessThan(i, n)) : (n += 1) {}
+    while (n < end and !target.lessThanII(i, n)) : (n += 1) {}
     return n;
 }
 
@@ -453,7 +451,7 @@ fn linearSearchRightmost(target: *LoggedSortTarget, start: usize, end: usize, i:
 /// [start, end) で S[i] <= S[j] になる最小の j を見つけて返す。
 fn linearSearchLeftmost(target: *LoggedSortTarget, start: usize, end: usize, i: usize) usize {
     var n: usize = start;
-    while (n < end and target.lessThan(n, i)) : (n += 1) {}
+    while (n < end and target.lessThanII(n, i)) : (n += 1) {}
     return n;
 }
 
@@ -464,7 +462,7 @@ pub fn binarySearchRightmost(target: *LoggedSortTarget, start: usize, end: usize
     var r = end;
     while (l < r) {
         const m = (l + r) / 2;
-        if (target.lessThan(i, m)) { // S[i] < S[m] なら m か m より左にある。
+        if (target.lessThanII(i, m)) { // S[i] < S[m] なら m か m より左にある。
             r = m;
         } else { // S[m] <= S[i] なら m より右にある。
             l = m + 1;
@@ -481,7 +479,7 @@ pub fn binarySearchLeftmost(target: *LoggedSortTarget, start: usize, end: usize,
     var r = end;
     while (l < r) {
         const m = (l + r) / 2;
-        if (target.lessThan(m, i)) { // S[m] < S[i] なら m より右にある。
+        if (target.lessThanII(m, i)) { // S[m] < S[i] なら m より右にある。
             l = m + 1;
         } else { // S[i] <= S[m] なら m か m より左にある。
             r = m;
@@ -503,7 +501,7 @@ fn shuffle(target: *LoggedSortTarget) void {
 fn isSorted(target: *LoggedSortTarget) bool {
     if (target.length() < 2) return true;
     for (1..target.length()) |i| {
-        if (target.lessThan(i, i - 1)) return false;
+        if (target.lessThanII(i, i - 1)) return false;
     }
     return true;
 }
@@ -531,7 +529,7 @@ pub fn bozoSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
 }
 
 fn stoogeSortInternal(target: *LoggedSortTarget, start: usize, end: usize) void {
-    if (target.lessThan(end - 1, start)) {
+    if (target.lessThanII(end - 1, start)) {
         target.swap(end - 1, start);
     }
 
@@ -556,7 +554,7 @@ fn slowSortInternal(target: *LoggedSortTarget, start: usize, end: usize) void {
     const mid = (start + end - 1) / 2 + 1;
     slowSortInternal(target, start, mid);
     slowSortInternal(target, mid, end);
-    if (target.lessThan(end - 1, mid - 1)) {
+    if (target.lessThanII(end - 1, mid - 1)) {
         target.swap(end - 1, mid - 1);
     }
     slowSortInternal(target, start, end - 1);
@@ -574,7 +572,7 @@ pub fn slowSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
 pub fn bubbleSort1(_: Allocator, target: *LoggedSortTarget) error{}!void {
     for (0..target.length()) |_| {
         for (1..target.length()) |j| {
-            if (target.lessThan(j, j - 1)) target.swap(j, j - 1);
+            if (target.lessThanII(j, j - 1)) target.swap(j, j - 1);
         }
     }
 }
@@ -584,7 +582,7 @@ pub fn bubbleSort1(_: Allocator, target: *LoggedSortTarget) error{}!void {
 pub fn bubbleSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
     for (0..target.length()) |i| {
         for (1..target.length() - i) |j| {
-            if (target.lessThan(j, j - 1)) target.swap(j, j - 1);
+            if (target.lessThanII(j, j - 1)) target.swap(j, j - 1);
         }
     }
 }
@@ -596,7 +594,7 @@ pub fn bubbleSort3(_: Allocator, target: *LoggedSortTarget) error{}!void {
     while (1 < len) {
         var last_swap_index: usize = 0;
         for (1..len) |i| {
-            if (target.lessThan(i, i - 1)) {
+            if (target.lessThanII(i, i - 1)) {
                 target.swap(i, i - 1);
                 last_swap_index = i;
             }
@@ -618,7 +616,7 @@ pub fn shakerSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
         var last_swap_index = top;
 
         for (top..bottom) |i| {
-            if (target.lessThan(i + 1, i)) {
+            if (target.lessThanII(i + 1, i)) {
                 target.swap(i + 1, i);
                 last_swap_index = i;
             }
@@ -634,7 +632,7 @@ pub fn shakerSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
 
         var i = bottom;
         while (i > top) : (i -= 1) {
-            if (target.lessThan(i, i - 1)) {
+            if (target.lessThanII(i, i - 1)) {
                 target.swap(i, i - 1);
                 last_swap_index = i;
             }
@@ -664,7 +662,7 @@ pub fn combSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
         while (gap < len) {
             var last_swap_index: usize = 0;
             for (gap..len) |i| {
-                if (target.lessThan(i, i - gap)) {
+                if (target.lessThanII(i, i - gap)) {
                     target.swap(i, i - gap);
                     last_swap_index = i;
                 }
@@ -685,7 +683,7 @@ pub fn oddEvenSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
         {
             var i: usize = 1;
             while (i < target.length()) : (i += 2) {
-                if (target.lessThan(i, i - 1)) {
+                if (target.lessThanII(i, i - 1)) {
                     target.swap(i, i - 1);
                     swapped = true;
                 }
@@ -694,7 +692,7 @@ pub fn oddEvenSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
         {
             var i: usize = 2;
             while (i < target.length()) : (i += 2) {
-                if (target.lessThan(i, i - 1)) {
+                if (target.lessThanII(i, i - 1)) {
                     target.swap(i, i - 1);
                     swapped = true;
                 }
@@ -708,7 +706,7 @@ pub fn oddEvenSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
 pub fn gnomeSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
     var i: usize = 1;
     while (i < target.length()) {
-        if (target.lessThan(i, i - 1)) {
+        if (target.lessThanII(i, i - 1)) {
             target.swap(i, i - 1);
             if (i == 1) i += 1 else i -= 1;
         } else {
@@ -723,7 +721,7 @@ pub fn selectionSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
     for (0..target.length()) |i| {
         var min_index: usize = i;
         for (i + 1..target.length()) |j| {
-            if (target.lessThan(j, min_index)) {
+            if (target.lessThanII(j, min_index)) {
                 min_index = j;
             }
         }
@@ -739,7 +737,7 @@ pub fn selectionSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
 pub fn insertionSort1(_: Allocator, target: *LoggedSortTarget) error{}!void {
     for (0..target.length()) |i| {
         var j = i;
-        while (0 < j and target.lessThan(j, j - 1)) : (j -= 1) {
+        while (0 < j and target.lessThanII(j, j - 1)) : (j -= 1) {
             target.swap(j, j - 1);
         }
     }
@@ -877,7 +875,7 @@ const TreeSortTree = struct {
 /// ツリーに挿入する。
 fn treeSortInsert(target: *LoggedSortTarget, search_tree: *?*TreeSortTree, new_node: *TreeSortTree) !void {
     if (search_tree.*) |tree| {
-        if (target.compare(new_node.node, tree.node)) {
+        if (target.lessThanVV(new_node.node, tree.node)) {
             try treeSortInsert(target, &tree.left, new_node);
         } else {
             try treeSortInsert(target, &tree.right, new_node);
@@ -927,7 +925,7 @@ pub fn librarySort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Er
 
 fn mergeSortMerge(target: *LoggedSortTarget, start: usize, mid: usize, end: usize, buffer: []LoggedSortTarget.Type) void {
     // 既にソートされている場合 (S[l_end] <= S[r_start]) はマージしない。
-    if (!target.lessThan(mid, mid - 1)) return;
+    if (!target.lessThanII(mid, mid - 1)) return;
 
     var left = start;
     var right = mid;
@@ -935,7 +933,7 @@ fn mergeSortMerge(target: *LoggedSortTarget, start: usize, mid: usize, end: usiz
     var i: usize = 0;
 
     while (left < mid and right < end) {
-        if (target.lessThan(right, left)) {
+        if (target.lessThanII(right, left)) {
             buffer[i] = target.get(right);
             right += 1;
         } else {
@@ -1255,7 +1253,7 @@ fn heapSort1ShiftUp(target: *LoggedSortTarget, index: usize) void {
     var node = index;
     while (node > 0) {
         const parent = heapSortParent(node);
-        if (target.lessThan(parent, node)) { // 親と比較して逆順なら入れ替える。
+        if (target.lessThanII(parent, node)) { // 親と比較して逆順なら入れ替える。
             target.swap(parent, node);
             node = parent;
         } else { // 正順なら終了。
@@ -1273,10 +1271,10 @@ fn heapSort1ShiftDown(target: *LoggedSortTarget, index: usize, heap_size: usize)
         const left_child = heapSortLeftChild(current_index);
         const right_child = heapSortRightChild(current_index);
 
-        if (left_child < heap_size and target.lessThan(max, left_child)) {
+        if (left_child < heap_size and target.lessThanII(max, left_child)) {
             max = left_child;
         }
-        if (right_child < heap_size and target.lessThan(max, right_child)) {
+        if (right_child < heap_size and target.lessThanII(max, right_child)) {
             max = right_child;
         }
 
@@ -1330,7 +1328,7 @@ fn heapSort3LeafSearch(target: *LoggedSortTarget, index: usize, heap_size: usize
     while (heapSortRightChild(j) < heap_size) {
         const left = heapSortLeftChild(j);
         const right = heapSortRightChild(j);
-        j = if (target.lessThan(left, right)) right else left;
+        j = if (target.lessThanII(left, right)) right else left;
     }
     if (heapSortLeftChild(j) < heap_size) {
         j = heapSortLeftChild(j);
@@ -1341,7 +1339,7 @@ fn heapSort3LeafSearch(target: *LoggedSortTarget, index: usize, heap_size: usize
 /// ボトムアップでシフトダウンする。
 fn heapSort3ShiftDown(target: *LoggedSortTarget, index: usize, heap_size: usize) void {
     var j = heapSort3LeafSearch(target, index, heap_size);
-    while (target.lessThan(j, index)) {
+    while (target.lessThanII(j, index)) {
         j = heapSortParent(j);
     }
     while (index < j) {
@@ -1405,13 +1403,13 @@ fn smoothSort1InsertTree(target: *LoggedSortTarget, la: []const usize, start: us
 
     var swap_child_index = left_child_index;
     var swap_child_tree_size = tree_size - 1;
-    if (target.lessThan(left_child_index, right_child_index)) {
+    if (target.lessThanII(left_child_index, right_child_index)) {
         // 左の子 < 右の子なら右の子と交換する。
         swap_child_index = right_child_index;
         swap_child_tree_size = tree_size - 2;
     }
 
-    if (target.lessThan(parent_index, swap_child_index)) {
+    if (target.lessThanII(parent_index, swap_child_index)) {
         // 親 < 子なら交換する。
         target.swap(parent_index, swap_child_index);
         // 子をルートにして再帰処理
@@ -1436,14 +1434,14 @@ fn smoothSort1GrowForest(allocator: Allocator, tree_sizes: *std.ArrayList(usize)
 
 /// 前の木と現在の木を比べてルート同士を交換するか判定する。
 fn smoothSort1ShouldSwapRoot(target: *LoggedSortTarget, la: []const usize, current_root: usize, prev_root: usize, tree_size: usize) bool {
-    const should_swap = target.lessThan(current_root, prev_root);
+    const should_swap = target.lessThanII(current_root, prev_root);
     if (1 < tree_size) {
         // 現在の木に子があるなら、前のルート < 子の場合に交換しない。
         const current_left_child = current_root - la[tree_size - 2] - 1;
         const current_right_child = current_root - 1;
         return should_swap and
-            target.lessThan(current_left_child, prev_root) and
-            target.lessThan(current_right_child, prev_root);
+            target.lessThanII(current_left_child, prev_root) and
+            target.lessThanII(current_right_child, prev_root);
     }
 
     return should_swap;
@@ -1522,13 +1520,13 @@ fn smoothSort2InsertTree(target: *LoggedSortTarget, la: []const usize, start: us
 
     var swap_child_index = left_child_index;
     var swap_child_tree_size = tree_size - 1;
-    if (target.lessThan(left_child_index, right_child_index)) {
+    if (target.lessThanII(left_child_index, right_child_index)) {
         // 左の子 < 右の子なら右の子と交換する。
         swap_child_index = right_child_index;
         swap_child_tree_size = tree_size - 2;
     }
 
-    if (target.lessThan(parent_index, swap_child_index)) {
+    if (target.lessThanII(parent_index, swap_child_index)) {
         // 親 < 子なら交換する。
         target.swap(parent_index, swap_child_index);
         // 子をルートにして再帰処理
@@ -1647,7 +1645,7 @@ pub fn smoothSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
 fn introSortInsertion(target: *LoggedSortTarget, start: usize, end: usize) void {
     for (start..end) |i| {
         var j = i;
-        while (start < j and target.lessThan(j, j - 1)) : (j -= 1) {
+        while (start < j and target.lessThanII(j, j - 1)) : (j -= 1) {
             target.swap(j, j - 1);
         }
     }
@@ -1673,7 +1671,7 @@ fn introSortLeafSearch(target: *LoggedSortTarget, offset: usize, index: usize, h
     while (introSortRightChild(offset, j) < heap_size) {
         const left = introSortLeftChild(offset, j);
         const right = introSortRightChild(offset, j);
-        j = if (target.lessThan(left, right)) right else left;
+        j = if (target.lessThanII(left, right)) right else left;
     }
     if (introSortLeftChild(offset, j) < heap_size) {
         j = introSortLeftChild(offset, j);
@@ -1684,7 +1682,7 @@ fn introSortLeafSearch(target: *LoggedSortTarget, offset: usize, index: usize, h
 /// ボトムアップでシフトダウンする。
 fn introSortShiftDown(target: *LoggedSortTarget, offset: usize, index: usize, heap_size: usize) void {
     var j = introSortLeafSearch(target, offset, index, heap_size);
-    while (target.lessThan(j, index)) {
+    while (target.lessThanII(j, index)) {
         j = introSortParent(offset, j);
     }
     while (index < j) {
@@ -1787,10 +1785,10 @@ pub fn timSortBinaryInsertion(target: *LoggedSortTarget, start: usize, sorted: u
 fn timSortRun(target: *LoggedSortTarget, start: usize, min_run: usize) usize {
     debug("作成ラン 起点 {}", .{start});
     if (start + 1 == target.length()) return start + 1;
-    const ascend: bool = target.lessThan(start, start + 1);
+    const ascend: bool = target.lessThanII(start, start + 1);
     var i = start + 2;
     while (i < target.length()) {
-        if (ascend == target.lessThan(i, i - 1)) {
+        if (ascend == target.lessThanII(i, i - 1)) {
             // 次の場合に終了する。
             // a. 昇順ならば S[i - 1] <= S[i] (= !(S[i - 1] > S[i])) でない場合
             // b. 降順ならば S[i - 1] > S[i] でない場合
@@ -1825,7 +1823,7 @@ fn timSortRun(target: *LoggedSortTarget, start: usize, min_run: usize) usize {
 fn timSortGallopLeft(target: *LoggedSortTarget, start: usize, end: usize, i: usize) usize {
     var prev: usize = 0;
     var curr: usize = 1;
-    while (start + curr < end and target.lessThan(start + curr, i)) {
+    while (start + curr < end and target.lessThanII(start + curr, i)) {
         prev = curr;
         curr *= 2;
     }
@@ -1838,7 +1836,7 @@ fn timSortGallopLeft(target: *LoggedSortTarget, start: usize, end: usize, i: usi
 fn timSortGallopRight(target: *LoggedSortTarget, start: usize, end: usize, i: usize) usize {
     var prev: usize = 0;
     var curr: usize = 1;
-    while (start + curr < end and target.lessThan(i, end - curr)) {
+    while (start + curr < end and target.lessThanII(i, end - curr)) {
         prev = curr;
         curr *= 2;
     }

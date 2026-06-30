@@ -14,7 +14,7 @@ pub const builtin = @import("builtin.zig");
 
 pub const types = @import("types.zig");
 pub const collection = @import("collection.zig");
-pub const sort = @import("sort.zig");
+pub const algorithm = @import("algorithm.zig");
 // pub const math = @import("math.zig");
 
 pub const common = @import("common.zig");

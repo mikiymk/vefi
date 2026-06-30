@@ -22,7 +22,7 @@ pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
     // try lib.sort.sortLogging(allocator);
-    try lib.sort.testSorts(allocator);
+    try lib.algorithm.sort.testSorts(allocator);
 }
 
 const LoggedSortTarget = lib.sort.LoggedSortTarget;
