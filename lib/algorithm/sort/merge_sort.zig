@@ -256,21 +256,26 @@ pub fn timSortBinaryInsertion(target: *LoggedSortTarget, start: usize, sorted: u
 fn timSortRun(target: *LoggedSortTarget, start: usize, min_run: usize) usize {
     debug("作成ラン 起点 {}", .{start});
     if (start + 1 == target.length()) return start + 1;
-    const ascend: bool = target.lessThanII(start, start + 1);
+    // target[start] > target[start + 1] の場合、降順のランを作成する。
+    const descend = target.lessThanII(start + 1, start);
     var i = start + 2;
-    while (i < target.length()) {
-        if (ascend == target.lessThanII(i, i - 1)) {
-            // 次の場合に終了する。
-            // a. 昇順ならば S[i - 1] <= S[i] (= !(S[i - 1] > S[i])) でない場合
-            // b. 降順ならば S[i - 1] > S[i] でない場合
-            break;
+    if (descend) {
+        while (i < target.length()) {
+            // 降順ならば S[i - 1] > S[i] でない場合に終了する。
+            if (!target.lessThanII(i, i - 1)) break;
+            i += 1;
         }
-        i += 1;
+    } else {
+        while (i < target.length()) {
+            // 昇順ならば S[i - 1] <= S[i] でない場合に終了する。
+            if (target.lessThanII(i, i - 1)) break;
+            i += 1;
+        }
     }
 
-    debug("昇順？ {} 終点 {}", .{ ascend, i });
+    debug("昇順？ {} 終点 {}", .{ !descend, i });
 
-    if (!ascend) { // 降順の場合は逆転させる。
+    if (descend) { // 降順の場合は逆転させる。
         debug("反転する {} {}", .{ start, i });
         reverse(target, start, i);
         debug("配列: {any}", .{target.slice});
@@ -319,6 +324,7 @@ fn timSortGallopRight(target: *LoggedSortTarget, start: usize, end: usize, i: us
 fn timSortMergeLow(allocator: Allocator, target: *LoggedSortTarget, start: usize, mid: usize, end: usize) !void {
     // [start, mid) を一時配列に移す。
     const buffer = try allocator.alloc(LoggedSortTarget.Type, mid - start);
+    defer allocator.free(buffer);
     for (buffer, 0..) |*i, n| {
         i.* = target.get(start + n);
     }
@@ -428,6 +434,7 @@ fn timSortMergeLow(allocator: Allocator, target: *LoggedSortTarget, start: usize
 fn timSortMergeHigh(allocator: Allocator, target: *LoggedSortTarget, start: usize, mid: usize, end: usize) !void {
     // [mid, end) を一時配列に移す。
     const buffer = try allocator.alloc(LoggedSortTarget.Type, end - mid);
+    defer allocator.free(buffer);
     for (buffer, 0..) |*i, n| {
         i.* = target.get(mid + n);
     }
@@ -552,5 +559,27 @@ pub fn timSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!
 
         debug("配列: {any}", .{target.slice});
         debug("ラン: {any}", .{run_stack.items});
+    }
+}
+
+test "tim sort is stable with equal values" {
+    const allocator = std.testing.allocator;
+
+    const shuffle_algorithms = [_]LoggedSortTarget.ShuffleAlgorithm{
+        .flat,
+        .double_shuffle,
+        .double_ascend,
+        .double_descend,
+    };
+
+    for (shuffle_algorithms) |shuffle_algorithm| {
+        var target = LoggedSortTarget{};
+        defer target.deinit(allocator);
+        try target.resize(allocator, 128);
+        target.reset(shuffle_algorithm);
+
+        try timSort(allocator, &target);
+
+        try std.testing.expect(target.isStableSorted());
     }
 }
