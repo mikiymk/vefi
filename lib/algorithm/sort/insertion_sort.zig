@@ -14,7 +14,7 @@ test {
 /// 最小の値を選択して先頭から配置する。
 pub fn selectionSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
     for (0..target.length()) |i| {
-        var min_index: usize = i;
+        var min_index = i;
         for (i + 1..target.length()) |j| {
             if (target.lessThanII(j, min_index)) {
                 min_index = j;
@@ -71,6 +71,7 @@ pub fn binaryInsertionSort(_: Allocator, target: *LoggedSortTarget) error{}!void
     if (target.length() < 2) return;
     for (1..target.length()) |i| {
         const pos = lib.algorithm.search.binarySearchRightmost(target, 0, i, i);
+
         // pos .. i-1 を右にシフトする。
         const tmp = target.get(i);
         var j = i;
@@ -83,12 +84,33 @@ pub fn binaryInsertionSort(_: Allocator, target: *LoggedSortTarget) error{}!void
 
 /// シェルソートの間隔を決める関数。
 /// 案1. 2で割る (切り捨て)
-fn shellSortGap1(num: usize) usize {
+fn shellSort1Gap(num: usize) usize {
     return num / 2;
 }
+
+/// シェルソート。
+/// 間隔を空けて挿入ソートをする。
+/// シェルの間隔。
+pub fn shellSort1(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    var gap = target.length();
+    while (true) {
+        gap = shellSort1Gap(gap);
+        for (0..target.length()) |i| {
+            const tmp = target.get(i);
+            var j = i;
+            while (gap <= j and target.lessThanVI(tmp, j - gap)) : (j -= gap) {
+                target.move(j, j - gap);
+            }
+            target.set(j, tmp);
+        }
+
+        if (gap < 2) break;
+    }
+}
+
 /// シェルソートの間隔を決める関数。
 /// 案2. (3^k-1)/2
-fn shellSortGap2(num: usize) usize {
+fn shellSort2Gap(num: usize) usize {
     var pow_3: usize = 9; // 3^k
     var last_n: usize = 1;
     while (true) {
@@ -100,9 +122,30 @@ fn shellSortGap2(num: usize) usize {
 
     return num / 3;
 }
+
+/// シェルソート。
+/// 間隔を空けて挿入ソートをする。
+/// クヌースの間隔。
+pub fn shellSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    var gap = target.length();
+    while (true) {
+        gap = shellSort2Gap(gap);
+        for (0..target.length()) |i| {
+            const tmp = target.get(i);
+            var j = i;
+            while (gap <= j and target.lessThanVI(tmp, j - gap)) : (j -= gap) {
+                target.move(j, j - gap);
+            }
+            target.set(j, tmp);
+        }
+
+        if (gap < 2) break;
+    }
+}
+
 /// シェルソートの間隔を決める関数。
 /// 案3. a(0)=1; a(k) = 4^k+3*2^(k-1)+1
-fn shellSortGap3(num: usize) usize {
+fn shellSort3Gap(num: usize) usize {
     var pow_2: usize = 1; // 2^(k-1)
     var pow_4: usize = 4; // 4^k
     var last_a_k: usize = 1; // 初期値は a(0) = 1
@@ -117,51 +160,11 @@ fn shellSortGap3(num: usize) usize {
 
 /// シェルソート。
 /// 間隔を空けて挿入ソートをする。
-/// シェルの間隔。
-pub fn shellSort1(_: Allocator, target: *LoggedSortTarget) error{}!void {
-    var gap = target.length();
-    while (true) {
-        gap = shellSortGap1(gap);
-        for (0..target.length()) |i| {
-            const tmp = target.get(i);
-            var j = i;
-            while (gap <= j and target.lessThanVI(tmp, j - gap)) : (j -= gap) {
-                target.move(j, j - gap);
-            }
-            target.set(j, tmp);
-        }
-
-        if (gap < 2) break;
-    }
-}
-
-/// シェルソート。
-/// 間隔を空けて挿入ソートをする。
-/// クヌースの間隔。
-pub fn shellSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
-    var gap = target.length();
-    while (true) {
-        gap = shellSortGap2(gap);
-        for (0..target.length()) |i| {
-            const tmp = target.get(i);
-            var j = i;
-            while (gap <= j and target.lessThanVI(tmp, j - gap)) : (j -= gap) {
-                target.move(j, j - gap);
-            }
-            target.set(j, tmp);
-        }
-
-        if (gap < 2) break;
-    }
-}
-
-/// シェルソート。
-/// 間隔を空けて挿入ソートをする。
 /// セッジウィックの間隔。
 pub fn shellSort3(_: Allocator, target: *LoggedSortTarget) error{}!void {
     var gap = target.length();
     while (true) {
-        gap = shellSortGap3(gap);
+        gap = shellSort3Gap(gap);
         for (0..target.length()) |i| {
             const tmp = target.get(i);
             var j = i;

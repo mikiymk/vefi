@@ -1,13 +1,15 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const debug = std.log.debug;
-
 const lib = @import("../../root.zig");
 const LoggedSortTarget = lib.algorithm.sort.LoggedSortTarget;
 
 test {
     std.testing.refAllDecls(@This());
+}
+
+fn debug(src: std.builtin.SourceLocation, comptime format: []const u8, args: anytype) void {
+    std.log.debug("{s}:{d}:{d} {s}: " ++ format, .{ src.file, src.line, src.column, src.fn_name } ++ args);
 }
 
 /// 要素を逆順にする。
@@ -19,7 +21,67 @@ fn reverse(target: *LoggedSortTarget, left: usize, right: usize) void {
     }
 }
 
-fn mergeSortMerge(target: *LoggedSortTarget, start: usize, mid: usize, end: usize, buffer: []LoggedSortTarget.Type) void {
+/// 連続した2つのソート済み配列をマージする。
+fn mergeSort1Merge(allocator: Allocator, target: *LoggedSortTarget, start: usize, mid: usize, end: usize) !void {
+    // 既にソートされている場合 (S[l_end] <= S[r_start]) はマージしない。
+    if (!target.lessThanII(mid, mid - 1)) return;
+    const buffer = try allocator.alloc(LoggedSortTarget.Type, end - start);
+    defer allocator.free(buffer);
+
+    var left = start;
+    var right = mid;
+
+    var i: usize = 0;
+
+    while (left < mid and right < end) {
+        if (target.lessThanII(right, left)) {
+            buffer[i] = target.get(right);
+            right += 1;
+        } else {
+            buffer[i] = target.get(left);
+            left += 1;
+        }
+        i += 1;
+    }
+
+    // 残りを入れる
+    while (left < mid) {
+        buffer[i] = target.get(left);
+        left += 1;
+        i += 1;
+    }
+    while (right < end) {
+        buffer[i] = target.get(right);
+        right += 1;
+        i += 1;
+    }
+
+    // 戻す
+    for (0..i) |j| {
+        target.set(start + j, buffer[j]);
+    }
+}
+
+/// 範囲のあるマージソート。
+fn mergeSort1Internal(allocator: Allocator, target: *LoggedSortTarget, start: usize, end: usize) !void {
+    if (end <= start + 1) return;
+    const mid = (start + end) / 2;
+    // 部分についてソートする。
+    try mergeSort1Internal(allocator, target, start, mid);
+    try mergeSort1Internal(allocator, target, mid, end);
+
+    // ソートした2つをマージする。
+    try mergeSort1Merge(allocator, target, start, mid, end);
+}
+
+/// マージソート。
+/// 分割して結合を繰り返す。
+pub fn mergeSort1(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
+    try mergeSort1Internal(allocator, target, 0, target.length());
+}
+
+/// 連続した2つのソート済み配列をマージする。
+fn mergeSort2Merge(target: *LoggedSortTarget, start: usize, mid: usize, end: usize, buffer: []LoggedSortTarget.Type) void {
     // 既にソートされている場合 (S[l_end] <= S[r_start]) はマージしない。
     if (!target.lessThanII(mid, mid - 1)) return;
 
@@ -58,40 +120,35 @@ fn mergeSortMerge(target: *LoggedSortTarget, start: usize, mid: usize, end: usiz
 }
 
 /// 分割されたマージソート。
-fn mergeSortInternal(target: *LoggedSortTarget, start: usize, end: usize, buffer: []LoggedSortTarget.Type) void {
+fn mergeSort2Internal(target: *LoggedSortTarget, start: usize, end: usize, buffer: []LoggedSortTarget.Type) void {
     if (end <= start + 1) return;
     const mid = (start + end) / 2;
     // 部分についてソートする。
-    mergeSortInternal(target, start, mid, buffer);
-    mergeSortInternal(target, mid, end, buffer);
+    mergeSort2Internal(target, start, mid, buffer);
+    mergeSort2Internal(target, mid, end, buffer);
+
     // ソートした2つをマージする。
-    mergeSortMerge(target, start, mid, end, buffer);
+    mergeSort2Merge(target, start, mid, end, buffer);
 }
 
 /// マージソート。
 /// 分割して結合を繰り返す。
-pub fn mergeSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
+pub fn mergeSort2(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
     const buffer = try allocator.alloc(LoggedSortTarget.Type, target.length());
     defer allocator.free(buffer);
-    mergeSortInternal(target, 0, target.length(), buffer);
+    mergeSort2Internal(target, 0, target.length(), buffer);
 }
 
 /// 範囲内をn個だけ右方向にずらす。
+/// 3回反転法を使う。
 fn mergeSortInPlace1RotateRight(target: *LoggedSortTarget, left: usize, right: usize, n: usize) void {
     reverse(target, left, right);
     reverse(target, left + n, right);
     reverse(target, left, left + n);
 }
 
-/// 分割されたIn-Placeマージソート。
-fn mergeSortInPlace1Internal(target: *LoggedSortTarget, start: usize, end: usize) void {
-    if (end <= start + 1) return;
-    const mid = (start + end) / 2;
-    // 部分についてソートする。
-    mergeSortInPlace1Internal(target, start, mid);
-    mergeSortInPlace1Internal(target, mid, end);
-
-    // ソートした2つをマージする。
+/// 連続した2つのソート済み配列をマージする。
+fn mergeSortInPlace1Merge(target: *LoggedSortTarget, start: usize, mid: usize, end: usize) void {
     var left = start;
     var right = mid;
     while (true) {
@@ -112,21 +169,26 @@ fn mergeSortInPlace1Internal(target: *LoggedSortTarget, start: usize, end: usize
     }
 }
 
+/// 分割されたIn-Placeマージソート。
+fn mergeSortInPlace1Internal(target: *LoggedSortTarget, start: usize, end: usize) void {
+    if (end <= start + 1) return;
+    const mid = (start + end) / 2;
+    // 部分についてソートする。
+    mergeSortInPlace1Internal(target, start, mid);
+    mergeSortInPlace1Internal(target, mid, end);
+
+    // ソートした2つをマージする。
+    mergeSortInPlace1Merge(target, start, mid, end);
+}
+
 /// In-Placeなマージソート。
 /// 分割して結合を繰り返す。追加のメモリを必要としない。
 pub fn mergeSortInPlace1(_: Allocator, target: *LoggedSortTarget) error{}!void {
     mergeSortInPlace1Internal(target, 0, target.length());
 }
 
-/// 分割されたIn-Placeマージソート。
-fn mergeSortInPlace2Internal(target: *LoggedSortTarget, start: usize, end: usize) void {
-    if (end <= start + 1) return;
-    const mid = (start + end) / 2;
-    // 部分についてソートする。
-    mergeSortInPlace2Internal(target, start, mid);
-    mergeSortInPlace2Internal(target, mid, end);
-
-    // ソートした2つをマージする。
+/// 連続した2つのソート済み配列をマージする。
+fn mergeSortInPlace2Merge(target: *LoggedSortTarget, start: usize, mid: usize, end: usize) void {
     var left = start;
     var right = mid;
     while (true) {
@@ -145,6 +207,18 @@ fn mergeSortInPlace2Internal(target: *LoggedSortTarget, start: usize, end: usize
         // 6. 右からの分だけ左を進める
         left += right_offset;
     }
+}
+
+/// 分割されたIn-Placeマージソート。
+fn mergeSortInPlace2Internal(target: *LoggedSortTarget, start: usize, end: usize) void {
+    if (end <= start + 1) return;
+    const mid = (start + end) / 2;
+    // 部分についてソートする。
+    mergeSortInPlace2Internal(target, start, mid);
+    mergeSortInPlace2Internal(target, mid, end);
+
+    // ソートした2つをマージする。
+    mergeSortInPlace2Merge(target, start, mid, end);
 }
 
 /// In-Placeなマージソート。
@@ -179,15 +253,8 @@ fn mergeSortInPlace3RotateRight(target: *LoggedSortTarget, left: usize, right: u
     }
 }
 
-/// 分割されたIn-Placeマージソート。
-fn mergeSortInPlace3Internal(target: *LoggedSortTarget, start: usize, end: usize) void {
-    if (end <= start + 1) return;
-    const mid = (start + end) / 2;
-    // 部分についてソートする。
-    mergeSortInPlace3Internal(target, start, mid);
-    mergeSortInPlace3Internal(target, mid, end);
-
-    // ソートした2つをマージする。
+/// 連続した2つのソート済み配列をマージする。
+fn mergeSortInPlace3Merge(target: *LoggedSortTarget, start: usize, mid: usize, end: usize) void {
     var left = start;
     var right = mid;
     while (true) {
@@ -208,6 +275,19 @@ fn mergeSortInPlace3Internal(target: *LoggedSortTarget, start: usize, end: usize
     }
 }
 
+/// 連続した2つのソート済み配列をマージする。
+/// 分割されたIn-Placeマージソート。
+fn mergeSortInPlace3Internal(target: *LoggedSortTarget, start: usize, end: usize) void {
+    if (end <= start + 1) return;
+    const mid = (start + end) / 2;
+    // 部分についてソートする。
+    mergeSortInPlace3Internal(target, start, mid);
+    mergeSortInPlace3Internal(target, mid, end);
+
+    // ソートした2つをマージする。
+    mergeSortInPlace3Merge(target, start, mid, end);
+}
+
 /// In-Placeなマージソート。
 /// 分割して結合を繰り返す。追加のメモリを必要としない。
 pub fn mergeSortInPlace3(_: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
@@ -218,11 +298,24 @@ pub fn mergeSortInPlace3(_: Allocator, target: *LoggedSortTarget) Allocator.Erro
 // https://github.com/python/cpython/blob/v2.3.7/Objects/listobject.c#L1670
 
 /// run の最小要素数を求める。
-fn timSortMinRun(length: usize) usize {
-    // デバッグ用
-    // if (true) return 1;
+fn timSortMinRun1(length: usize) usize {
     // データ数を min run で割ったとき、2のべき乗か少し小さくなるように [32,64) で設定する。
     // 上位6ビット + それ以下が1以上なら +1
+
+    var r: usize = 0;
+    var n = length;
+    while (n >= 64) {
+        r = r | (n & 1);
+        n = n >> 1;
+    }
+    return n + r;
+}
+
+/// run の最小要素数を求める。
+fn timSortMinRun2(length: usize) usize {
+    // データ数を min run で割ったとき、2のべき乗か少し小さくなるように [32,64) で設定する。
+    // 上位6ビット + それ以下が1以上なら +1
+
     var n: u6 = @intCast(@bitSizeOf(usize) - @clz(length));
     if (n < 6) {
         n = 0;
@@ -235,14 +328,12 @@ fn timSortMinRun(length: usize) usize {
     return ((length & mask) >> n) + remain_bits;
 }
 
-/// (start, end] の範囲を二分挿入ソートする。
-pub fn timSortBinaryInsertion(target: *LoggedSortTarget, start: usize, sorted: usize, end: usize) void {
+/// [start, sorted) の範囲がソート済みに [sorted, end) の範囲を二分挿入ソートで追加する。
+fn timSortBinaryInsertion(target: *LoggedSortTarget, start: usize, sorted: usize, end: usize) void {
     if (end <= start + 1) return;
     for (sorted..end) |i| {
         const pos = lib.algorithm.search.binarySearchRightmost(target, start, i, i);
         // pos .. i-1 を右にシフトする。
-        debug("{any} 作成ラン 延長 探索 {}", .{ target.slice, pos });
-        debug("{any} 作成ラン 延長 シフト {} - {}", .{ target.slice, pos, i });
         const i_value = target.get(i);
         var j = i;
         while (pos < j) : (j -= 1) {
@@ -254,7 +345,7 @@ pub fn timSortBinaryInsertion(target: *LoggedSortTarget, start: usize, sorted: u
 
 /// start から始まる整列した領域(run)の末尾を返す。
 fn timSortRun(target: *LoggedSortTarget, start: usize, min_run: usize) usize {
-    debug("作成ラン 起点 {}", .{start});
+    debug(@src(), "ランを作成 [{}]から", .{start});
     if (start + 1 == target.length()) return start + 1;
     // target[start] > target[start + 1] の場合、降順のランを作成する。
     const descend = target.lessThanII(start + 1, start);
@@ -273,22 +364,20 @@ fn timSortRun(target: *LoggedSortTarget, start: usize, min_run: usize) usize {
         }
     }
 
-    debug("昇順？ {} 終点 {}", .{ !descend, i });
+    debug(@src(), "昇順？ {} 終点 {}", .{ !descend, i });
 
     if (descend) { // 降順の場合は逆転させる。
-        debug("反転する {} {}", .{ start, i });
+        debug(@src(), "反転する {} {}", .{ start, i });
         reverse(target, start, i);
-        debug("配列: {any}", .{target.slice});
     }
 
     if (i < start + min_run) {
         // min run より小さい場合は二分挿入ソートで拡張する。
         var end = start + min_run;
-        debug("延長する {} {}", .{ i, end });
+        debug(@src(), "延長する {} {}", .{ i, end });
         if (target.length() <= end) end = target.length();
         timSortBinaryInsertion(target, start, i, end);
         i = end;
-        debug("配列: {any}", .{target.slice});
     }
 
     return i;
@@ -471,14 +560,14 @@ fn timSortMerge(allocator: Allocator, target: *LoggedSortTarget, start: usize, m
     // const r = end;
     const l = timSortGallopLeft(target, start, mid, mid);
     const r = timSortGallopRight(target, mid, end, mid - 1);
-    debug("ギャロップ 左側 {} -> {} 右側 {} -> {}", .{ start, l, end, r });
-    debug("左側範囲 {}-{}({}) 右側範囲 {}-{}({})", .{ l, mid, mid - l, mid, r, r - mid });
+    debug(@src(), "ギャロップ 左側 {} -> {} 右側 {} -> {}", .{ start, l, end, r });
+    debug(@src(), "左側範囲 {}-{}({}) 右側範囲 {}-{}({})", .{ l, mid, mid - l, mid, r, r - mid });
 
     if (mid - l < r - mid) {
-        debug("左側が小さい", .{});
+        debug(@src(), "左側が小さい", .{});
         try timSortMergeLow(allocator, target, l, mid, r);
     } else {
-        debug("右側が小さい", .{});
+        debug(@src(), "右側が小さい", .{});
         try timSortMergeHigh(allocator, target, l, mid, r);
     }
 }
@@ -494,18 +583,18 @@ fn timSortValidateRuns(allocator: Allocator, target: *LoggedSortTarget, run_stac
         const y = y_end - y_start;
         const z = z_end - z_start;
 
-        debug("先頭ラン X {} Y {} Z {}", .{ x, y, z });
+        debug(@src(), "先頭ラン X {} Y {} Z {}", .{ x, y, z });
 
         // 並びはこうなるはず
         // { ... | z | y | x }
         if (!(x + y < z and x < y)) {
             if (x < z) {
-                debug("マージ Y {}-{} X {}-{}", .{ y_start, y_end, x_start, x_end });
+                debug(@src(), "マージ Y {}-{} X {}-{}", .{ y_start, y_end, x_start, x_end });
                 try timSortMerge(allocator, target, y_start, y_end, x_end);
                 try run_stack.append(allocator, .{ z_start, z_end });
                 try run_stack.append(allocator, .{ y_start, x_end });
             } else {
-                debug("マージ Z {}-{} Y {}-{}", .{ z_start, z_end, y_start, y_end });
+                debug(@src(), "マージ Z {}-{} Y {}-{}", .{ z_start, z_end, y_start, y_end });
                 try timSortMerge(allocator, target, z_start, z_end, y_end);
                 try run_stack.append(allocator, .{ z_start, y_end });
                 try run_stack.append(allocator, .{ x_start, x_end });
@@ -523,11 +612,11 @@ fn timSortValidateRuns(allocator: Allocator, target: *LoggedSortTarget, run_stac
 /// ティムソート。
 /// マージソートをもとに挿入ソートを使用して高速にする。
 pub fn timSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!void {
+    debug(@src(), "配列 {f}", .{target});
     if (target.length() < 2) return;
 
-    const min_run = timSortMinRun(target.length());
-    debug("配列 {any}", .{target.slice});
-    debug("最小 Run {}", .{min_run});
+    const min_run = timSortMinRun2(target.length());
+    debug(@src(), "最小 Run {}", .{min_run});
     var run_stack = std.ArrayList(struct { usize, usize }).empty;
     defer run_stack.deinit(allocator);
 
@@ -538,27 +627,24 @@ pub fn timSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!
         // ランを追加する。
         run_start = run_end;
         run_end = timSortRun(target, run_start, min_run);
-        debug("配列 {any}", .{target.slice});
-        debug("ラン 範囲 {} {}", .{ run_start, run_end });
+        debug(@src(), "ラン 範囲 {} {}", .{ run_start, run_end });
         try run_stack.append(allocator, .{ run_start, run_end });
 
         // 不変条件 (x + y < z and x < y) を満たすようにマージする。
         try timSortValidateRuns(allocator, target, &run_stack);
 
-        debug("配列: {any}", .{target.slice});
-        debug("ラン: {any}", .{run_stack.items});
+        debug(@src(), "ラン: {any}", .{run_stack.items});
     }
 
     // 残りを1つのランになるまでマージする。
     while (2 <= run_stack.items.len) {
         const x_start, const x_end = run_stack.pop() orelse unreachable;
         const y_start, const y_end = run_stack.pop() orelse unreachable;
-        debug("マージ Y {}-{} X {}-{}", .{ y_start, y_end, x_start, x_end });
+        debug(@src(), "マージ Y {}-{} X {}-{}", .{ y_start, y_end, x_start, x_end });
         try timSortMerge(allocator, target, y_start, y_end, x_end);
         try run_stack.append(allocator, .{ y_start, x_end });
 
-        debug("配列: {any}", .{target.slice});
-        debug("ラン: {any}", .{run_stack.items});
+        debug(@src(), "ラン: {any}", .{run_stack.items});
     }
 }
 

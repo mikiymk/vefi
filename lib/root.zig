@@ -7,9 +7,6 @@ test {
     std.testing.refAllDecls(@This());
 }
 
-/// デバッグログの表示を制御する。
-pub const log_level: std.log.Level = .debug;
-
 pub const builtin = @import("builtin.zig");
 
 pub const types = @import("types.zig");

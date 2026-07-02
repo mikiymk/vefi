@@ -54,13 +54,8 @@ pub fn shearSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
 //     try mergeInsertionSortInternal(allocator, target, 0, target.length());
 // }
 
-// bucket sort
-// power sort
-// shear-sort
-// Tournament sort
-// Block sort
-// Patience sort
-// Cube sort
+// patience sort
+// cube sort
 // Flux sort
 // Crum sort
 // Library sort
@@ -77,6 +72,7 @@ pub fn shearSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
 
 // 非比較ソート
 
+// bucket sort
 // Pigeonhole sort
 // Bucket sort
 // Counting sort
@@ -87,49 +83,64 @@ pub fn shearSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
 // Flashsort
 
 const SortFn = *const fn (Allocator, *LoggedSortTarget) Allocator.Error!void;
-const sort_algorithms_1 = [_]SortFn{
-    merge_sort.mergeSort,
+/// 高速・安定ソート
+const sorts_fast_stable = [_]SortFn{
+    merge_sort.mergeSort1,
+    merge_sort.mergeSort2,
     merge_sort.mergeSortInPlace1,
     merge_sort.mergeSortInPlace2,
     merge_sort.mergeSortInPlace3,
+    merge_sort.timSort,
+        // power sort
+        // block merge sort
+};
+
+/// 高速・不安定ソート
+const sorts_fast_unstable = [_]SortFn{
     quick_sort.quickSort1,
     quick_sort.quickSort2,
     quick_sort.quickSort3,
+    quick_sort.introSort,
     tree_sort.heapSort1,
     tree_sort.heapSort2,
     tree_sort.heapSort3,
     tree_sort.smoothSort1,
     tree_sort.smoothSort2,
-    quick_sort.introSort,
-    merge_sort.timSort,
+        // tournament sort
 };
 
-const sort_algorithms_2 = [_]SortFn{
+/// 中速・安定ソート
+const sorts_mid_stable = [_]SortFn{
     bubble_sort.bubbleSort1,
     bubble_sort.bubbleSort2,
     bubble_sort.bubbleSort3,
-    bubble_sort.shakerSort,
+    bubble_sort.shakerSort1,
+    bubble_sort.shakerSort2,
     bubble_sort.oddEvenSort,
-    bubble_sort.combSort,
     insertion_sort.gnomeSort,
-    insertion_sort.selectionSort,
     insertion_sort.insertionSort1,
     insertion_sort.insertionSort2,
     insertion_sort.binaryInsertionSort,
+    tree_sort.treeSort,
+        // library sort
+};
+
+/// 中速・不安定ソート
+const sorts_mid_unstable = [_]SortFn{
+    bubble_sort.combSort,
+    insertion_sort.selectionSort,
     insertion_sort.shellSort1,
     insertion_sort.shellSort2,
     insertion_sort.shellSort3,
-    tree_sort.treeSort,
-        // shearSort,
-        // librarySort,
+        // shear sort
 };
 
-const sort_algorithms_3 = [_]SortFn{
+const sorts_slow_unstable = [_]SortFn{
     slow_sort.stoogeSort,
     slow_sort.slowSort,
 };
 
-const sort_algorithms_4 = [_]SortFn{
+const sorts_very_slow_unstable = [_]SortFn{
     slow_sort.bogoSort,
     slow_sort.bozoSort,
 };
@@ -138,7 +149,7 @@ fn testSortAlgorithm(allocator: Allocator, func: SortFn, array_length: usize, ex
     var target = LoggedSortTarget{};
     defer target.deinit(allocator);
     try target.resize(allocator, array_length);
-    target.reset(.shuffle);
+    target.reset(.double_shuffle);
 
     try func(allocator, &target);
 
@@ -154,23 +165,33 @@ fn testSortAlgorithm(allocator: Allocator, func: SortFn, array_length: usize, ex
 test "sort" {
     const allocator = std.testing.allocator;
 
-    for (sort_algorithms_1) |sort_fn| {
+    for (sorts_fast_stable) |sort_fn| {
         try testSortAlgorithm(allocator, sort_fn, 0, true);
-        try testSortAlgorithm(allocator, sort_fn, 10000, true);
+        try testSortAlgorithm(allocator, sort_fn, 1000, true);
     }
 
-    for (sort_algorithms_2) |sort_fn| {
+    for (sorts_fast_unstable) |sort_fn| {
+        try testSortAlgorithm(allocator, sort_fn, 0, false);
+        try testSortAlgorithm(allocator, sort_fn, 1000, false);
+    }
+
+    for (sorts_mid_stable) |sort_fn| {
         try testSortAlgorithm(allocator, sort_fn, 0, true);
         try testSortAlgorithm(allocator, sort_fn, 100, true);
     }
 
-    for (sort_algorithms_3) |sort_fn| {
-        try testSortAlgorithm(allocator, sort_fn, 0, true);
-        try testSortAlgorithm(allocator, sort_fn, 20, true);
+    for (sorts_mid_unstable) |sort_fn| {
+        try testSortAlgorithm(allocator, sort_fn, 0, false);
+        try testSortAlgorithm(allocator, sort_fn, 100, false);
     }
 
-    for (sort_algorithms_4) |sort_fn| {
-        try testSortAlgorithm(allocator, sort_fn, 0, true);
-        try testSortAlgorithm(allocator, sort_fn, 8, true);
+    for (sorts_slow_unstable) |sort_fn| {
+        try testSortAlgorithm(allocator, sort_fn, 0, false);
+        try testSortAlgorithm(allocator, sort_fn, 15, false);
+    }
+
+    for (sorts_very_slow_unstable) |sort_fn| {
+        try testSortAlgorithm(allocator, sort_fn, 0, false);
+        try testSortAlgorithm(allocator, sort_fn, 8, false);
     }
 }

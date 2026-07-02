@@ -14,15 +14,19 @@ test {
 
 pub const std_options = std.Options{
     // デバッグログの表示を制御する。
-    .log_level = .info,
-    // .log_level = .debug,
+    // .log_level = .info,
+    .log_level = .debug,
 };
 
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
-    // try lib.sort.sortLogging(allocator);
-    try lib.algorithm.sort.testSorts(allocator);
+    var target = lib.algorithm.sort.LoggedSortTarget{};
+    defer target.deinit(allocator);
+    try target.resize(allocator, 1000);
+    target.reset(.double_shuffle);
+
+    try lib.algorithm.sort.merge_sort.timSort(allocator, &target);
 }
 
 const LoggedSortTarget = lib.sort.LoggedSortTarget;

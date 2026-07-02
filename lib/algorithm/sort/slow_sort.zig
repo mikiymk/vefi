@@ -32,14 +32,16 @@ pub fn bogoSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
 /// 要素の交換→確認を繰り返す。
 pub fn bozoSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
     if (target.length() < 2) return;
+    const random = lib.algorithm.random.random();
     while (true) {
-        const i = lib.algorithm.random.random().intRangeLessThan(usize, 0, target.length());
-        const j = lib.algorithm.random.random().intRangeLessThan(usize, 0, target.length());
+        const i = random.intRangeLessThan(usize, 0, target.length());
+        const j = random.intRangeLessThan(usize, 0, target.length());
         target.swap(i, j);
         if (isSorted(target)) break;
     }
 }
 
+/// 範囲指定付きストゥージソート。
 fn stoogeSortInternal(target: *LoggedSortTarget, start: usize, end: usize) void {
     if (target.lessThanII(end - 1, start)) {
         target.swap(end - 1, start);
@@ -61,8 +63,10 @@ pub fn stoogeSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
     stoogeSortInternal(target, 0, target.length());
 }
 
+/// 範囲指定付きスローソート。
 fn slowSortInternal(target: *LoggedSortTarget, start: usize, end: usize) void {
     if (end <= start + 1) return;
+
     const mid = (start + end - 1) / 2 + 1;
     slowSortInternal(target, start, mid);
     slowSortInternal(target, mid, end);

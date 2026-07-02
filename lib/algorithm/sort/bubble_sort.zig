@@ -49,7 +49,30 @@ pub fn bubbleSort3(_: Allocator, target: *LoggedSortTarget) error{}!void {
 
 /// シェイカーソート。
 /// 前から後ろ、後ろから前を交互に繰り返す。
-pub fn shakerSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
+pub fn shakerSort1(_: Allocator, target: *LoggedSortTarget) error{}!void {
+    if (target.length() < 2) return;
+
+    for (0..target.length() / 2) |i| {
+        // 順方向
+        for (i..target.length() - i - 1) |j| {
+            if (target.lessThanII(j + 1, j)) {
+                target.swap(j + 1, j);
+            }
+        }
+
+        // 逆方向
+        var j = target.length() - i - 1;
+        while (j > i) : (j -= 1) {
+            if (target.lessThanII(j, j - 1)) {
+                target.swap(j, j - 1);
+            }
+        }
+    }
+}
+
+/// シェイカーソート。
+/// 前から後ろ、後ろから前を交互に繰り返す。
+pub fn shakerSort2(_: Allocator, target: *LoggedSortTarget) error{}!void {
     if (target.length() < 2) return;
 
     var top: usize = 0;
@@ -121,26 +144,31 @@ pub fn combSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
 /// 奇偶転置ソート。
 /// 奇数番目と偶数番目、偶数番目と奇数番目のペア列を交互にソートする。
 pub fn oddEvenSort(_: Allocator, target: *LoggedSortTarget) error{}!void {
-    var swapped = true;
-    while (swapped) {
-        swapped = false;
+    while (true) {
+        var changed = false;
+
         {
             var i: usize = 1;
             while (i < target.length()) : (i += 2) {
                 if (target.lessThanII(i, i - 1)) {
                     target.swap(i, i - 1);
-                    swapped = true;
+                    changed = true;
                 }
             }
         }
+
         {
             var i: usize = 2;
             while (i < target.length()) : (i += 2) {
                 if (target.lessThanII(i, i - 1)) {
                     target.swap(i, i - 1);
-                    swapped = true;
+                    changed = true;
                 }
             }
+        }
+
+        if (!changed) {
+            break;
         }
     }
 }
