@@ -87,9 +87,9 @@ const SortFn = *const fn (Allocator, *LoggedSortTarget) Allocator.Error!void;
 const sorts_fast_stable = [_]SortFn{
     merge_sort.mergeSort1,
     merge_sort.mergeSort2,
-    merge_sort.mergeSortInPlace1,
-    merge_sort.mergeSortInPlace2,
-    merge_sort.mergeSortInPlace3,
+    merge_sort.inPlaceMergeSort1,
+    merge_sort.inPlaceMergeSort2,
+    merge_sort.inPlaceMergeSort3,
     merge_sort.timSort,
         // power sort
         // block merge sort
