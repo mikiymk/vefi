@@ -12,16 +12,30 @@ test {
 }
 
 pub const Type = struct { v: usize, i: usize };
-slice: []Type = &.{},
+
+slice: []Type,
 /// 読み込み回数
-read_count: usize = 0,
+read_count: usize,
 /// 書き込み回数
-write_count: usize = 0,
+write_count: usize,
 /// 比較回数
-compare_count: usize = 0,
+compare_count: usize,
+/// 一時バッファー
+temp_buffer: []Type,
+temp_used: usize,
+
+pub const empty: @This() = .{
+    .slice = &.{},
+    .read_count = 0,
+    .write_count = 0,
+    .compare_count = 0,
+    .temp_buffers = &.{},
+    .temp_used = 0,
+};
 
 pub fn deinit(self: *@This(), allocator: Allocator) void {
     allocator.free(self.slice);
+    allocator.free(self.temp_buffer);
 }
 
 pub fn length(self: @This()) usize {
@@ -29,13 +43,25 @@ pub fn length(self: @This()) usize {
 }
 
 pub fn get(self: *@This(), i: usize) Type {
-    self.read_count += 1;
-    return self.slice[i];
+    if (i < self.slice.len) {
+        self.read_count += 1;
+        return self.slice[i];
+    } else {
+        const temp_index = i - self.slice.len;
+        lib.assert.assert(temp_index < self.temp_used);
+        return self.temp_buffer[temp_index];
+    }
 }
 
-pub fn set(self: *@This(), i: usize, v: Type) void {
-    self.write_count += 1;
-    self.slice[i] = v;
+pub fn set(self: *@This(), i: usize, value: Type) void {
+    if (i < self.slice.len) {
+        self.write_count += 1;
+        self.slice[i] = value;
+    } else {
+        const temp_index = i - self.slice.len;
+        lib.assert.assert(temp_index < self.temp_used);
+        self.temp_buffer[temp_index] = value;
+    }
 }
 
 /// a < b なら真を返す。
@@ -69,6 +95,25 @@ pub fn swap(self: *@This(), i: usize, j: usize) void {
     const tmp = self.get(i);
     self.set(i, self.get(j));
     self.set(j, tmp);
+}
+
+/// 一時バッファを確保する。先頭位置を返す。
+pub fn getTemp(self: *@This(), allocator: Allocator, size: usize) Allocator.Error!usize {
+    const need_size = self.temp_used + size;
+    if (self.temp_buffer.len < need_size) {
+        self.temp_buffer = try allocator.realloc(self.temp_buffer, need_size);
+    }
+    const offset = self.temp_used;
+    self.temp_used += size;
+    return offset;
+}
+
+/// 一時バッファを解放する。
+/// 最も新しいバッファから解放する必要がある。
+pub fn freeTemp(self: *@This(), allocator: Allocator, offset: usize, size: usize) void {
+    _ = allocator;
+    lib.assert.assert(offset + size == self.temp_used);
+    self.temp_used = offset;
 }
 
 pub const ShuffleAlgorithm = enum {
@@ -118,8 +163,6 @@ fn shuffle(self: *@This()) void {
 
 /// リセット用
 pub fn reset(self: *@This(), shuffle_algorithm: ShuffleAlgorithm) void {
-    if (self.slice.len == 0) return;
-
     switch (shuffle_algorithm) {
         .shuffle => {
             self.reset(.ascend);
@@ -185,7 +228,7 @@ pub fn isStableSorted(self: @This()) bool {
 pub fn format(self: @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
     try writer.writeAll(".{");
     for (self.slice, 0..) |value, i| {
-        try writer.print("{s}{}", .{ if (i == 0) " " else ", ", value.v });
+        try writer.print("{s} {}", .{ if (i == 0) "" else ",", value.v });
     }
     try writer.writeAll(" }");
 }

@@ -324,7 +324,7 @@ fn timSortMinRun2(length: usize) usize {
     return ((length & mask) >> n) + remain_bits;
 }
 
-const min_gallop = 7;
+const MIN_GALLOP: usize = 7;
 
 /// 二分探索挿入ソート。
 /// [start, sorted) の範囲がソート済み、 [sorted, end) の範囲が未ソート。
@@ -520,112 +520,140 @@ fn timSortGallopRight(target: *LoggedSortTarget, key: usize, start: usize, end: 
     return lib.algorithm.search.binarySearchLeftmost(target, left, right, key);
 }
 
+fn timSortMergeLowCopyB(target: *LoggedSortTarget, d_index: usize, a_index: usize, b_index: usize, end: usize) void {
+    for (b_index..end) |_| {
+        target.move(d_index, b_index);
+        d_index += 1;
+        b_index += 1;
+    }
+    target.move(d_index, a_index);
+}
+
 /// [start, mid) と [mid, end) をマージする。
 /// (mid - start) < (end - mid) の場合。
 fn timSortMergeLow(allocator: Allocator, target: *LoggedSortTarget, start: usize, mid: usize, end: usize) !void {
+    lib.assert.assert(mid - start < end - mid);
+
     // [start, mid) を一時配列に移す。
-    const buffer = try allocator.alloc(LoggedSortTarget.Type, mid - start);
-    defer allocator.free(buffer);
-    for (buffer, 0..) |*i, n| {
-        i.* = target.get(start + n);
+    const buffer_size = mid - start;
+    const buffer = try target.getTemp(allocator, buffer_size);
+    const buffer_end = buffer + buffer_size;
+    defer target.freeTemp(allocator, buffer, buffer_size);
+    for (0..buffer_size) |n| {
+        target.move(buffer + n, start + n);
     }
 
-    var left: usize = 0;
-    var right = mid;
-    var i = start;
+    var min_gallop = MIN_GALLOP;
 
-    var left_count: usize = 0;
-    var right_count: usize = 0;
+    var d_index = start;
+    var a_index = buffer;
+    var b_index = mid;
 
-    while (left < buffer.len and right < end) {
-        // B[l] <= S[r] なら B[l] 、それ以外で S[r] が先。
-        if (target.lessThanIV(right, buffer[left])) {
-            target.move(i, right);
-            right += 1;
+    outer: while (true) {
+        var a_count = 0;
+        var b_count = 0;
 
-            left_count = 0;
-            right_count += 1;
-        } else {
-            target.set(i, buffer[left]);
-            left += 1;
+        // 通常のコピー
+        while (true) {
+            if (target.lessThanII(b_index, a_index)) {
+                target.move(d_index, b_index);
+                d_index += 1;
+                b_index += 1;
 
-            left_count += 1;
-            right_count = 0;
+                a_count = 0;
+                b_count += 1;
+
+                if (b_index == end) {
+                    break :outer;
+                }
+                if (min_gallop <= b_count) {
+                    break;
+                }
+            } else {
+                target.move(d_index, a_index);
+                d_index += 1;
+                a_index += 1;
+
+                a_count += 1;
+                b_count = 0;
+
+                if (a_index + 1 == buffer_end) {
+                    timSortMergeLowCopyB(target, d_index, a_index, b_index, end);
+                    return;
+                }
+                if (min_gallop <= a_count) {
+                    break;
+                }
+            }
         }
-        i += 1;
 
-        if (min_gallop < left_count) {
-            // 左側をギャロッピング
-            const left_length = b: {
-                // S[j] <= S[r] である最大の j を [left, buffer.len] で見つける。
-                var prev: usize = 0;
-                var curr: usize = 1;
-                while (left + curr < buffer.len and target.lessThanVI(buffer[left + curr], right)) {
-                    prev = curr;
-                    curr *= 2;
+        min_gallop += 1;
+
+        while (true) {
+            if (min_gallop > 1) min_gallop -= 1;
+
+            // 左側のギャロッピング
+            const a_gallop_count = timSortGallopRight(target, b_index, a_index, buffer_end, 0);
+            if (a_gallop_count) {
+                // move
+                for (0..a_gallop_count) |_| {
+                    target.move(d_index, a_index);
+                    d_index += 1;
+                    a_index += 1;
                 }
-
-                var l = left + prev;
-                var r = @min(left + curr, buffer.len);
-                while (l < r) {
-                    const m = (l + r) / 2;
-                    // !(S[r] < B[m]) == S[r] >= B[m]
-                    if (!target.lessThanIV(right, buffer[m])) {
-                        l = m + 1;
-                    } else {
-                        r = m;
-                    }
+                if (a_index + 1 == buffer_end) {
+                    timSortMergeLowCopyB(target, d_index, a_index, b_index, end);
+                    return;
                 }
-                break :b l;
-            };
-
-            while (left < left_length) {
-                target.set(i, buffer[left]);
-                left += 1;
-                i += 1;
+                if (a_index == buffer_end) {
+                    break :outer;
+                }
             }
 
-            left_count = 0;
-        } else if (min_gallop < right_count) {
-            // 右側をギャロッピング
-            const right_length = b: {
-                // S[j] < S[r] である最大の j を [left, buffer.len] で見つける。
-                var prev: usize = 0;
-                var curr: usize = 1;
-                while (right + curr < end and target.lessThanIV(right + curr, buffer[left])) {
-                    prev = curr;
-                    curr *= 2;
-                }
-
-                var l = right + prev;
-                var r = @min(right + curr, end);
-                while (l < r) {
-                    const m = (l + r) / 2;
-                    if (target.lessThanIV(m, buffer[left])) {
-                        l = m + 1;
-                    } else {
-                        r = m;
-                    }
-                }
-                break :b l;
-            };
-
-            while (right < right_length) {
-                target.move(i, right);
-                right += 1;
-                i += 1;
+            // 右側が止まった次は右側
+            target.move(d_index, b_index);
+            d_index += 1;
+            b_index += 1;
+            if (b_index == end) {
+                break :outer;
             }
 
-            right_count = 0;
+            // 右側のギャロッピング
+            const b_gallop_count = timSortGallopLeft(target, a_index, b_index, end, 0);
+            if (b_gallop_count) {
+                // move
+                for (0..b_gallop_count) |_| {
+                    target.move(d_index, b_index);
+                    d_index += 1;
+                    b_index += 1;
+                }
+                if (b_index == end) {
+                    break :outer;
+                }
+            }
+
+            // 右側が止まった次は左側
+            target.move(d_index, a_index);
+            d_index += 1;
+            a_index += 1;
+            if (a_index + 1 == buffer_end) {
+                timSortMergeLowCopyB(target, d_index, a_index, b_index, end);
+                return;
+            }
+
+            // do {} while (acount >= MIN_GALLOP || bcount >= MIN_GALLOP);
+            if (!(a_gallop_count >= MIN_GALLOP or b_gallop_count >= MIN_GALLOP)) {
+                break;
+            }
         }
+        min_gallop += 1;
     }
 
-    // バッファの残りを入れる。
-    // 右側のみの場合はそのまま。
-    while (left < buffer.len) {
-        target.set(i, buffer[left]);
-        left += 1;
-        i += 1;
+    // 残りの左側を入れる
+    if (a_index < buffer_end) {
+        for (a_index..buffer_end, d_index..) |a, d| {
+            target.move(d, a);
+        }
     }
 }
 
