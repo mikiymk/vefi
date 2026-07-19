@@ -317,17 +317,14 @@ fn timSortMinRun2(length: usize) usize {
     // データ数を min run で割ったとき、2のべき乗か少し小さくなるように [32,64) で設定する。
     // 上位6ビット + それ以下が1以上なら +1
 
-    var n: u6 = @intCast(@bitSizeOf(usize) - @clz(length));
-    if (n < 6) {
-        n = 0;
-    } else {
-        n -= 6;
-    }
+    const n = @as(u6, @intCast(@bitSizeOf(usize) - @clz(length))) -| 6;
     const mask = @as(usize, 0b111111) << n;
-
     const remain_bits: usize = if (length & ~mask == 0) 0 else 1;
+
     return ((length & mask) >> n) + remain_bits;
 }
+
+const min_gallop = 7;
 
 /// 二分探索挿入ソート。
 /// [start, sorted) の範囲がソート済み、 [sorted, end) の範囲が未ソート。
@@ -345,6 +342,7 @@ fn timSortBinaryInsertion(target: *LoggedSortTarget, start: usize, sorted: usize
     }
 }
 
+/// 配列の領域
 const Run = struct {
     start: usize,
     end: usize,
@@ -355,20 +353,27 @@ const Run = struct {
 
     /// 文字列に変換する
     pub fn format(self: @This(), writer: *std.Io.Writer) std.Io.Writer.Error!void {
-        try writer.print("ラン({}-{})", .{ self.start, self.end });
+        try writer.print("Run({}-{})", .{ self.start, self.end });
     }
 };
 
-/// start から始まる整列した領域(run)の末尾を返す。
+/// start から始まる整列した領域(run)を返す。
 fn timSortRun(target: *LoggedSortTarget, start: usize, min_run: usize) Run {
     debug(@src(), "ランを作成 {}-", .{start});
-    if (start + 1 == target.length()) return .{ .start = start, .end = start + 1 };
+
+    // 終端に達した場合はそこまで
+    if (start + 1 == target.length()) {
+        return .{ .start = start, .end = start + 1 };
+    }
+
+    // 既に並んでいる領域を求める。
     // target[start] > target[start + 1] の場合、降順のランを作成する。
-    const descend = target.lessThanII(start + 1, start);
     var i = start + 2;
+    const descend = target.lessThanII(start + 1, start);
     if (descend) {
         while (i < target.length()) {
             // 降順ならば S[i - 1] > S[i] でない場合に終了する。
+            // 安定性のため S[i - 1] == S[i] の場合も終了する。
             if (!target.lessThanII(i, i - 1)) break;
             i += 1;
         }
@@ -380,15 +385,15 @@ fn timSortRun(target: *LoggedSortTarget, start: usize, min_run: usize) Run {
         }
     }
 
+    // 降順の場合は逆転させる。
     debug(@src(), "昇順？ {} 終点 {}", .{ !descend, i });
-
-    if (descend) { // 降順の場合は逆転させる。
+    if (descend) {
         debug(@src(), "反転する {} {}", .{ start, i });
         reverse(target, start, i);
     }
 
+    // 最小ランより小さい場合は二分挿入ソートで拡張する。
     if (i < start + min_run) {
-        // min run より小さい場合は二分挿入ソートで拡張する。
         var end = start + min_run;
         debug(@src(), "延長する {} {}", .{ i, end });
         if (target.length() <= end) end = target.length();
@@ -399,29 +404,120 @@ fn timSortRun(target: *LoggedSortTarget, start: usize, min_run: usize) Run {
     return .{ .start = start, .end = i };
 }
 
-/// 二分探索で左端を見つける。
-/// S[j] < S[i] である最大の j を (start, end] で見つける。
-fn timSortGallopLeft(target: *LoggedSortTarget, start: usize, end: usize, i: usize) usize {
-    var prev: usize = 0;
-    var curr: usize = 1;
-    while (start + curr < end and target.lessThanII(start + curr, i)) {
-        prev = curr;
-        curr *= 2;
+/// 二分探索で S[key] の値を挿入できる位置を見つける。
+/// 戻り値 k は start <= k < end および S[k-1] < S[key] <= S[k] を満たす。
+fn timSortGallopLeft(target: *LoggedSortTarget, key: usize, start: usize, end: usize, hint: usize) usize {
+    lib.assert.assert(start <= end and start <= hint and hint < end);
+
+    var left: usize = undefined;
+    var right: usize = undefined;
+
+    if (target.lessThanII(hint, key)) {
+        // S[hint] < S[key]
+        // gallop right, until S[hint + last_offset] < S[key] <= S[hint + offset]
+        var offset: usize = 1;
+        var last_offset: usize = 0;
+        const max_offset = end - hint;
+        while (offset < max_offset) {
+            if (target.lessThanII(hint + offset, key)) {
+                last_offset = offset;
+                offset = offset * 2 + 1;
+            } else {
+                // S[key] <= S[hint + offset]
+                break;
+            }
+        }
+        if (max_offset < offset) {
+            offset = max_offset;
+        }
+
+        left = hint + last_offset + 1;
+        right = hint + offset;
+    } else {
+        // gallop left, until S[hint - offset] < S[key] <= a[hint - last_offset]
+        const max_offset = hint - start + 1;
+        var offset: usize = 1;
+        var last_offset: usize = 0;
+        while (offset < max_offset) {
+            if (target.lessThanII(hint - offset, key)) {
+                break;
+            } else {
+                // S[key] <= S[hint - ofs]
+                last_offset = offset;
+                offset = offset * 2 + 1;
+            }
+        }
+
+        if (max_offset < offset) {
+            offset = max_offset;
+        }
+
+        left = hint + 1 - offset;
+        right = hint - last_offset;
     }
 
-    return lib.algorithm.search.binarySearchLeftmost(target, start + prev, @min(start + curr, end), i);
+    lib.assert.assert(start <= left and left <= right and right <= end);
+    lib.assert.assert(target.lessThanII(left, key) and !target.lessThanII(right, key)); // S[left] < S[key] <= S[right]
+
+    return lib.algorithm.search.binarySearchLeftmost(target, left, right, key);
 }
 
-// 二分探索で右端を見つける。
-// S[i] < S[j] である最小の j を (start, end] で見つける。
-fn timSortGallopRight(target: *LoggedSortTarget, start: usize, end: usize, i: usize) usize {
-    var prev: usize = 0;
-    var curr: usize = 1;
-    while (start + curr < end and target.lessThanII(i, end - curr)) {
-        prev = curr;
-        curr *= 2;
+/// 二分探索で S[key] の値を挿入できる位置を見つける。
+/// 戻り値 k は start <= k < end および S[k-1] <= S[key] < S[k] を満たす。
+fn timSortGallopRight(target: *LoggedSortTarget, key: usize, start: usize, end: usize, hint: usize) usize {
+    lib.assert.assert(start <= end and start <= hint and hint < end);
+
+    var left: usize = undefined;
+    var right: usize = undefined;
+
+    if (target.lessThanII(key, hint)) {
+        // S[key] < S[hint]
+        // gallop left, until S[hint - offset] <= S[key] < S[hint - last_offset]
+        var offset: usize = 1;
+        var last_offset: usize = 0;
+        const max_offset = hint - start + 1;
+        while (offset < max_offset) {
+            if (target.lessThanII(key, hint - offset)) {
+                last_offset = offset;
+                offset = offset * 2 + 1;
+            } else {
+                // S[hint - offset] <= S[key]
+                break;
+            }
+        }
+        if (max_offset < offset) {
+            offset = max_offset;
+        }
+
+        left = hint + 1 - offset;
+        right = hint - last_offset;
+    } else {
+        // gallop left, until S[hint + last_offset] <= S[key] < a[hint + offset]
+        const max_offset = end - hint;
+        var offset: usize = 1;
+        var last_offset: usize = 0;
+        while (offset < max_offset) {
+            if (target.lessThanII(key, hint + offset)) {
+                break;
+            } else {
+                // S[hint - offset] <= S[key]
+                last_offset = offset;
+                offset = offset * 2 + 1;
+            }
+        }
+
+        if (max_offset < offset) {
+            offset = max_offset;
+        }
+
+        left = hint + last_offset + 1;
+        right = hint + offset;
     }
-    return lib.algorithm.search.binarySearchRightmost(target, @max(end -| curr, start), end -| prev, i);
+
+    lib.assert.assert(start <= left and left <= right and right <= end);
+    lib.assert.assert(target.lessThanII(left, key) and !target.lessThanII(right, key)); // S[left] < S[key] <= S[right]
+
+    return lib.algorithm.search.binarySearchLeftmost(target, left, right, key);
 }
 
 /// [start, mid) と [mid, end) をマージする。
@@ -440,7 +536,6 @@ fn timSortMergeLow(allocator: Allocator, target: *LoggedSortTarget, start: usize
 
     var left_count: usize = 0;
     var right_count: usize = 0;
-    const min_gallop = 7;
 
     while (left < buffer.len and right < end) {
         // B[l] <= S[r] なら B[l] 、それ以外で S[r] が先。
