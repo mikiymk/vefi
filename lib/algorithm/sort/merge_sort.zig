@@ -297,6 +297,7 @@ pub fn inPlaceMergeSort3(_: Allocator, target: *LoggedSortTarget) Allocator.Erro
 
 // Tim Sort は整列した領域(run)ごとにマージする。
 // https://github.com/python/cpython/blob/v2.3.7/Objects/listobject.c#L1670
+// https://github.com/python/cpython/blob/v3.11.15/Objects/listobject.c#L2533
 
 /// run の最小要素数を求める。
 fn timSortMinRun1(length: usize) usize {
@@ -520,15 +521,6 @@ fn timSortGallopRight(target: *LoggedSortTarget, key: usize, start: usize, end: 
     return lib.algorithm.search.binarySearchLeftmost(target, left, right, key);
 }
 
-fn timSortMergeLowCopyB(target: *LoggedSortTarget, d_index: usize, a_index: usize, b_index: usize, end: usize) void {
-    for (b_index..end) |_| {
-        target.move(d_index, b_index);
-        d_index += 1;
-        b_index += 1;
-    }
-    target.move(d_index, a_index);
-}
-
 /// [start, mid) と [mid, end) をマージする。
 /// (mid - start) < (end - mid) の場合。
 fn timSortMergeLow(allocator: Allocator, target: *LoggedSortTarget, start: usize, mid: usize, end: usize) !void {
@@ -549,7 +541,20 @@ fn timSortMergeLow(allocator: Allocator, target: *LoggedSortTarget, start: usize
     var a_index = buffer;
     var b_index = mid;
 
-    outer: while (true) {
+    target.move(d_index, b_index);
+    d_index += 1;
+    b_index += 1;
+
+    if (b_index == end) {
+        timSortMergeLowSucceed(target, d_index, a_index, buffer_end);
+        return;
+    }
+    if (a_index + 1 == buffer_end) {
+        timSortMergeLowCopyB(target, d_index, a_index, b_index, end);
+        return;
+    }
+
+    while (true) {
         var a_count = 0;
         var b_count = 0;
 
@@ -564,7 +569,8 @@ fn timSortMergeLow(allocator: Allocator, target: *LoggedSortTarget, start: usize
                 b_count += 1;
 
                 if (b_index == end) {
-                    break :outer;
+                    timSortMergeLowSucceed(target, d_index, a_index, buffer_end);
+                    return;
                 }
                 if (min_gallop <= b_count) {
                     break;
@@ -594,20 +600,18 @@ fn timSortMergeLow(allocator: Allocator, target: *LoggedSortTarget, start: usize
 
             // 左側のギャロッピング
             const a_gallop_count = timSortGallopRight(target, b_index, a_index, buffer_end, 0);
-            if (a_gallop_count) {
-                // move
-                for (0..a_gallop_count) |_| {
-                    target.move(d_index, a_index);
-                    d_index += 1;
-                    a_index += 1;
-                }
-                if (a_index + 1 == buffer_end) {
-                    timSortMergeLowCopyB(target, d_index, a_index, b_index, end);
-                    return;
-                }
-                if (a_index == buffer_end) {
-                    break :outer;
-                }
+            for (a_index..a_gallop_count) |_| {
+                target.move(d_index, a_index);
+                d_index += 1;
+                a_index += 1;
+            }
+            if (a_index + 1 == buffer_end) {
+                timSortMergeLowCopyB(target, d_index, a_index, b_index, end);
+                return;
+            }
+            if (a_index == buffer_end) {
+                timSortMergeLowSucceed(target, d_index, a_index, buffer_end);
+                return;
             }
 
             // 右側が止まった次は右側
@@ -615,21 +619,20 @@ fn timSortMergeLow(allocator: Allocator, target: *LoggedSortTarget, start: usize
             d_index += 1;
             b_index += 1;
             if (b_index == end) {
-                break :outer;
+                timSortMergeLowSucceed(target, d_index, a_index, buffer_end);
+                return;
             }
 
             // 右側のギャロッピング
             const b_gallop_count = timSortGallopLeft(target, a_index, b_index, end, 0);
-            if (b_gallop_count) {
-                // move
-                for (0..b_gallop_count) |_| {
-                    target.move(d_index, b_index);
-                    d_index += 1;
-                    b_index += 1;
-                }
-                if (b_index == end) {
-                    break :outer;
-                }
+            for (b_index..b_gallop_count) |_| {
+                target.move(d_index, b_index);
+                d_index += 1;
+                b_index += 1;
+            }
+            if (b_index == end) {
+                timSortMergeLowSucceed(target, d_index, a_index, buffer_end);
+                return;
             }
 
             // 右側が止まった次は左側
@@ -643,13 +646,15 @@ fn timSortMergeLow(allocator: Allocator, target: *LoggedSortTarget, start: usize
 
             // do {} while (acount >= MIN_GALLOP || bcount >= MIN_GALLOP);
             if (!(a_gallop_count >= MIN_GALLOP or b_gallop_count >= MIN_GALLOP)) {
-                break;
+                timSortMergeLowSucceed(target, d_index, a_index, buffer_end);
+                return;
             }
         }
         min_gallop += 1;
     }
+}
 
-    // 残りの左側を入れる
+fn timSortMergeLowSucceed(target: *LoggedSortTarget, d_index: usize, a_index: usize, buffer_end: usize) void {
     if (a_index < buffer_end) {
         for (a_index..buffer_end, d_index..) |a, d| {
             target.move(d, a);
@@ -657,56 +662,143 @@ fn timSortMergeLow(allocator: Allocator, target: *LoggedSortTarget, start: usize
     }
 }
 
+fn timSortMergeLowCopyB(target: *LoggedSortTarget, d_index: usize, a_index: usize, b_index: usize, end: usize) void {
+    for (b_index..end) |_| {
+        target.move(d_index, b_index);
+        d_index += 1;
+        b_index += 1;
+    }
+    target.move(d_index, a_index);
+}
+
 /// [start, mid) と [mid, end) をマージする。
 /// (mid - start) >= (end - mid) の場合。
 fn timSortMergeHigh(allocator: Allocator, target: *LoggedSortTarget, start: usize, mid: usize, end: usize) !void {
+    lib.assert.assert(end - mid <= mid - start);
+
     // [mid, end) を一時配列に移す。
-    const buffer = try allocator.alloc(LoggedSortTarget.Type, end - mid);
-    defer allocator.free(buffer);
-    for (buffer, 0..) |*i, n| {
-        i.* = target.get(mid + n);
+    const buffer_size = end - mid;
+    const buffer = try target.getTemp(allocator, buffer_size);
+    const buffer_end = buffer + buffer_size;
+    defer target.freeTemp(allocator, buffer, buffer_size);
+    for (buffer..buffer_end, mid..) |n, m| {
+        target.move(n, m);
     }
 
-    // 右からマージする。
-    var left = mid;
-    var right = buffer.len;
-    var i = end;
+    var min_gallop = MIN_GALLOP;
 
-    while (start < left and 0 < right) {
-        // S[r] < S[l] なら S[l] 、それ以外で S[r] が右。
-        if (target.lessThanVI(buffer[right - 1], left - 1)) {
-            target.move(i - 1, left - 1);
-            left -= 1;
-        } else {
-            target.set(i - 1, buffer[right - 1]);
-            right -= 1;
+    var d_index = end;
+    var a_index = mid;
+    var b_index = buffer_end;
+
+    target.move(d_index - 1, a_index - 1);
+    d_index -= 1;
+    a_index -= 1;
+    if (start == a_index) return timSortMergeHighSucceed(target, d_index, buffer, b_index);
+    if (buffer + 1 == b_index) return timSortMergeHighCopyA(target, d_index, start, a_index, b_index);
+
+    while (true) {
+        var a_count = 0;
+        var b_count = 0;
+
+        // 通常のコピー
+        while (true) {
+            if (target.lessThanII(b_index - 1, a_index - 1)) {
+                target.move(d_index - 1, a_index - 1);
+                d_index -= 1;
+                a_index -= 1;
+
+                a_count += 1;
+                b_count = 0;
+
+                if (start == a_index) return timSortMergeHighSucceed(target, d_index, buffer, b_index);
+                if (min_gallop <= b_count) break;
+            } else {
+                target.move(d_index - 1, b_index - 1);
+                d_index -= 1;
+                b_index -= 1;
+
+                a_count = 0;
+                b_count += 1;
+
+                if (buffer + 1 == b_index) return timSortMergeHighCopyA(target, d_index, start, a_index, b_index);
+                if (min_gallop <= a_count) break;
+            }
         }
-        i -= 1;
-    }
 
-    // バッファの残りを入れる。
-    // 左側が残った場合はそのまま。
-    while (0 < right) {
-        target.set(i - 1, buffer[right - 1]);
-        right -= 1;
-        i -= 1;
+        min_gallop += 1;
+
+        while (true) {
+            if (min_gallop > 1) min_gallop -= 1;
+
+            // 左側のギャロッピング
+            const a_gallop_count = timSortGallopRight(target, b_index, mid, a_index, a_index - 1);
+            for (0..a_index - a_gallop_count) |_| {
+                target.move(d_index - 1, a_index - 1);
+                d_index -= 1;
+                a_index -= 1;
+            }
+            if (start == a_index) return timSortMergeHighSucceed(target, d_index, buffer, b_index);
+
+            // 右側が止まった次は右側
+            target.move(d_index - 1, b_index - 1);
+            d_index -= 1;
+            b_index -= 1;
+            if (buffer + 1 == b_index) return timSortMergeHighCopyA(target, d_index, start, a_index, b_index);
+
+            // 右側のギャロッピング
+            const b_gallop_count = timSortGallopLeft(target, a_index, buffer, b_index, b_index - 1);
+            for (0..b_gallop_count) |_| {
+                target.move(d_index - 1, b_index - 1);
+                d_index -= 1;
+                b_index -= 1;
+            }
+            if (buffer + 1 == b_index) return timSortMergeHighCopyA(target, d_index, start, a_index, b_index);
+            if (buffer == b_index) return timSortMergeHighSucceed(target, d_index, buffer, b_index);
+
+            // 右側が止まった次は左側
+            target.move(d_index - 1, a_index - 1);
+            d_index -= 1;
+            a_index -= 1;
+            if (start == a_index) return timSortMergeHighSucceed(target, d_index, buffer, b_index);
+
+            // do {} while (acount >= MIN_GALLOP || bcount >= MIN_GALLOP);
+            if (!(a_gallop_count >= MIN_GALLOP or b_gallop_count >= MIN_GALLOP)) {
+                return timSortMergeHighSucceed(target, d_index, buffer, b_index);
+            }
+        }
+        min_gallop += 1;
     }
 }
 
-/// (start, mid] と (mid, end] をマージする。
-fn timSortMerge(allocator: Allocator, target: *LoggedSortTarget, start: usize, mid: usize, end: usize) !void {
-    // const l = start;
-    // const r = end;
-    const l = timSortGallopLeft(target, start, mid, mid);
-    const r = timSortGallopRight(target, mid, end, mid - 1);
-    debug(@src(), "ギャロップ 左側 {} -> {} 右側 {} -> {}", .{ start, l, end, r });
-    debug(@src(), "左側範囲 {}-{}({}) 右側範囲 {}-{}({})", .{ l, mid, mid - l, mid, r, r - mid });
+fn timSortMergeHighSucceed(target: *LoggedSortTarget, d_index: usize, buffer: usize, b_index: usize) void {
+    for (buffer..b_index, d_index..) |b, d| {
+        target.move(d, b);
+    }
+}
 
-    if (mid - l < r - mid) {
-        debug(@src(), "左側が小さい", .{});
+fn timSortMergeHighCopyA(target: *LoggedSortTarget, d_index: usize, start: usize, a_index: usize, b_index: usize) void {
+    for (start..a_index) |_| {
+        target.move(d_index - 1, a_index - 1);
+        d_index -= 1;
+        a_index -= 1;
+    }
+    target.move(d_index, b_index);
+}
+
+/// (start, mid] と (mid, end] をマージする。
+fn timSortMergeAt(allocator: Allocator, target: *LoggedSortTarget, start: usize, mid: usize, end: usize) !void {
+    const a_start = start;
+    const a_end = mid;
+    const b_start = mid;
+    const b_end = end;
+
+    const l = timSortGallopLeft(target, b_start, a_start, a_end, 0);
+    const r = timSortGallopRight(target, a_end - 1, b_start, b_end, b_end - b_start - 1);
+
+    if (a_end - l < r - b_start) {
         try timSortMergeLow(allocator, target, l, mid, r);
     } else {
-        debug(@src(), "右側が小さい", .{});
         try timSortMergeHigh(allocator, target, l, mid, r);
     }
 }
@@ -721,9 +813,9 @@ fn timSortMergeCollapse(allocator: Allocator, target: *LoggedSortTarget, run_sta
             if (run_stack.items[n - 3].len() < run_stack.items[n - 1].len()) {
                 n -= 1;
             }
-            try mergeAt(allocator, target, run_stack, n - 2);
+            try timSortMergeAt(allocator, target, run_stack, n - 2);
         } else if (run_stack.items[n - 2].len() <= run_stack.items[n - 1].len()) {
-            try mergeAt(allocator, target, run_stack, n - 2);
+            try timSortMergeAt(allocator, target, run_stack, n - 2);
         } else {
             break;
         }
@@ -748,12 +840,12 @@ fn timSortValidateRuns(allocator: Allocator, target: *LoggedSortTarget, run_stac
         if (!(x_len + y_len < z_len and x_len < y_len)) {
             if (x_len < z_len) {
                 debug(@src(), "マージ Y {f} X {f}", .{ y, x });
-                try timSortMerge(allocator, target, y.start, y.end, x.end);
+                try timSortMergeAt(allocator, target, y.start, y.end, x.end);
                 try run_stack.append(allocator, z);
                 try run_stack.append(allocator, .{ .start = y.start, .end = x.end });
             } else {
                 debug(@src(), "マージ Z {f} Y {f}", .{ z, y });
-                try timSortMerge(allocator, target, z.start, z.end, y.end);
+                try timSortMergeAt(allocator, target, z.start, z.end, y.end);
                 try run_stack.append(allocator, .{ .start = z.start, .end = y.end });
                 try run_stack.append(allocator, x);
             }
@@ -798,7 +890,7 @@ pub fn timSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!
         const x = run_stack.pop() orelse unreachable;
         const y = run_stack.pop() orelse unreachable;
         debug(@src(), "マージ Y {f} X {f}", .{ y, x });
-        try timSortMerge(allocator, target, y.start, y.end, x.end);
+        try timSortMergeAt(allocator, target, y.start, y.end, x.end);
         try run_stack.append(allocator, .{ .start = y.start, .end = x.end });
 
         debug(@src(), "ラン: {any}", .{run_stack.items});
