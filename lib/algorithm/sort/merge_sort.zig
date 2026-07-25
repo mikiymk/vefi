@@ -555,8 +555,8 @@ fn timSortMergeLow(allocator: Allocator, target: *LoggedSortTarget, start: usize
     }
 
     while (true) {
-        var a_count = 0;
-        var b_count = 0;
+        var a_count: usize = 0;
+        var b_count: usize = 0;
 
         // 通常のコピー
         while (true) {
@@ -663,12 +663,14 @@ fn timSortMergeLowSucceed(target: *LoggedSortTarget, d_index: usize, a_index: us
 }
 
 fn timSortMergeLowCopyB(target: *LoggedSortTarget, d_index: usize, a_index: usize, b_index: usize, end: usize) void {
+    var di = d_index;
+    var bi = b_index;
     for (b_index..end) |_| {
-        target.move(d_index, b_index);
-        d_index += 1;
-        b_index += 1;
+        target.move(di, bi);
+        di += 1;
+        bi += 1;
     }
-    target.move(d_index, a_index);
+    target.move(di, a_index);
 }
 
 /// [start, mid) と [mid, end) をマージする。
@@ -698,8 +700,8 @@ fn timSortMergeHigh(allocator: Allocator, target: *LoggedSortTarget, start: usiz
     if (buffer + 1 == b_index) return timSortMergeHighCopyA(target, d_index, start, a_index, b_index);
 
     while (true) {
-        var a_count = 0;
-        var b_count = 0;
+        var a_count: usize = 0;
+        var b_count: usize = 0;
 
         // 通常のコピー
         while (true) {
@@ -778,12 +780,14 @@ fn timSortMergeHighSucceed(target: *LoggedSortTarget, d_index: usize, buffer: us
 }
 
 fn timSortMergeHighCopyA(target: *LoggedSortTarget, d_index: usize, start: usize, a_index: usize, b_index: usize) void {
+    var di = d_index;
+    var ai = a_index;
     for (start..a_index) |_| {
-        target.move(d_index - 1, a_index - 1);
-        d_index -= 1;
-        a_index -= 1;
+        target.move(di - 1, ai - 1);
+        di -= 1;
+        ai -= 1;
     }
-    target.move(d_index, b_index);
+    target.move(di, b_index);
 }
 
 /// 範囲 R[i] と R[i+1] をマージする。
@@ -800,12 +804,6 @@ fn timSortMergeAt(allocator: Allocator, target: *LoggedSortTarget, run_stack: *s
     lib.assert.assert(a_start <= a_end and b_start <= b_end);
     lib.assert.assert(a_end == b_start);
 
-    // 後ろをつめる
-    run_stack.items[i].end = b_end;
-    if (i == run_stack.items.len - 3) {
-        run_stack.items[i + 1] = run_stack.pop() orelse unreachable;
-    }
-
     // ソート済み左右端を飛ばす
     const left = timSortGallopLeft(target, b_start, a_start, a_end, 0);
     const right = timSortGallopRight(target, a_end - 1, b_start, b_end, b_end - b_start - 1);
@@ -816,9 +814,17 @@ fn timSortMergeAt(allocator: Allocator, target: *LoggedSortTarget, run_stack: *s
     } else {
         try timSortMergeHigh(allocator, target, left, a_end, right);
     }
+
+    // マージしたランを合わせる
+    run_stack.items[i].end = b_end;
+    if (i == run_stack.items.len - 3) {
+        run_stack.items[i + 1] = run_stack.pop() orelse unreachable;
+    }
 }
 
 /// ランのスタックが不変条件を満たすまでマージする。
+/// 1. A > B + C
+/// 2. B > C
 fn timSortMergeCollapse(allocator: Allocator, target: *LoggedSortTarget, run_stack: *std.ArrayList(Run)) !void {
     while (1 < run_stack.items.len) {
         // { ..., n-2, n-1, n, n+1 }
@@ -845,7 +851,7 @@ fn timSortMergeForceCollapse(allocator: Allocator, target: *LoggedSortTarget, ru
 
         const p = run_stack.items;
         var n = p.len - 2;
-        if (p[n - 1].len() < p[n + 1].len()) n -= 1;
+        if (0 < n and p[n - 1].len() < p[n + 1].len()) n -= 1;
         try timSortMergeAt(allocator, target, run_stack, n);
     }
 }
@@ -856,34 +862,19 @@ pub fn timSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!
     debug(@src(), "配列 {f}", .{target});
     if (target.length() < 2) return;
 
-    const min_run = timSortMinRun2(target.length());
-    debug(@src(), "最小 Run {}", .{min_run});
-
     var run_stack = std.ArrayList(Run).empty;
     defer run_stack.deinit(allocator);
 
-    var run = Run{ .start = 0, .end = 0 };
+    const min_run = timSortMinRun2(target.length());
+    var last_pos: usize = 0;
 
-    while (run.end < target.length()) {
-        // ランを追加する。
-        run = timSortRun(target, run.end, min_run);
-        debug(@src(), "{f}", .{run});
+    while (last_pos < target.length()) {
+        const run = timSortRun(target, last_pos, min_run);
         try run_stack.append(allocator, run);
-
-        // 不変条件 (x + y < z and x < y) を満たすようにマージする。
         try timSortMergeCollapse(allocator, target, &run_stack);
 
-        debug(@src(), "ラン: {any}", .{run_stack.items});
+        last_pos = run.end;
     }
 
-    // 残りを1つのランになるまでマージする。
-    while (2 <= run_stack.items.len) {
-        const x = run_stack.pop() orelse unreachable;
-        const y = run_stack.pop() orelse unreachable;
-        debug(@src(), "マージ Y {f} X {f}", .{ y, x });
-        try timSortMergeAt(allocator, target, y.start, y.end, x.end);
-        try run_stack.append(allocator, .{ .start = y.start, .end = x.end });
-
-        debug(@src(), "ラン: {any}", .{run_stack.items});
-    }
+    try timSortMergeForceCollapse(allocator, target, &run_stack);
 }

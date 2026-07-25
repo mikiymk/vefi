@@ -21,7 +21,7 @@ pub const std_options = std.Options{
 pub fn main() !void {
     const allocator = std.heap.page_allocator;
 
-    var target = lib.algorithm.sort.LoggedSortTarget{};
+    var target = lib.algorithm.sort.LoggedSortTarget.empty;
     defer target.deinit(allocator);
     try target.resize(allocator, 1000);
     target.reset(.double_shuffle);

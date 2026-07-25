@@ -146,7 +146,7 @@ const sorts_very_slow_unstable = [_]SortFn{
 };
 
 fn testSortAlgorithm(allocator: Allocator, func: SortFn, array_length: usize, expect_stable: bool) !void {
-    var target = LoggedSortTarget{};
+    var target = LoggedSortTarget.empty;
     defer target.deinit(allocator);
     try target.resize(allocator, array_length);
     target.reset(.double_shuffle);

@@ -29,7 +29,7 @@ pub const empty: @This() = .{
     .read_count = 0,
     .write_count = 0,
     .compare_count = 0,
-    .temp_buffers = &.{},
+    .temp_buffer = &.{},
     .temp_used = 0,
 };
 
