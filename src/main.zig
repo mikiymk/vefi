@@ -23,10 +23,14 @@ pub fn main() !void {
 
     var target = lib.algorithm.sort.LoggedSortTarget.empty;
     defer target.deinit(allocator);
-    try target.resize(allocator, 1000);
+    try target.resize(allocator, 50);
     target.reset(.double_shuffle);
 
     try lib.algorithm.sort.merge_sort.timSort(allocator, &target);
+
+    if (target.isSorted()) {
+        std.debug.print("ソート済み", .{});
+    }
 }
 
 const LoggedSortTarget = lib.sort.LoggedSortTarget;

@@ -12,6 +12,21 @@ fn debug(src: std.builtin.SourceLocation, comptime format: []const u8, args: any
     std.log.debug("{s}:{d}:{d} {s}: " ++ format, .{ src.file, src.line, src.column, src.fn_name } ++ args);
 }
 
+fn isSorted(target: LoggedSortTarget, start: usize, end: usize) bool {
+    lib.assert.assert(start <= end);
+    if (end - start <= 1) {
+        return true;
+    }
+
+    for (start..end - 1) |i| {
+        if (!(target.slice[i].v <= target.slice[i + 1].v)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 /// 要素を逆順にする。
 fn reverse(target: *LoggedSortTarget, left: usize, right: usize) void {
     const size = right - left;
@@ -298,6 +313,7 @@ pub fn inPlaceMergeSort3(_: Allocator, target: *LoggedSortTarget) Allocator.Erro
 // Tim Sort は整列した領域(run)ごとにマージする。
 // https://github.com/python/cpython/blob/v2.3.7/Objects/listobject.c#L1670
 // https://github.com/python/cpython/blob/v3.10.20/Objects/listobject.c#L2221
+// https://github.com/openjdk/jdk/blob/jdk-28%2B8/src/java.base/share/classes/java/util/TimSort.java
 
 /// run の最小要素数を求める。
 fn timSortMinRun1(length: usize) usize {
@@ -360,9 +376,6 @@ const Run = struct {
 
 /// start から始まる整列した領域(run)を返す。
 fn timSortRun(target: *LoggedSortTarget, start: usize, min_run: usize) Run {
-    debug(@src(), "ランを作成 {}-", .{start});
-
-    // 終端に達した場合はそこまで
     if (start + 1 == target.length()) {
         return .{ .start = start, .end = start + 1 };
     }
@@ -387,16 +400,13 @@ fn timSortRun(target: *LoggedSortTarget, start: usize, min_run: usize) Run {
     }
 
     // 降順の場合は逆転させる。
-    debug(@src(), "昇順？ {} 終点 {}", .{ !descend, i });
     if (descend) {
-        debug(@src(), "反転する {} {}", .{ start, i });
         reverse(target, start, i);
     }
 
     // 最小ランより小さい場合は二分挿入ソートで拡張する。
     if (i < start + min_run) {
         var end = start + min_run;
-        debug(@src(), "延長する {} {}", .{ i, end });
         if (target.length() <= end) end = target.length();
         timSortBinaryInsertion(target, start, i, end);
         i = end;
@@ -405,26 +415,168 @@ fn timSortRun(target: *LoggedSortTarget, start: usize, min_run: usize) Run {
     return .{ .start = start, .end = i };
 }
 
+fn cPythonGallopLeft(target: *LoggedSortTarget, key: usize, a_param: usize, n: usize, hint: usize) usize {
+    var a = a_param;
+    var ofs: usize = undefined;
+    var lastofs: usize = undefined;
+    var k: usize = undefined;
+    var lastofs_overflow: bool = false;
+
+    lib.assert.assert(n > 0 and hint >= 0 and hint < n);
+
+    a += hint;
+    lastofs = 0;
+    ofs = 1;
+    if (target.lessThanII(a, key)) {
+        // a[hint] < key -- gallop right, until
+        // a[hint + lastofs] < key <= a[hint + ofs]
+
+        const maxofs = n - hint; // &a[n-1] is highest
+        while (ofs < maxofs) {
+            if (target.lessThanII(a + ofs, key)) {
+                lastofs = ofs;
+                ofs = (ofs << 1) + 1;
+            } else // key <= a[hint + ofs]
+            break;
+        }
+        if (ofs > maxofs)
+            ofs = maxofs;
+
+        std.debug.print("hint {} ofs {} lofs {}\n", .{ hint, ofs, lastofs });
+        // Translate back to offsets relative to &a[0].
+        lastofs += hint;
+        ofs += hint;
+    } else {
+        // key <= a[hint] -- gallop left, until
+        // a[hint - ofs] < key <= a[hint - lastofs]
+
+        const maxofs = hint + 1; // &a[0] is lowest
+        while (ofs < maxofs) {
+            if (target.lessThanII(a - ofs, key))
+                break;
+            // key <= a[hint - ofs]
+            lastofs = ofs;
+            ofs = (ofs << 1) + 1;
+        }
+        if (ofs > maxofs)
+            ofs = maxofs;
+
+        std.debug.print("hint {} ofs {} lastofs {}\n", .{ hint, ofs, lastofs });
+
+        // Translate back to positive offsets relative to &a[0].
+        if (hint < ofs) lastofs_overflow = true;
+        k = lastofs;
+        lastofs = hint -| ofs;
+        ofs = hint - k;
+    }
+    a -= hint;
+
+    lib.assert.assert(0 <= lastofs);
+    lib.assert.assert(lastofs < ofs or (lastofs == ofs and lastofs_overflow));
+    lib.assert.assert(ofs <= n);
+    // Now a[lastofs] < key <= a[ofs], so key belongs somewhere to the
+    // right of lastofs but no farther right than ofs.  Do a binary
+    // search, with invariant a[lastofs-1] < key <= a[ofs].
+
+    lastofs += 1;
+    if (lastofs_overflow) {
+        lastofs -= 1;
+    }
+    std.debug.print("ofs {} lastofs {}\n", .{ ofs, lastofs });
+    while (lastofs < ofs) {
+        const m = lastofs + ((ofs - lastofs) >> 1);
+        std.debug.print("ofs {} lastofs {} m {}\n", .{ ofs, lastofs, m });
+
+        if (target.lessThanII(a + m, key))
+            lastofs = m + 1 // a[m] < key
+        else
+            ofs = m; // key <= a[m]
+    }
+    lib.assert.assert(lastofs == ofs); // so a[ofs-1] < key <= a[ofs]
+    return ofs;
+}
+
+fn openJdkGallopLeft(target: *LoggedSortTarget, key: usize, base: usize, len: usize, hint: usize) usize {
+    lib.assert.assert(len > 0 and hint >= 0 and hint < len);
+    var lastOfs: usize = 0;
+    var ofs: usize = 1;
+    // if (c.compare(key, a[base + hint]) > 0) {
+    //     // Gallop right until a[base+hint+lastOfs] < key <= a[base+hint+ofs]
+    //     int maxOfs = len - hint;
+    //     while (ofs < maxOfs && c.compare(key, a[base + hint + ofs]) > 0) {
+    //         lastOfs = ofs;
+    //         ofs = (ofs << 1) + 1;
+    //         if (ofs <= 0)   // int overflow
+    //             ofs = maxOfs;
+    //     }
+    //     if (ofs > maxOfs)
+    //         ofs = maxOfs;
+
+    //     // Make offsets relative to base
+    //     lastOfs += hint;
+    //     ofs += hint;
+    // } else { // key <= a[base + hint]
+    //     // Gallop left until a[base+hint-ofs] < key <= a[base+hint-lastOfs]
+    //     final int maxOfs = hint + 1;
+    //     while (ofs < maxOfs && c.compare(key, a[base + hint - ofs]) <= 0) {
+    //         lastOfs = ofs;
+    //         ofs = (ofs << 1) + 1;
+    //         if (ofs <= 0)   // int overflow
+    //             ofs = maxOfs;
+    //     }
+    //     if (ofs > maxOfs)
+    //         ofs = maxOfs;
+
+    //     // Make offsets relative to base
+    //     int tmp = lastOfs;
+    //     lastOfs = hint - ofs;
+    //     ofs = hint - tmp;
+    // }
+    // assert -1 <= lastOfs && lastOfs < ofs && ofs <= len;
+
+    // /*
+    //  * Now a[base+lastOfs] < key <= a[base+ofs], so key belongs somewhere
+    //  * to the right of lastOfs but no farther right than ofs.  Do a binary
+    //  * search, with invariant a[base + lastOfs - 1] < key <= a[base + ofs].
+    //  */
+    // lastOfs++;
+    // while (lastOfs < ofs) {
+    //     int m = lastOfs + ((ofs - lastOfs) >>> 1);
+
+    //     if (c.compare(key, a[base + m]) > 0)
+    //         lastOfs = m + 1;  // a[base + m] < key
+    //     else
+    //         ofs = m;          // key <= a[base + m]
+    // }
+    // assert lastOfs == ofs;    // so a[base + ofs - 1] < key <= a[base + ofs]
+    // return ofs;
+
+}
+
 /// 二分探索で S[key] の値を挿入できる位置を見つける。
-/// 戻り値 k は start <= k < end および S[k-1] < S[key] <= S[k] を満たす。
+/// 戻り値 k は start <= k < end および S[k-1] < S[key] <= S[k] を満たす。 (S[start-1] は-∞、 S[end] は∞)
+/// hint は start <= hint < end で、
 fn timSortGallopLeft(target: *LoggedSortTarget, key: usize, start: usize, end: usize, hint: usize) usize {
-    lib.assert.assert(start <= end and start <= hint and hint < end);
+    lib.assert.assert(start <= end and start <= hint and hint < end and end <= target.length());
 
-    var left: usize = undefined;
-    var right: usize = undefined;
+    if (true) {
+        return cPythonGallopLeft(target, key, start, end - start, hint);
+    }
 
-    if (target.lessThanII(hint, key)) {
-        // S[hint] < S[key]
-        // gallop right, until S[hint + last_offset] < S[key] <= S[hint + offset]
-        var offset: usize = 1;
-        var last_offset: usize = 0;
-        const max_offset = end - hint;
+    var a = start;
+    const n = end - start;
+    const n_hint = hint - start;
+
+    var offset: usize = 1;
+    var last_offset: usize = 0;
+    a += n_hint;
+    if (target.lessThanII(a, key)) {
+        const max_offset = n - n_hint;
         while (offset < max_offset) {
-            if (target.lessThanII(hint + offset, key)) {
+            if (target.lessThanII(a + offset, key)) {
                 last_offset = offset;
                 offset = offset * 2 + 1;
             } else {
-                // S[key] <= S[hint + offset]
                 break;
             }
         }
@@ -432,13 +584,10 @@ fn timSortGallopLeft(target: *LoggedSortTarget, key: usize, start: usize, end: u
             offset = max_offset;
         }
 
-        left = hint + last_offset + 1;
-        right = hint + offset;
+        last_offset += hint;
+        offset += hint;
     } else {
-        // gallop left, until S[hint - offset] < S[key] <= a[hint - last_offset]
         const max_offset = hint - start + 1;
-        var offset: usize = 1;
-        var last_offset: usize = 0;
         while (offset < max_offset) {
             if (target.lessThanII(hint - offset, key)) {
                 break;
@@ -453,20 +602,59 @@ fn timSortGallopLeft(target: *LoggedSortTarget, key: usize, start: usize, end: u
             offset = max_offset;
         }
 
-        left = hint + 1 - offset;
-        right = hint - last_offset;
+        const k = last_offset;
+        last_offset = hint - offset;
+        offset = hint - k;
     }
 
-    lib.assert.assert(start <= left and left <= right and right <= end);
-    lib.assert.assert(target.lessThanII(left, key) and !target.lessThanII(right, key)); // S[left] < S[key] <= S[right]
+    a -= n_hint;
+    lib.assert.assert(start <= last_offset);
+    lib.assert.assert(last_offset <= offset);
+    lib.assert.assert(offset <= end);
+    lib.assert.assert(target.lessThanII(last_offset, key)); // S[left] < S[key]
+    lib.assert.assert(!target.lessThanII(offset, key)); // S[key] <= S[right]
+    last_offset += 1;
 
-    return lib.algorithm.search.binarySearchLeftmost(target, left, right, key);
+    return lib.algorithm.search.binarySearchLeftmost(target, last_offset, offset, key);
+}
+
+test timSortGallopLeft {
+    const Case = struct {
+        slice: [5]usize,
+        expect: usize,
+    };
+    const cases = [_]Case{
+        .{ .slice = .{ 0, 2, 4, 6, 8 }, .expect = 1 },
+        .{ .slice = .{ 4, 2, 4, 6, 8 }, .expect = 2 },
+        .{ .slice = .{ 5, 2, 4, 6, 8 }, .expect = 3 },
+        .{ .slice = .{ 9, 2, 4, 6, 8 }, .expect = 5 },
+        .{ .slice = .{ 3, 1, 3, 3, 5 }, .expect = 2 },
+    };
+    var target = LoggedSortTarget.empty;
+    var slice: [5]LoggedSortTarget.Type = undefined;
+    target.slice = &slice;
+
+    for (cases) |c| {
+        for (target.slice, c.slice) |*a, b| {
+            a.v = b;
+        }
+        for (1..5) |hint| {
+            std.debug.print("{any}\n", .{c});
+            try lib.testing.expect(timSortGallopLeft(&target, 0, 1, 5, hint)).is(c.expect);
+        }
+    }
 }
 
 /// 二分探索で S[key] の値を挿入できる位置を見つける。
 /// 戻り値 k は start <= k < end および S[k-1] <= S[key] < S[k] を満たす。
 fn timSortGallopRight(target: *LoggedSortTarget, key: usize, start: usize, end: usize, hint: usize) usize {
-    lib.assert.assert(start <= end and start <= hint and hint < end);
+    lib.assert.assert(start <= end);
+    lib.assert.assert(start <= hint);
+    lib.assert.assert(hint < end);
+
+    if (true) {
+        return lib.algorithm.search.binarySearchLeftmost(target, start, end, key);
+    }
 
     var left: usize = undefined;
     var right: usize = undefined;
@@ -797,28 +985,31 @@ fn timSortMergeAt(allocator: Allocator, target: *LoggedSortTarget, run_stack: *s
     lib.assert.assert(i == run_stack.items.len - 2 or i == run_stack.items.len - 3);
 
     // 値の取り出し
-    const a_start = run_stack.items[i].start;
-    const a_end = run_stack.items[i].end;
-    const b_start = run_stack.items[i + 1].start;
-    const b_end = run_stack.items[i + 1].end;
-    lib.assert.assert(a_start <= a_end and b_start <= b_end);
-    lib.assert.assert(a_end == b_start);
+    const a = run_stack.items[i];
+    const b = run_stack.items[i + 1];
+    lib.assert.assert(a.start <= a.end and b.start <= b.end);
+    lib.assert.assert(a.end == b.start);
 
     // ソート済み左右端を飛ばす
-    const left = timSortGallopLeft(target, b_start, a_start, a_end, 0);
-    const right = timSortGallopRight(target, a_end - 1, b_start, b_end, b_end - b_start - 1);
+    // const left = timSortGallopLeft(target, b.start, a.start, a.end, a.start);
+    const left = a.start;
+    // const right = timSortGallopRight(target, a.end - 1, b.start, b.end, b.end - 1);
+    const right = b.end;
 
     // マージ
-    if (a_end - left < right - b_start) {
-        try timSortMergeLow(allocator, target, left, a_end, right);
-    } else {
-        try timSortMergeHigh(allocator, target, left, a_end, right);
-    }
+    // if (a.end - left < right - b.start) {
+    //     try timSortMergeLow(allocator, target, left, a.end, right);
+    // } else {
+    //     try timSortMergeHigh(allocator, target, left, a.end, right);
+    // }
+    try mergeSort1Merge(allocator, target, left, a.end, right);
 
     // マージしたランを合わせる
-    run_stack.items[i].end = b_end;
-    if (i == run_stack.items.len - 3) {
+    run_stack.items[i].end = b.end;
+    if (i + 3 == run_stack.items.len) {
         run_stack.items[i + 1] = run_stack.pop() orelse unreachable;
+    } else {
+        _ = run_stack.pop();
     }
 }
 
@@ -827,10 +1018,8 @@ fn timSortMergeAt(allocator: Allocator, target: *LoggedSortTarget, run_stack: *s
 /// 2. B > C
 fn timSortMergeCollapse(allocator: Allocator, target: *LoggedSortTarget, run_stack: *std.ArrayList(Run)) !void {
     while (1 < run_stack.items.len) {
-        // { ..., n-2, n-1, n, n+1 }
-
         const p = run_stack.items;
-        var n = p.len - 2;
+        var n = p.len - 2; // { ..., n-2, n-1, n, n+1 }
         if ((0 < n and p[n - 1].len() <= p[n].len() + p[n + 1].len()) or
             (1 < n and p[n - 2].len() <= p[n - 1].len() + p[n].len()))
         {
@@ -847,10 +1036,8 @@ fn timSortMergeCollapse(allocator: Allocator, target: *LoggedSortTarget, run_sta
 /// ランのスタックが1つになるまでマージする。
 fn timSortMergeForceCollapse(allocator: Allocator, target: *LoggedSortTarget, run_stack: *std.ArrayList(Run)) !void {
     while (1 < run_stack.items.len) {
-        // { ..., n-2, n-1, n, n+1 }
-
         const p = run_stack.items;
-        var n = p.len - 2;
+        var n = p.len - 2; // { ..., n-2, n-1, n, n+1 }
         if (0 < n and p[n - 1].len() < p[n + 1].len()) n -= 1;
         try timSortMergeAt(allocator, target, run_stack, n);
     }
@@ -862,15 +1049,17 @@ pub fn timSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!
     debug(@src(), "配列 {f}", .{target});
     if (target.length() < 2) return;
 
+    // const min_run = timSortMinRun2(target.length());
+    const min_run: usize = 2;
+
     var run_stack = std.ArrayList(Run).empty;
     defer run_stack.deinit(allocator);
 
-    const min_run = timSortMinRun2(target.length());
     var last_pos: usize = 0;
-
     while (last_pos < target.length()) {
         const run = timSortRun(target, last_pos, min_run);
         try run_stack.append(allocator, run);
+
         try timSortMergeCollapse(allocator, target, &run_stack);
 
         last_pos = run.end;
