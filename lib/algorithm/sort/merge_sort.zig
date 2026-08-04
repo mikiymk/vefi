@@ -415,197 +415,45 @@ fn timSortRun(target: *LoggedSortTarget, start: usize, min_run: usize) Run {
     return .{ .start = start, .end = i };
 }
 
-fn cPythonGallopLeft(target: *LoggedSortTarget, key: usize, a_param: usize, n: usize, hint: usize) usize {
-    var a = a_param;
-    var ofs: usize = undefined;
-    var lastofs: usize = undefined;
-    var k: usize = undefined;
-    var lastofs_overflow: bool = false;
-
-    lib.assert.assert(n > 0 and hint >= 0 and hint < n);
-
-    a += hint;
-    lastofs = 0;
-    ofs = 1;
-    if (target.lessThanII(a, key)) {
-        // a[hint] < key -- gallop right, until
-        // a[hint + lastofs] < key <= a[hint + ofs]
-
-        const maxofs = n - hint; // &a[n-1] is highest
-        while (ofs < maxofs) {
-            if (target.lessThanII(a + ofs, key)) {
-                lastofs = ofs;
-                ofs = (ofs << 1) + 1;
-            } else // key <= a[hint + ofs]
-            break;
-        }
-        if (ofs > maxofs)
-            ofs = maxofs;
-
-        std.debug.print("hint {} ofs {} lofs {}\n", .{ hint, ofs, lastofs });
-        // Translate back to offsets relative to &a[0].
-        lastofs += hint;
-        ofs += hint;
-    } else {
-        // key <= a[hint] -- gallop left, until
-        // a[hint - ofs] < key <= a[hint - lastofs]
-
-        const maxofs = hint + 1; // &a[0] is lowest
-        while (ofs < maxofs) {
-            if (target.lessThanII(a - ofs, key))
-                break;
-            // key <= a[hint - ofs]
-            lastofs = ofs;
-            ofs = (ofs << 1) + 1;
-        }
-        if (ofs > maxofs)
-            ofs = maxofs;
-
-        std.debug.print("hint {} ofs {} lastofs {}\n", .{ hint, ofs, lastofs });
-
-        // Translate back to positive offsets relative to &a[0].
-        if (hint < ofs) lastofs_overflow = true;
-        k = lastofs;
-        lastofs = hint -| ofs;
-        ofs = hint - k;
-    }
-    a -= hint;
-
-    lib.assert.assert(0 <= lastofs);
-    lib.assert.assert(lastofs < ofs or (lastofs == ofs and lastofs_overflow));
-    lib.assert.assert(ofs <= n);
-    // Now a[lastofs] < key <= a[ofs], so key belongs somewhere to the
-    // right of lastofs but no farther right than ofs.  Do a binary
-    // search, with invariant a[lastofs-1] < key <= a[ofs].
-
-    lastofs += 1;
-    if (lastofs_overflow) {
-        lastofs -= 1;
-    }
-    std.debug.print("ofs {} lastofs {}\n", .{ ofs, lastofs });
-    while (lastofs < ofs) {
-        const m = lastofs + ((ofs - lastofs) >> 1);
-        std.debug.print("ofs {} lastofs {} m {}\n", .{ ofs, lastofs, m });
-
-        if (target.lessThanII(a + m, key))
-            lastofs = m + 1 // a[m] < key
-        else
-            ofs = m; // key <= a[m]
-    }
-    lib.assert.assert(lastofs == ofs); // so a[ofs-1] < key <= a[ofs]
-    return ofs;
-}
-
-fn openJdkGallopLeft(target: *LoggedSortTarget, key: usize, base: usize, len: usize, hint: usize) usize {
-    lib.assert.assert(len > 0 and hint >= 0 and hint < len);
-    var lastOfs: usize = 0;
-    var ofs: usize = 1;
-    if (target.lessThanII(base + hint, key)) { // S[base + hint] < S[key]
-
-        const maxOfs = len - hint;
-        while (ofs < maxOfs and target.lessThanII(base + hint + ofs, key)) {
-            lastOfs = ofs;
-            ofs = (ofs <<| 1) + 1;
-        }
-        if (ofs > maxOfs)
-            ofs = maxOfs;
-
-        lastOfs += hint;
-        ofs += hint;
-    } else { // S[key] <= S[base + hint]
-        const maxOfs = hint + 1;
-        while (ofs < maxOfs and !target.lessThanII(base + hint - ofs, key)) {
-            lastOfs = ofs;
-            ofs = (ofs <<| 1) + 1;
-        }
-        if (ofs > maxOfs)
-            ofs = maxOfs;
-
-        const tmp = lastOfs;
-        lastOfs = hint -% ofs;
-        ofs = hint - tmp;
-    }
-
-    lib.assert.assert((lastOfs == (0 -% 1) or lastOfs < ofs) and ofs <= len);
-
-    lastOfs +%= 1;
-    while (lastOfs < ofs) {
-        const m = lastOfs + ((ofs - lastOfs) >> 1);
-
-        if (target.lessThanII(base + m, key)) {
-            lastOfs = m + 1;
-        } else {
-            ofs = m;
-        }
-    }
-    lib.assert.assert(lastOfs == ofs);
-    return ofs;
-}
-
 /// 二分探索で S[key] の値を挿入できる位置を見つける。
 /// 戻り値 k は start <= k < end および S[k-1] < S[key] <= S[k] を満たす。 (S[start-1] は-∞、 S[end] は∞)
 /// hint は start <= hint < end で、
 fn timSortGallopLeft(target: *LoggedSortTarget, key: usize, start: usize, end: usize, hint: usize) usize {
-    lib.assert.assert(start <= end and start <= hint and hint < end and end <= target.length());
+    lib.assert.assert(start < end and start <= hint and hint < end and end <= target.length());
 
-    if (true) {
-        return start + openJdkGallopLeft(target, key, start, end - start, hint - start);
-        // return cPythonGallopLeft(target, key, start, end - start, hint);
-    }
-
-    var a = start;
-    const n = end - start;
-    const n_hint = hint - start;
-
-    var offset: usize = 1;
-    var last_offset: usize = 0;
-    a += n_hint;
-    if (target.lessThanII(a, key)) {
-        const max_offset = n - n_hint;
-        while (offset < max_offset) {
-            if (target.lessThanII(a + offset, key)) {
-                last_offset = offset;
-                offset = offset * 2 + 1;
-            } else {
-                break;
-            }
+    var left: usize = undefined;
+    var right: usize = undefined;
+    if (target.lessThanII(hint, key)) { // S[hint] < S[key]
+        const max_offset = end - hint;
+        var last_offset: usize = 0;
+        var offset: usize = 1;
+        while (offset < max_offset and target.lessThanII(hint + offset, key)) {
+            last_offset = offset;
+            offset = (offset <<| 1) + 1;
         }
-        if (max_offset < offset) {
+        if (offset > max_offset)
             offset = max_offset;
-        }
 
-        last_offset += hint;
-        offset += hint;
-    } else {
+        left = hint + last_offset + 1;
+        right = hint + offset;
+        return lib.algorithm.search.binarySearchLeftmost(target, hint + last_offset, hint + offset, key);
+    } else { // S[key] <= S[hint]
         const max_offset = hint - start + 1;
-        while (offset < max_offset) {
-            if (target.lessThanII(hint - offset, key)) {
-                break;
-            } else {
-                // S[key] <= S[hint - ofs]
-                last_offset = offset;
-                offset = offset * 2 + 1;
-            }
+        var last_offset: usize = 0;
+        var offset: usize = 1;
+        while (offset < max_offset and !target.lessThanII(hint - offset, key)) {
+            last_offset = offset;
+            offset = (offset <<| 1) + 1;
         }
-
-        if (max_offset < offset) {
+        if (offset > max_offset)
             offset = max_offset;
-        }
 
-        const k = last_offset;
-        last_offset = hint - offset;
-        offset = hint - k;
+        left = hint + 1 - offset;
+        right = hint - last_offset;
     }
 
-    a -= n_hint;
-    lib.assert.assert(start <= last_offset);
-    lib.assert.assert(last_offset <= offset);
-    lib.assert.assert(offset <= end);
-    lib.assert.assert(target.lessThanII(last_offset, key)); // S[left] < S[key]
-    lib.assert.assert(!target.lessThanII(offset, key)); // S[key] <= S[right]
-    last_offset += 1;
-
-    return lib.algorithm.search.binarySearchLeftmost(target, last_offset, offset, key);
+    lib.assert.assert(start <= left and left <= right and right <= end);
+    return lib.algorithm.search.binarySearchLeftmost(target, left, right, key);
 }
 
 test timSortGallopLeft {
@@ -634,7 +482,7 @@ test timSortGallopLeft {
         for (target.slice, c.slice) |*a, b| {
             a.v = b;
         }
-        std.debug.print("{any}\n", .{c});
+        // std.debug.print("{any}\n", .{c});
         for (c.s..c.e) |hint| {
             try lib.testing.expect(timSortGallopLeft(&target, c.k, c.s, c.e, hint)).is(c.expected);
         }
