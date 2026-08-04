@@ -97,6 +97,30 @@ pub fn swap(self: *@This(), i: usize, j: usize) void {
     self.set(j, tmp);
 }
 
+/// 開始位置destに開始位置sourceからlenの範囲を入れる。
+pub fn copy(self: *@This(), dest: usize, source: usize, len: usize) void {
+    lib.assert.assert((dest < source and dest + len <= source) or
+        (source < dest and source + len <= dest));
+
+    var d: []Type = undefined;
+    if (dest < self.slice.len) {
+        self.write_count += len;
+        d = self.slice[dest..];
+    } else {
+        d = self.temp_buffer[dest - self.slice.len ..];
+    }
+
+    var s: []Type = undefined;
+    if (source < self.slice.len) {
+        self.read_count += len;
+        s = self.slice[source..];
+    } else {
+        s = self.temp_buffer[source - self.slice.len ..];
+    }
+
+    @memcpy(d[0..len], s[0..len]);
+}
+
 /// 一時バッファを確保する。先頭位置を返す。
 pub fn getTemp(self: *@This(), allocator: Allocator, size: usize) Allocator.Error!usize {
     const need_size = self.temp_used + size;
@@ -105,7 +129,7 @@ pub fn getTemp(self: *@This(), allocator: Allocator, size: usize) Allocator.Erro
     }
     const offset = self.temp_used;
     self.temp_used += size;
-    return offset;
+    return offset + self.slice.len;
 }
 
 /// 一時バッファを解放する。

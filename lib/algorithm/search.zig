@@ -41,6 +41,7 @@ pub fn binarySearchRightmost(target: *LoggedSortTarget, start: usize, end: usize
         }
     }
 
+    lib.assert.assert(l == r);
     return l;
 }
 
