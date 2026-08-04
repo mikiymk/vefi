@@ -500,57 +500,46 @@ fn openJdkGallopLeft(target: *LoggedSortTarget, key: usize, base: usize, len: us
     lib.assert.assert(len > 0 and hint >= 0 and hint < len);
     var lastOfs: usize = 0;
     var ofs: usize = 1;
-    // if (c.compare(key, a[base + hint]) > 0) {
-    //     // Gallop right until a[base+hint+lastOfs] < key <= a[base+hint+ofs]
-    //     int maxOfs = len - hint;
-    //     while (ofs < maxOfs && c.compare(key, a[base + hint + ofs]) > 0) {
-    //         lastOfs = ofs;
-    //         ofs = (ofs << 1) + 1;
-    //         if (ofs <= 0)   // int overflow
-    //             ofs = maxOfs;
-    //     }
-    //     if (ofs > maxOfs)
-    //         ofs = maxOfs;
+    if (target.lessThanII(base + hint, key)) { // S[base + hint] < S[key]
 
-    //     // Make offsets relative to base
-    //     lastOfs += hint;
-    //     ofs += hint;
-    // } else { // key <= a[base + hint]
-    //     // Gallop left until a[base+hint-ofs] < key <= a[base+hint-lastOfs]
-    //     final int maxOfs = hint + 1;
-    //     while (ofs < maxOfs && c.compare(key, a[base + hint - ofs]) <= 0) {
-    //         lastOfs = ofs;
-    //         ofs = (ofs << 1) + 1;
-    //         if (ofs <= 0)   // int overflow
-    //             ofs = maxOfs;
-    //     }
-    //     if (ofs > maxOfs)
-    //         ofs = maxOfs;
+        const maxOfs = len - hint;
+        while (ofs < maxOfs and target.lessThanII(base + hint + ofs, key)) {
+            lastOfs = ofs;
+            ofs = (ofs <<| 1) + 1;
+        }
+        if (ofs > maxOfs)
+            ofs = maxOfs;
 
-    //     // Make offsets relative to base
-    //     int tmp = lastOfs;
-    //     lastOfs = hint - ofs;
-    //     ofs = hint - tmp;
-    // }
-    // assert -1 <= lastOfs && lastOfs < ofs && ofs <= len;
+        lastOfs += hint;
+        ofs += hint;
+    } else { // S[key] <= S[base + hint]
+        const maxOfs = hint + 1;
+        while (ofs < maxOfs and !target.lessThanII(base + hint - ofs, key)) {
+            lastOfs = ofs;
+            ofs = (ofs <<| 1) + 1;
+        }
+        if (ofs > maxOfs)
+            ofs = maxOfs;
 
-    // /*
-    //  * Now a[base+lastOfs] < key <= a[base+ofs], so key belongs somewhere
-    //  * to the right of lastOfs but no farther right than ofs.  Do a binary
-    //  * search, with invariant a[base + lastOfs - 1] < key <= a[base + ofs].
-    //  */
-    // lastOfs++;
-    // while (lastOfs < ofs) {
-    //     int m = lastOfs + ((ofs - lastOfs) >>> 1);
+        const tmp = lastOfs;
+        lastOfs = hint -% ofs;
+        ofs = hint - tmp;
+    }
 
-    //     if (c.compare(key, a[base + m]) > 0)
-    //         lastOfs = m + 1;  // a[base + m] < key
-    //     else
-    //         ofs = m;          // key <= a[base + m]
-    // }
-    // assert lastOfs == ofs;    // so a[base + ofs - 1] < key <= a[base + ofs]
-    // return ofs;
+    lib.assert.assert((lastOfs == (0 -% 1) or lastOfs < ofs) and ofs <= len);
 
+    lastOfs +%= 1;
+    while (lastOfs < ofs) {
+        const m = lastOfs + ((ofs - lastOfs) >> 1);
+
+        if (target.lessThanII(base + m, key)) {
+            lastOfs = m + 1;
+        } else {
+            ofs = m;
+        }
+    }
+    lib.assert.assert(lastOfs == ofs);
+    return ofs;
 }
 
 /// 二分探索で S[key] の値を挿入できる位置を見つける。
@@ -560,7 +549,8 @@ fn timSortGallopLeft(target: *LoggedSortTarget, key: usize, start: usize, end: u
     lib.assert.assert(start <= end and start <= hint and hint < end and end <= target.length());
 
     if (true) {
-        return cPythonGallopLeft(target, key, start, end - start, hint);
+        return start + openJdkGallopLeft(target, key, start, end - start, hint - start);
+        // return cPythonGallopLeft(target, key, start, end - start, hint);
     }
 
     var a = start;
@@ -619,28 +609,34 @@ fn timSortGallopLeft(target: *LoggedSortTarget, key: usize, start: usize, end: u
 }
 
 test timSortGallopLeft {
-    const Case = struct {
-        slice: [5]usize,
-        expect: usize,
+    const TestCase = struct {
+        slice: []const usize,
+        k: usize,
+        s: usize,
+        e: usize,
+        expected: usize,
     };
-    const cases = [_]Case{
-        .{ .slice = .{ 0, 2, 4, 6, 8 }, .expect = 1 },
-        .{ .slice = .{ 4, 2, 4, 6, 8 }, .expect = 2 },
-        .{ .slice = .{ 5, 2, 4, 6, 8 }, .expect = 3 },
-        .{ .slice = .{ 9, 2, 4, 6, 8 }, .expect = 5 },
-        .{ .slice = .{ 3, 1, 3, 3, 5 }, .expect = 2 },
+    const cases = [_]TestCase{
+        .{ .slice = &.{ 0, 2, 4, 6, 8 }, .k = 0, .s = 1, .e = 5, .expected = 1 },
+        .{ .slice = &.{ 4, 2, 4, 6, 8 }, .k = 0, .s = 1, .e = 5, .expected = 2 },
+        .{ .slice = &.{ 5, 2, 4, 6, 8 }, .k = 0, .s = 1, .e = 5, .expected = 3 },
+        .{ .slice = &.{ 9, 2, 4, 6, 8 }, .k = 0, .s = 1, .e = 5, .expected = 5 },
+        .{ .slice = &.{ 3, 1, 3, 3, 5 }, .k = 0, .s = 1, .e = 5, .expected = 2 },
+        .{ .slice = &.{ 1, 3, 5, 7, 4 }, .k = 4, .s = 0, .e = 4, .expected = 2 },
+        .{ .slice = &.{ 1, 3, 5, 7, 5 }, .k = 4, .s = 0, .e = 4, .expected = 2 },
     };
     var target = LoggedSortTarget.empty;
-    var slice: [5]LoggedSortTarget.Type = undefined;
-    target.slice = &slice;
+    const allocator = std.testing.allocator;
+    defer target.deinit(allocator);
 
     for (cases) |c| {
+        try target.resize(allocator, c.slice.len);
         for (target.slice, c.slice) |*a, b| {
             a.v = b;
         }
-        for (1..5) |hint| {
-            std.debug.print("{any}\n", .{c});
-            try lib.testing.expect(timSortGallopLeft(&target, 0, 1, 5, hint)).is(c.expect);
+        std.debug.print("{any}\n", .{c});
+        for (c.s..c.e) |hint| {
+            try lib.testing.expect(timSortGallopLeft(&target, c.k, c.s, c.e, hint)).is(c.expected);
         }
     }
 }
