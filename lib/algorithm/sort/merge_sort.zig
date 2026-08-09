@@ -558,8 +558,8 @@ fn openJdkMergeLo(allocator: Allocator, target: *LoggedSortTarget, base1: usize,
 
     // 配列1を一時配列に移す。
     std.debug.print("配列1をバッファに移動します。 ({}-{})\n", .{ base1, base1 + len1 });
-    const buffer = try target.getTemp(allocator, len1);
-    defer target.freeTemp(allocator, buffer, len1);
+    const buffer = try target.getTemp(allocator, len1_arg);
+    defer target.freeTemp(allocator, buffer, len1_arg);
     target.copy(buffer, base1, len1);
 
     var cursor1 = buffer; // Indexes into tmp array
@@ -644,7 +644,7 @@ fn openJdkMergeLo(allocator: Allocator, target: *LoggedSortTarget, base1: usize,
             if (len2 == 0)
                 break :outer;
 
-            count2 = timSortGallopLeft(target, cursor1, cursor2, cursor2 + len1, cursor2) - cursor2;
+            count2 = timSortGallopLeft(target, cursor1, cursor2, cursor2 + len2, cursor2) - cursor2;
             if (count2 != 0) {
                 std.debug.print("co2 {} から {} に {} 個 ({} {} {} {} {})\n", .{ cursor2, dest, count2, dest, cursor1, len1, cursor2, len2 });
                 target.copy(dest, cursor2, count2);

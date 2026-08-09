@@ -136,8 +136,10 @@ pub fn getTemp(self: *@This(), allocator: Allocator, size: usize) Allocator.Erro
 /// 最も新しいバッファから解放する必要がある。
 pub fn freeTemp(self: *@This(), allocator: Allocator, offset: usize, size: usize) void {
     _ = allocator;
-    lib.assert.assert(offset + size == self.temp_used);
-    self.temp_used = offset;
+    lib.assert.assert(self.slice.len <= offset);
+    const used_offset = offset - self.slice.len;
+    lib.assert.assert(used_offset + size == self.temp_used);
+    self.temp_used = used_offset;
 }
 
 pub const ShuffleAlgorithm = enum {
