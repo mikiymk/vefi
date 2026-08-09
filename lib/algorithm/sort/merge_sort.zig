@@ -551,137 +551,122 @@ test "gallop left and right" {
     }
 }
 
-fn openJdkMergeLo(allocator: Allocator, target: *LoggedSortTarget, base1: usize, len1_arg: usize, base2: usize, len2_arg: usize, mg: *usize) !void {
-    var len1 = len1_arg;
-    var len2: usize = len2_arg;
+fn openJdkMergeLo(allocator: Allocator, target: *LoggedSortTarget, base1: usize, len1: usize, base2: usize, len2: usize, mg: *usize) !void {
     lib.assert.assert(base1 + len1 == base2);
 
     // 配列1を一時配列に移す。
-    std.debug.print("配列1をバッファに移動します。 ({}-{})\n", .{ base1, base1 + len1 });
-    const buffer = try target.getTemp(allocator, len1_arg);
-    defer target.freeTemp(allocator, buffer, len1_arg);
+    const buffer = try target.getTemp(allocator, len1);
+    defer target.freeTemp(allocator, buffer, len1);
     target.copy(buffer, base1, len1);
 
-    var cursor1 = buffer; // Indexes into tmp array
-    var cursor2 = base2; // Indexes int a
-    var dest = base1; // Indexes int a
+    var cursor1 = buffer;
+    const cursor1_end = buffer + len1;
+    var cursor2 = base2;
+    const cursor2_end = base2 + len2;
+    var dest = base1;
 
-    // Move first element of second run and deal with degenerate cases
+    // 右側の左端は最初
     target.move(dest, cursor2);
     dest += 1;
     cursor2 += 1;
-    len2 -= 1;
-    if (len2 == 0) {
-        target.copy(dest, cursor1, len1);
+    if (cursor2_end - cursor2 == 0) {
+        target.copy(dest, cursor1, cursor1_end - cursor1);
         return;
-    } else if (len1 == 1) {
-        target.copy(dest, cursor2, len2);
-        target.move(dest + len2, cursor1); // Last elt of run 1 to end of merge
+    } else if (cursor1_end - cursor1 == 1) {
+        target.copy(dest, cursor2, cursor2_end - cursor2);
+        target.move(dest + cursor2_end - cursor2, cursor1);
         return;
     }
 
     var minGallop = mg.*;
 
     outer: while (true) {
-        var count1: usize = 0; // Number of times in a row that first run won
-        var count2: usize = 0; // Number of times in a row that second run won
+        var count1: usize = 0;
+        var count2: usize = 0;
 
-        std.debug.print("通常動作 ({} {} {} {} {})\n", .{ dest, cursor1, len1, cursor2, len2 });
-
-        // Do the straightforward thing until (if ever) one run starts
-        // winning consistently.
         while (true) {
-            lib.assert.assert(len1 > 1 and len2 > 0);
+            // 通常動作
+            lib.assert.assert(cursor1_end - cursor1 > 1);
+            lib.assert.assert(cursor2_end - cursor2 > 0);
             if (target.lessThanII(cursor2, cursor1)) {
                 target.move(dest, cursor2);
                 dest += 1;
                 cursor2 += 1;
-                len2 -= 1;
 
                 count2 += 1;
                 count1 = 0;
 
-                if (len2 == 0)
+                if (cursor2_end - cursor2 == 0)
                     break :outer;
             } else {
                 target.move(dest, cursor1);
                 dest += 1;
                 cursor1 += 1;
-                len1 -= 1;
 
                 count1 += 1;
                 count2 = 0;
 
-                if (len1 == 1)
+                if (cursor1_end - cursor1 == 1)
                     break :outer;
             }
-            if (!(count1 < minGallop and count2 < minGallop)) break;
-            // if (minGallop <= count1 or minGallop <= count2) break;
+
+            if (minGallop <= count1 or minGallop <= count2) break;
         }
 
-        std.debug.print("ギャロッピング動作 ({} {} {} {} {})\n", .{ dest, cursor1, len1, cursor2, len2 });
-
-        // One run is winning so consistently that galloping may be a
-        // huge win. So try that, and continue galloping until (if ever)
-        // neither run appears to be winning consistently anymore.
         while (true) {
-            lib.assert.assert(len1 > 1 and len2 > 0);
-            count1 = timSortGallopRight(target, cursor2, cursor1, cursor1 + len1, cursor1) - cursor1;
+            // ギャロップ動作
+            lib.assert.assert(cursor1_end - cursor1 > 1);
+            lib.assert.assert(cursor2_end - cursor2 > 0);
+            count1 = timSortGallopRight(target, cursor2, cursor1, cursor1_end, cursor1) - cursor1;
             if (count1 != 0) {
-                std.debug.print("co1 {} から {} に {} 個 ({} {} {} {} {})\n", .{ cursor1, dest, count1, dest, cursor1, len1, cursor2, len2 });
                 target.copy(dest, cursor1, count1);
                 dest += count1;
                 cursor1 += count1;
-                len1 -= count1;
-                if (len1 <= 1) // len1 == 1 || len1 == 0
+                if (cursor1_end - cursor1 <= 1) // len1 == 1 or len1 == 0
                     break :outer;
             }
 
             target.move(dest, cursor2);
             dest += 1;
             cursor2 += 1;
-            len2 -= 1;
-            if (len2 == 0)
+            if (cursor2_end - cursor2 == 0)
                 break :outer;
 
-            count2 = timSortGallopLeft(target, cursor1, cursor2, cursor2 + len2, cursor2) - cursor2;
+            count2 = timSortGallopLeft(target, cursor1, cursor2, cursor2_end, cursor2) - cursor2;
             if (count2 != 0) {
-                std.debug.print("co2 {} から {} に {} 個 ({} {} {} {} {})\n", .{ cursor2, dest, count2, dest, cursor1, len1, cursor2, len2 });
                 target.copy(dest, cursor2, count2);
                 dest += count2;
                 cursor2 += count2;
-                len2 -= count2;
-                if (len2 == 0)
+                if (cursor2_end - cursor2 == 0)
                     break :outer;
             }
 
             target.move(dest, cursor1);
             dest += 1;
             cursor1 += 1;
-            len1 -= 1;
-            if (len1 == 1)
+            if (cursor1_end - cursor1 == 1)
                 break :outer;
 
             minGallop -= 1;
-            if (!(count1 >= MIN_GALLOP or count2 >= MIN_GALLOP)) break;
-            // if (count1 < MIN_GALLOP and count2 < MIN_GALLOP) break;
+            if (count1 < MIN_GALLOP and count2 < MIN_GALLOP) break;
         }
         if (minGallop < 0)
             minGallop = 0;
-        minGallop += 2; // Penalize for leaving gallop mode
-    } // End of "outer" loop
-    std.debug.print("最終処理 ({} {} {} {} {})\n", .{ dest, cursor1, len1, cursor2, len2 });
+        minGallop += 2;
+    } // outer
 
-    mg.* = if (minGallop < 1) 1 else minGallop; // Write back to field
+    mg.* = if (minGallop < 1) 1 else minGallop;
 
-    if (len1 == 1) {
-        lib.assert.assert(len2 > 0);
-        target.copy(dest, cursor2, len2);
-        target.move(dest + len2, cursor1); //  Last elt of run 1 to end of merge
+    // 最後に残ったものを詰める
+    if (cursor1_end - cursor1 == 1) {
+        lib.assert.assert(cursor2_end - cursor2 > 0);
+        target.copy(dest, cursor2, cursor2_end - cursor2);
+        // 左側の右端は最後
+        target.move(dest + cursor2_end - cursor2, cursor1);
     } else {
-        lib.assert.assert(len2 == 0);
-        lib.assert.assert(len1 > 1);
-        target.copy(dest, cursor1, len1);
+        lib.assert.assert(cursor2_end - cursor2 == 0);
+        lib.assert.assert(cursor1_end - cursor1 > 1);
+        target.copy(dest, cursor1, cursor1_end - cursor1);
     }
 }
 
