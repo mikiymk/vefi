@@ -99,9 +99,6 @@ pub fn swap(self: *@This(), i: usize, j: usize) void {
 
 /// 開始位置destに開始位置sourceからlenの範囲を入れる。
 pub fn copy(self: *@This(), dest: usize, source: usize, len: usize) void {
-    lib.assert.assert((dest < source and dest + len <= source) or
-        (source < dest and source + len <= dest));
-
     var d: []Type = undefined;
     if (dest < self.slice.len) {
         self.write_count += len;
@@ -118,7 +115,7 @@ pub fn copy(self: *@This(), dest: usize, source: usize, len: usize) void {
         s = self.temp_buffer[source - self.slice.len ..];
     }
 
-    @memcpy(d[0..len], s[0..len]);
+    @memmove(d[0..len], s[0..len]);
 }
 
 /// 一時バッファを確保する。先頭位置を返す。

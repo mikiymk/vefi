@@ -578,7 +578,7 @@ fn timSortMergeLow(allocator: Allocator, target: *LoggedSortTarget, start: usize
         return;
     }
 
-    var minGallop = mg.*;
+    var min_gallop = mg.*;
 
     outer: while (true) {
         var count1: usize = 0;
@@ -610,7 +610,7 @@ fn timSortMergeLow(allocator: Allocator, target: *LoggedSortTarget, start: usize
                     break :outer;
             }
 
-            if (minGallop <= count1 or minGallop <= count2) break;
+            if (min_gallop <= count1 or min_gallop <= count2) break;
         }
 
         while (true) {
@@ -647,15 +647,15 @@ fn timSortMergeLow(allocator: Allocator, target: *LoggedSortTarget, start: usize
             if (buffer_end - cursor1 == 1)
                 break :outer;
 
-            minGallop -= 1;
+            min_gallop -= 1;
             if (count1 < MIN_GALLOP and count2 < MIN_GALLOP) break;
         }
-        if (minGallop < 0)
-            minGallop = 0;
-        minGallop += 2;
+        if (min_gallop < 0)
+            min_gallop = 0;
+        min_gallop += 2;
     } // outer
 
-    mg.* = if (minGallop < 1) 1 else minGallop;
+    mg.* = if (min_gallop < 1) 1 else min_gallop;
 
     // 最後に残ったものを詰める
     if (buffer_end - cursor1 == 1) {
@@ -695,170 +695,123 @@ fn timSortMergeHigh(allocator: Allocator, target: *LoggedSortTarget, start: usiz
     defer target.freeTemp(allocator, buffer, buffer_length);
     target.copy(buffer, mid, buffer_length);
 
-    var len1 = mid - start;
-    var len2 = end - mid;
-
     var cursor1 = mid;
     var cursor2 = buffer_end;
     var dest = end;
-
-    std.debug.print("s {} m {} e {} b {} be {}\n", .{ start, mid, end, buffer, buffer_end });
-    std.debug.print("l1 {} l2 {} c1 {} c2 {} d {}\n", .{ len1, len2, cursor1, cursor2, dest });
-
-    lib.assert.assert(len1 == cursor1 - start);
-    lib.assert.assert(len2 == cursor2 - buffer);
 
     // 左側の右端は右端に
     cursor1 -= 1;
     dest -= 1;
     target.move(dest, cursor1);
-    len1 -= 1;
-    if (len1 == 0) {
-        target.copy(dest - 1, buffer, len2);
+    if (cursor1 - start == 0) {
+        target.copy(dest - 1, buffer, cursor2 - buffer);
         return;
-    } else if (len2 == 1) {
-        dest -= len1;
-        cursor1 -= len1;
-        target.copy(dest, cursor1, len1);
+    } else if (cursor2 - buffer == 1) {
+        const len = cursor1 - start;
+        dest -= len;
+        cursor1 -= len;
+        target.copy(dest, cursor1, len);
         target.move(dest - 1, cursor2 - 1);
         return;
     }
 
-    lib.assert.assert(len1 == cursor1 - start);
-    lib.assert.assert(len2 == cursor2 - buffer);
-
-    var minGallop = mg.*;
+    var min_gallop = mg.*;
 
     outer: while (true) {
         var count1: usize = 0;
         var count2: usize = 0;
-        std.debug.print("l1 {} l2 {} c1 {} c2 {} d {}\n", .{ len1, len2, cursor1, cursor2, dest });
 
         while (true) {
             // 通常動作
-            lib.assert.assert(len1 > 0);
-            lib.assert.assert(len2 > 1);
+            lib.assert.assert(cursor1 - start > 0);
+            lib.assert.assert(cursor2 - buffer > 1);
 
             if (target.lessThanII(cursor2 - 1, cursor1 - 1)) {
                 cursor1 -= 1;
                 dest -= 1;
                 target.move(dest, cursor1);
-                len1 -= 1;
 
                 count1 += 1;
                 count2 = 0;
 
-                if (len1 == 0)
+                if (cursor1 - start == 0)
                     break :outer;
             } else {
                 cursor2 -= 1;
                 dest -= 1;
                 target.move(dest, cursor2);
-                len2 -= 1;
 
                 count2 += 1;
                 count1 = 0;
 
-                if (len2 == 1)
+                if (cursor2 - buffer == 1)
                     break :outer;
             }
 
-            lib.assert.assert(len1 == cursor1 - start);
-            lib.assert.assert(len2 == cursor2 - buffer);
-
-            if (minGallop <= count1 or minGallop <= count2) break;
+            if (min_gallop <= count1 or min_gallop <= count2) break;
         }
-
-        std.debug.print("l1 {} l2 {} c1 {} c2 {} d {}\n", .{ len1, len2, cursor1, cursor2, dest });
 
         while (true) {
             // ギャロップ動作
-            lib.assert.assert(len1 > 0);
-            lib.assert.assert(len2 > 1);
+            lib.assert.assert(cursor1 - start > 0);
+            lib.assert.assert(cursor2 - buffer > 1);
 
-            lib.assert.assert(len1 == cursor1 - start);
-            lib.assert.assert(len2 == cursor2 - buffer);
-
-            std.debug.print("start {} end {} hint {}\n", .{ start, start + len1, start + len1 - 1 });
-            count1 = timSortGallopRight(target, cursor2 - 1, start, start + len1, start + len1 - 1) -% start;
-            count1 = len1 -% count1;
-            std.debug.print("cnt1 {}\n", .{count1});
+            count1 = cursor1 - timSortGallopRight(target, cursor2 - 1, start, cursor1, cursor1 - 1);
             if (count1 != 0) {
                 dest -= count1;
                 cursor1 -= count1;
-                len1 -= count1;
                 target.copy(dest, cursor1, count1);
-                if (len1 == 0)
+                if (cursor1 - start == 0)
                     break :outer;
             }
-
-            lib.assert.assert(len1 == cursor1 - start);
-            lib.assert.assert(len2 == cursor2 - buffer);
 
             cursor2 -= 1;
             dest -= 1;
             target.move(dest, cursor2);
-            len2 -= 1;
-            if (len2 == 1)
+            if (cursor2 - buffer == 1)
                 break :outer;
 
-            lib.assert.assert(len1 == cursor1 - start);
-            lib.assert.assert(len2 == cursor2 - buffer);
-
-            std.debug.print("start {} end {} hint {}\n", .{ buffer, buffer + len2, buffer + len2 - 1 });
-            count2 = timSortGallopLeft(target, cursor1 - 1, buffer, buffer + len2, buffer + len2 - 1) -% buffer;
-            std.debug.print("cnt2 {}\n", .{count1});
-            count2 = len2 -% count2;
+            count2 = cursor2 - timSortGallopLeft(target, cursor1 - 1, buffer, cursor2, cursor2 - 1);
             if (count2 != 0) {
                 dest -= count2;
                 cursor2 -= count2;
-                len2 -= count2;
                 target.copy(dest, cursor2, count2);
-                if (len2 <= 1) // len2 == 1 or len2 == 0
+                if (cursor2 - buffer <= 1) // len2 == 1 or len2 == 0
                     break :outer;
             }
-
-            lib.assert.assert(len1 == cursor1 - start);
-            lib.assert.assert(len2 == cursor2 - buffer);
 
             cursor1 -= 1;
             dest -= 1;
             target.move(dest, cursor1);
-            len1 -= 1;
-            if (len1 == 0)
+            if (cursor1 - start == 0)
                 break :outer;
 
-            lib.assert.assert(len1 == cursor1 - start);
-            lib.assert.assert(len2 == cursor2 - buffer);
-
-            minGallop -= 1;
+            min_gallop -= 1;
             if (count1 < MIN_GALLOP and count2 < MIN_GALLOP) break;
         }
 
-        std.debug.print("l1 {} l2 {} c1 {} c2 {} d {} g\n", .{ len1, len2, cursor1, cursor2, dest });
-
-        if (minGallop < 0)
-            minGallop = 0;
-        minGallop += 2;
+        if (min_gallop < 0)
+            min_gallop = 0;
+        min_gallop += 2;
     } // outer
 
-    lib.assert.assert(len1 == cursor1 - start);
-    lib.assert.assert(len2 == cursor2 - buffer);
-
-    mg.* = if (minGallop < 1) 1 else minGallop;
+    mg.* = if (min_gallop < 1) 1 else min_gallop;
 
     // 最後に残ったものを詰める
-    if (len2 == 1) {
-        lib.assert.assert(len1 > 0);
-        dest -= len1;
-        cursor1 -= len1;
-        target.copy(dest, cursor1, len1);
+    if (cursor2 - buffer == 1) {
+        lib.assert.assert(cursor1 - start > 0);
+        const len = cursor1 - start;
+        dest -= len;
+        cursor1 -= len;
+
+        target.copy(dest, cursor1, len);
         // 右側の左端は左端に
         target.move(dest - 1, cursor2 - 1);
     } else {
-        lib.assert.assert(len1 == 0);
-        lib.assert.assert(len2 > 0);
-        target.copy(dest - len2, buffer, len2);
+        lib.assert.assert(cursor1 - start == 0);
+        lib.assert.assert(cursor2 - buffer > 0);
+        lib.assert.assert(dest - (cursor2 - buffer) == start);
+        target.copy(start, buffer, cursor2 - buffer);
     }
 }
 
@@ -879,7 +832,7 @@ test timSortMergeHigh {
 
 /// 範囲 R[i] と R[i+1] をマージする。
 /// i は R.len-2 または R.len-3 。
-fn timSortMergeAt(allocator: Allocator, target: *LoggedSortTarget, run_stack: *std.ArrayList(Run), i: usize) !void {
+fn timSortMergeAt(allocator: Allocator, target: *LoggedSortTarget, run_stack: *std.ArrayList(Run), i: usize, min_gallop: *usize) !void {
     lib.assert.assert(2 <= run_stack.items.len);
     lib.assert.assert(i == run_stack.items.len - 2 or i == run_stack.items.len - 3);
 
@@ -896,11 +849,9 @@ fn timSortMergeAt(allocator: Allocator, target: *LoggedSortTarget, run_stack: *s
     // マージ
     // var min_gallop = MIN_GALLOP;
     if (a.end - left < right - b.start) {
-        // try timSortMergeLow(allocator, target, left, a.end, right, &min_gallop);
-        try mergeSort1Merge(allocator, target, left, a.end, right);
+        try timSortMergeLow(allocator, target, left, a.end, right, min_gallop);
     } else {
-        // try timSortMergeHigh(allocator, target, left, a.end, right);
-        try mergeSort1Merge(allocator, target, left, a.end, right);
+        try timSortMergeHigh(allocator, target, left, a.end, right, min_gallop);
     }
 
     // マージしたランを合わせる
@@ -915,7 +866,7 @@ fn timSortMergeAt(allocator: Allocator, target: *LoggedSortTarget, run_stack: *s
 /// ランのスタックが不変条件を満たすまでマージする。
 /// 1. B + C < A
 /// 2. C < B
-fn timSortMergeCollapse(allocator: Allocator, target: *LoggedSortTarget, run_stack: *std.ArrayList(Run)) !void {
+fn timSortMergeCollapse(allocator: Allocator, target: *LoggedSortTarget, run_stack: *std.ArrayList(Run), min_gallop: *usize) !void {
     while (1 < run_stack.items.len) {
         const p = run_stack.items;
         var n = p.len - 2; // { ..., n-2, n-1, n, n+1 }
@@ -923,9 +874,9 @@ fn timSortMergeCollapse(allocator: Allocator, target: *LoggedSortTarget, run_sta
             (1 < n and p[n - 2].len() <= p[n - 1].len() + p[n].len()))
         {
             if (p[n - 1].len() < p[n + 1].len()) n -= 1;
-            try timSortMergeAt(allocator, target, run_stack, n);
+            try timSortMergeAt(allocator, target, run_stack, n, min_gallop);
         } else if (p[n].len() <= p[n + 1].len()) {
-            try timSortMergeAt(allocator, target, run_stack, n);
+            try timSortMergeAt(allocator, target, run_stack, n, min_gallop);
         } else {
             break;
         }
@@ -933,12 +884,12 @@ fn timSortMergeCollapse(allocator: Allocator, target: *LoggedSortTarget, run_sta
 }
 
 /// ランのスタックが1つになるまでマージする。
-fn timSortMergeForceCollapse(allocator: Allocator, target: *LoggedSortTarget, run_stack: *std.ArrayList(Run)) !void {
+fn timSortMergeForceCollapse(allocator: Allocator, target: *LoggedSortTarget, run_stack: *std.ArrayList(Run), min_gallop: *usize) !void {
     while (1 < run_stack.items.len) {
         const p = run_stack.items;
         var n = p.len - 2; // { ..., n-2, n-1, n, n+1 }
         if (0 < n and p[n - 1].len() < p[n + 1].len()) n -= 1;
-        try timSortMergeAt(allocator, target, run_stack, n);
+        try timSortMergeAt(allocator, target, run_stack, n, min_gallop);
     }
 }
 
@@ -948,22 +899,22 @@ pub fn timSort(allocator: Allocator, target: *LoggedSortTarget) Allocator.Error!
     debug(@src(), "配列 {f}", .{target});
     if (target.length() < 2) return;
 
-    // const min_run = timSortMinRun2(target.length());
-    const min_run: usize = 2; // 終わったら直す
+    const min_run = timSortMinRun2(target.length());
 
     var run_stack = std.ArrayList(Run).empty;
     defer run_stack.deinit(allocator);
+    var min_gallop = MIN_GALLOP;
 
     var last_pos: usize = 0;
     while (last_pos < target.length()) {
         const run = timSortRun(target, last_pos, min_run);
         try run_stack.append(allocator, run);
 
-        try timSortMergeCollapse(allocator, target, &run_stack);
+        try timSortMergeCollapse(allocator, target, &run_stack, &min_gallop);
 
         last_pos = run.end;
     }
 
-    try timSortMergeForceCollapse(allocator, target, &run_stack);
+    try timSortMergeForceCollapse(allocator, target, &run_stack, &min_gallop);
     debug(@src(), "配列 {f}", .{target});
 }
