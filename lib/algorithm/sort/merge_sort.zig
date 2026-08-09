@@ -551,30 +551,30 @@ test "gallop left and right" {
     }
 }
 
-fn openJdkMergeLo(allocator: Allocator, target: *LoggedSortTarget, base1: usize, len1: usize, base2: usize, len2: usize, mg: *usize) !void {
-    lib.assert.assert(base1 + len1 == base2);
-
+/// [start, mid) と [mid, end) をマージする。
+/// (mid - start) < (end - mid) の場合。
+fn timSortMergeLow(allocator: Allocator, target: *LoggedSortTarget, start: usize, mid: usize, end: usize, mg: *usize) !void {
     // 配列1を一時配列に移す。
-    const buffer = try target.getTemp(allocator, len1);
-    defer target.freeTemp(allocator, buffer, len1);
-    target.copy(buffer, base1, len1);
+    const buffer_length = mid - start;
+    const buffer = try target.getTemp(allocator, buffer_length);
+    const buffer_end = buffer + buffer_length;
+    defer target.freeTemp(allocator, buffer, buffer_length);
+    target.copy(buffer, start, buffer_length);
 
     var cursor1 = buffer;
-    const cursor1_end = buffer + len1;
-    var cursor2 = base2;
-    const cursor2_end = base2 + len2;
-    var dest = base1;
+    var cursor2 = mid;
+    var dest = start;
 
     // 右側の左端は最初
     target.move(dest, cursor2);
     dest += 1;
     cursor2 += 1;
-    if (cursor2_end - cursor2 == 0) {
-        target.copy(dest, cursor1, cursor1_end - cursor1);
+    if (end - cursor2 == 0) {
+        target.copy(dest, cursor1, buffer_end - cursor1);
         return;
-    } else if (cursor1_end - cursor1 == 1) {
-        target.copy(dest, cursor2, cursor2_end - cursor2);
-        target.move(dest + cursor2_end - cursor2, cursor1);
+    } else if (buffer_end - cursor1 == 1) {
+        target.copy(dest, cursor2, end - cursor2);
+        target.move(dest + end - cursor2, cursor1);
         return;
     }
 
@@ -586,8 +586,8 @@ fn openJdkMergeLo(allocator: Allocator, target: *LoggedSortTarget, base1: usize,
 
         while (true) {
             // 通常動作
-            lib.assert.assert(cursor1_end - cursor1 > 1);
-            lib.assert.assert(cursor2_end - cursor2 > 0);
+            lib.assert.assert(buffer_end - cursor1 > 1);
+            lib.assert.assert(end - cursor2 > 0);
             if (target.lessThanII(cursor2, cursor1)) {
                 target.move(dest, cursor2);
                 dest += 1;
@@ -596,7 +596,7 @@ fn openJdkMergeLo(allocator: Allocator, target: *LoggedSortTarget, base1: usize,
                 count2 += 1;
                 count1 = 0;
 
-                if (cursor2_end - cursor2 == 0)
+                if (end - cursor2 == 0)
                     break :outer;
             } else {
                 target.move(dest, cursor1);
@@ -606,7 +606,7 @@ fn openJdkMergeLo(allocator: Allocator, target: *LoggedSortTarget, base1: usize,
                 count1 += 1;
                 count2 = 0;
 
-                if (cursor1_end - cursor1 == 1)
+                if (buffer_end - cursor1 == 1)
                     break :outer;
             }
 
@@ -615,36 +615,36 @@ fn openJdkMergeLo(allocator: Allocator, target: *LoggedSortTarget, base1: usize,
 
         while (true) {
             // ギャロップ動作
-            lib.assert.assert(cursor1_end - cursor1 > 1);
-            lib.assert.assert(cursor2_end - cursor2 > 0);
-            count1 = timSortGallopRight(target, cursor2, cursor1, cursor1_end, cursor1) - cursor1;
+            lib.assert.assert(buffer_end - cursor1 > 1);
+            lib.assert.assert(end - cursor2 > 0);
+            count1 = timSortGallopRight(target, cursor2, cursor1, buffer_end, cursor1) - cursor1;
             if (count1 != 0) {
                 target.copy(dest, cursor1, count1);
                 dest += count1;
                 cursor1 += count1;
-                if (cursor1_end - cursor1 <= 1) // len1 == 1 or len1 == 0
+                if (buffer_end - cursor1 <= 1) // len1 == 1 or len1 == 0
                     break :outer;
             }
 
             target.move(dest, cursor2);
             dest += 1;
             cursor2 += 1;
-            if (cursor2_end - cursor2 == 0)
+            if (end - cursor2 == 0)
                 break :outer;
 
-            count2 = timSortGallopLeft(target, cursor1, cursor2, cursor2_end, cursor2) - cursor2;
+            count2 = timSortGallopLeft(target, cursor1, cursor2, end, cursor2) - cursor2;
             if (count2 != 0) {
                 target.copy(dest, cursor2, count2);
                 dest += count2;
                 cursor2 += count2;
-                if (cursor2_end - cursor2 == 0)
+                if (end - cursor2 == 0)
                     break :outer;
             }
 
             target.move(dest, cursor1);
             dest += 1;
             cursor1 += 1;
-            if (cursor1_end - cursor1 == 1)
+            if (buffer_end - cursor1 == 1)
                 break :outer;
 
             minGallop -= 1;
@@ -658,19 +658,19 @@ fn openJdkMergeLo(allocator: Allocator, target: *LoggedSortTarget, base1: usize,
     mg.* = if (minGallop < 1) 1 else minGallop;
 
     // 最後に残ったものを詰める
-    if (cursor1_end - cursor1 == 1) {
-        lib.assert.assert(cursor2_end - cursor2 > 0);
-        target.copy(dest, cursor2, cursor2_end - cursor2);
+    if (buffer_end - cursor1 == 1) {
+        lib.assert.assert(end - cursor2 > 0);
+        target.copy(dest, cursor2, end - cursor2);
         // 左側の右端は最後
-        target.move(dest + cursor2_end - cursor2, cursor1);
+        target.move(dest + end - cursor2, cursor1);
     } else {
-        lib.assert.assert(cursor2_end - cursor2 == 0);
-        lib.assert.assert(cursor1_end - cursor1 > 1);
-        target.copy(dest, cursor1, cursor1_end - cursor1);
+        lib.assert.assert(end - cursor2 == 0);
+        lib.assert.assert(buffer_end - cursor1 > 1);
+        target.copy(dest, cursor1, buffer_end - cursor1);
     }
 }
 
-test "merge lo" {
+test timSortMergeLow {
     const allocator = std.testing.allocator;
     var target = LoggedSortTarget.empty;
     defer target.deinit(allocator);
@@ -681,163 +681,8 @@ test "merge lo" {
     for (100..150) |i| target.slice[i].v = i - 100;
     for (150..200) |i| target.slice[i].v = i - 50;
     var min_gallop: usize = 7;
-    try openJdkMergeLo(allocator, &target, 0, 100, 100, 100, &min_gallop);
-}
-
-/// [start, mid) と [mid, end) をマージする。
-/// (mid - start) < (end - mid) の場合。
-fn timSortMergeLow(allocator: Allocator, target: *LoggedSortTarget, start: usize, mid: usize, end: usize, mg: *usize) !void {
-    if (true) {
-        return openJdkMergeLo(allocator, target, start, mid - start, mid, end - mid, mg);
-    }
-
-    lib.assert.assert(mid - start < end - mid);
-
-    // [start, mid) を一時配列に移す。
-    const buffer_size = mid - start;
-    const buffer = try target.getTemp(allocator, buffer_size);
-    const buffer_end = buffer + buffer_size;
-    defer target.freeTemp(allocator, buffer, buffer_size);
-    for (0..buffer_size) |n| {
-        target.move(buffer + n, start + n);
-    }
-
-    var min_gallop = MIN_GALLOP;
-
-    var d_index = start;
-    var a_index = buffer;
-    var b_index = mid;
-
-    target.move(d_index, b_index);
-    d_index += 1;
-    b_index += 1;
-
-    if (b_index == end) {
-        timSortMergeLowSucceed(target, d_index, a_index, buffer_end);
-        return;
-    }
-    if (a_index + 1 == buffer_end) {
-        timSortMergeLowCopyB(target, d_index, a_index, b_index, end);
-        return;
-    }
-
-    while (true) {
-        var a_count: usize = 0;
-        var b_count: usize = 0;
-
-        // 通常のコピー
-        while (true) {
-            if (target.lessThanII(b_index, a_index)) {
-                target.move(d_index, b_index);
-                d_index += 1;
-                b_index += 1;
-
-                a_count = 0;
-                b_count += 1;
-
-                if (b_index == end) {
-                    timSortMergeLowSucceed(target, d_index, a_index, buffer_end);
-                    return;
-                }
-                if (min_gallop <= b_count) {
-                    break;
-                }
-            } else {
-                target.move(d_index, a_index);
-                d_index += 1;
-                a_index += 1;
-
-                a_count += 1;
-                b_count = 0;
-
-                if (a_index + 1 == buffer_end) {
-                    timSortMergeLowCopyB(target, d_index, a_index, b_index, end);
-                    return;
-                }
-                if (min_gallop <= a_count) {
-                    break;
-                }
-            }
-        }
-
-        min_gallop += 1;
-
-        while (true) {
-            if (min_gallop > 1) min_gallop -= 1;
-
-            // 左側のギャロッピング
-            const a_gallop_count = timSortGallopRight(target, b_index, a_index, buffer_end, 0);
-            for (a_index..a_gallop_count) |_| {
-                target.move(d_index, a_index);
-                d_index += 1;
-                a_index += 1;
-            }
-            if (a_index + 1 == buffer_end) {
-                timSortMergeLowCopyB(target, d_index, a_index, b_index, end);
-                return;
-            }
-            if (a_index == buffer_end) {
-                timSortMergeLowSucceed(target, d_index, a_index, buffer_end);
-                return;
-            }
-
-            // 右側が止まった次は右側
-            target.move(d_index, b_index);
-            d_index += 1;
-            b_index += 1;
-            if (b_index == end) {
-                timSortMergeLowSucceed(target, d_index, a_index, buffer_end);
-                return;
-            }
-
-            // 右側のギャロッピング
-            const b_gallop_count = timSortGallopLeft(target, a_index, b_index, end, 0);
-            for (b_index..b_gallop_count) |_| {
-                target.move(d_index, b_index);
-                d_index += 1;
-                b_index += 1;
-            }
-            if (b_index == end) {
-                timSortMergeLowSucceed(target, d_index, a_index, buffer_end);
-                return;
-            }
-
-            // 右側が止まった次は左側
-            target.move(d_index, a_index);
-            d_index += 1;
-            a_index += 1;
-            if (a_index + 1 == buffer_end) {
-                timSortMergeLowCopyB(target, d_index, a_index, b_index, end);
-                return;
-            }
-
-            // do {} while (acount >= MIN_GALLOP || bcount >= MIN_GALLOP);
-            if (!(a_gallop_count >= MIN_GALLOP or b_gallop_count >= MIN_GALLOP)) {
-                timSortMergeLowSucceed(target, d_index, a_index, buffer_end);
-                return;
-            }
-        }
-        min_gallop += 1;
-    }
-}
-
-fn timSortMergeLowSucceed(target: *LoggedSortTarget, d_index: usize, a_index: usize, buffer_end: usize) void {
-    if (a_index < buffer_end) {
-        for (a_index..buffer_end, d_index..) |a, d| {
-            target.move(d, a);
-        }
-    }
-}
-
-fn timSortMergeLowCopyB(target: *LoggedSortTarget, d_index: usize, a_index: usize, b_index: usize, end: usize) void {
-    var di = d_index;
-    var bi = b_index;
-    for (b_index..end) |_| {
-        target.move(di, bi);
-        di += 1;
-        bi += 1;
-    }
-    target.move(di, a_index);
+    try timSortMergeLow(allocator, &target, 0, 100, 200, &min_gallop);
+    try lib.testing.expect(target.isSorted()).is(true);
 }
 
 /// [start, mid) と [mid, end) をマージする。
@@ -938,6 +783,21 @@ fn timSortMergeHigh(allocator: Allocator, target: *LoggedSortTarget, start: usiz
         }
         min_gallop += 1;
     }
+}
+
+test timSortMergeHigh {
+    const allocator = std.testing.allocator;
+    var target = LoggedSortTarget.empty;
+    defer target.deinit(allocator);
+
+    try target.resize(allocator, 200);
+    for (0..50) |i| target.slice[i].v = i + 50;
+    for (50..100) |i| target.slice[i].v = i + 100;
+    for (100..150) |i| target.slice[i].v = i - 100;
+    for (150..200) |i| target.slice[i].v = i - 50;
+    var min_gallop: usize = 7;
+    try timSortMergeHigh(allocator, &target, 0, 100, 200, &min_gallop);
+    try lib.testing.expect(target.isSorted()).is(true);
 }
 
 fn timSortMergeHighSucceed(target: *LoggedSortTarget, d_index: usize, buffer: usize, b_index: usize) void {
